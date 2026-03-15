@@ -27,32 +27,36 @@ export default function App() {
     const willOpen = !open();
     setOpen(willOpen);
 
+    // Instant button swap
+    settingsBtnRef.style.backgroundColor = willOpen ? "#ffffff" : "#404040";
+    (gearRef as HTMLElement).style.opacity = willOpen ? "0" : "1";
+    (chevRef as HTMLElement).style.opacity = willOpen ? "1" : "0";
+
     if (willOpen) {
       closedHeight = containerRef.offsetHeight;
       const targetHeight = window.innerHeight - 32;
 
       currentAnim = animate([
-        // 1. Button swap + fade out input
-        [settingsBtnRef, { backgroundColor: "#ffffff" }, { duration: 0.25 }],
-        [gearRef, { opacity: 0 }, { duration: 0.2, at: 0 }],
-        [chevRef, { opacity: 1 }, { duration: 0.2, at: 0 }],
-        [inputRef, { opacity: 0 }, { duration: 0.25, at: 0 }],
+        // 1. Fade out input (button swaps instantly below)
+        [inputRef, { opacity: 0 }, { duration: 0.25 }],
         // 2. Expand container (explicit from→to keyframes)
         [containerRef, { height: [`${closedHeight}px`, `${targetHeight}px`] }, { duration: 0.4, ease: [0.4, 0, 0.2, 1] }],
         // 3. Fade in settings
         [settingsRef, { opacity: 1 }, { duration: 0.3 }],
       ]);
+
+      // After animation lands, swap to responsive unit
+      currentAnim.then(() => {
+        containerRef.style.height = "calc(100vh - 32px)";
+      }).catch(() => {});
     } else {
       currentAnim = animate([
         // 1. Fade out settings
         [settingsRef, { opacity: 0 }, { duration: 0.25 }],
         // 2. Collapse container
         [containerRef, { height: `${closedHeight}px` }, { duration: 0.4, ease: [0.4, 0, 0.2, 1] }],
-        // 3. Button swap back + fade in input
-        [settingsBtnRef, { backgroundColor: "#404040" }, { duration: 0.25 }],
-        [gearRef, { opacity: 1 }, { duration: 0.2, at: "<" }],
-        [chevRef, { opacity: 0 }, { duration: 0.2, at: "<" }],
-        [inputRef, { opacity: 1 }, { duration: 0.25, at: "<" }],
+        // 3. Fade in input (button swaps instantly below)
+        [inputRef, { opacity: 1 }, { duration: 0.25 }],
       ]);
 
       // Clean up explicit height after close finishes
