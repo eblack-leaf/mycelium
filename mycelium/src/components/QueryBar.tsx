@@ -66,7 +66,7 @@ export function QueryBar() {
       placeholder={placeholder()}
       onInput={handleInput}
       value={input()}
-      class="w-full resize-none overflow-hidden rounded-2xl bg-stone-700 text-neutral-100 placeholder-neutral-400 px-4 py-3 text-sm leading-relaxed outline-none"
+      class="w-full resize-none overflow-hidden bg-transparent text-neutral-100 placeholder-neutral-400 px-4 py-3 text-sm leading-relaxed outline-none"
       style={{ "min-height": "92px", "max-height": "240px" }}
     />
   );
