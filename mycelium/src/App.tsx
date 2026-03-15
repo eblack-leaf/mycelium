@@ -17,8 +17,7 @@ export default function App() {
             <Icon.Settings size={16} stroke="#d4d4d4" />
           </button>
           <button
-            class="w-10 h-10 rounded-full flex items-center justify-center focus:outline-none"
-            style={{ background: "#e8b87d" }}
+            class="w-10 h-10 rounded-full flex items-center justify-center focus:outline-none bg-orange-300"
           >
             <Icon.Terminal size={17} stroke="#1a1a1a" strokeWidth={2.2} />
           </button>
