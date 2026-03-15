@@ -62,12 +62,12 @@ export function QueryBar() {
 
   return (
     <textarea
-      rows={1}
+      rows={2}
       placeholder={placeholder()}
       onInput={handleInput}
       value={input()}
       class="w-full resize-none overflow-hidden rounded-2xl bg-stone-700 text-neutral-100 placeholder-neutral-400 px-4 py-3 text-sm leading-relaxed outline-none"
-      style={{ "min-height": "44px", "max-height": "240px" }}
+      style={{ "min-height": "92px", "max-height": "240px" }}
     />
   );
 }

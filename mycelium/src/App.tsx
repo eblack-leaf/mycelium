@@ -12,12 +12,17 @@ export default function App() {
       {/* Query row */}
       <div class="flex items-end gap-3 p-4">
         <QueryBar />
-        <button
-          class="shrink-0 w-12 h-12 rounded-full flex items-center justify-center focus:outline-none"
-          style={{ background: "#e8b87d" }}
-        >
-          <Icon.Terminal size={20} stroke="#1a1a1a" strokeWidth={2.2} />
-        </button>
+        <div class="flex flex-col gap-3 shrink-0">
+          <button class="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center focus:outline-none">
+            <Icon.Settings size={16} stroke="#d4d4d4" />
+          </button>
+          <button
+            class="w-10 h-10 rounded-full flex items-center justify-center focus:outline-none"
+            style={{ background: "#e8b87d" }}
+          >
+            <Icon.Terminal size={17} stroke="#1a1a1a" strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
     </main>
