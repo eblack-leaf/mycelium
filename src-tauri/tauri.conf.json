@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.salt.mycelium",
   "build": {
-    "beforeDevCommand": "cd ../../frontend && deno task dev",
+    "beforeDevCommand": "deno task dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "cd ../../frontend && deno task build",
-    "frontendDist": "../../frontend/dist"
+    "beforeBuildCommand": "deno task build",
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
