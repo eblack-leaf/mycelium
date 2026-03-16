@@ -99,7 +99,6 @@ pub fn all_operations() -> Vec<OpNode> {
         ("GROUP_BY", Clause, vec![Numeric, String, Bool, Temporal],   Field),
         ("FETCH",    Clause, vec![Record],                            Field),
         ("SPLIT",    Clause, vec![Array, Set],                        Field),
-        ("WHERE",    Clause, vec![],                                  None),
         ("LIMIT",    Clause, vec![],                                  None),
 
         // Comparisons — connect to fields by type

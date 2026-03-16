@@ -109,7 +109,7 @@ impl TypeVocab {
             "record", "array", "set", "option", "geometry", "literal", "range",
             // Operation node identities — prefixed to avoid collision
             "op_SELECT", "op_CREATE", "op_UPDATE", "op_DELETE", "op_RELATE", "op_INSERT",
-            "op_WHERE", "op_ORDER_BY", "op_GROUP_BY", "op_LIMIT", "op_FETCH", "op_SPLIT",
+            "op_ORDER_BY", "op_GROUP_BY", "op_LIMIT", "op_FETCH", "op_SPLIT",
             "op_eq", "op_neq", "op_gt", "op_lt", "op_gte", "op_lte",
             "op_LIKE", "op_CONTAINS", "op_STARTS_WITH", "op_ENDS_WITH",
             "op_add", "op_sub", "op_mul", "op_div",
