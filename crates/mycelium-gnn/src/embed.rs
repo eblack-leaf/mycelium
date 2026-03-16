@@ -9,10 +9,10 @@ use std::path::Path;
 use burn::tensor::{backend::Backend, Tensor, TensorData};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use super::graph::SchemaGraph;
-use super::query_graph::QueryGraph;
-use super::schema::{Schema, FieldType};
-use super::operations::OpNode;
+use crate::graph::SchemaGraph;
+use crate::query_graph::QueryGraph;
+use crate::schema::{Schema, FieldType};
+use crate::operations::OpNode;
 
 /// Preloaded GloVe vectors: word → f32 vector.
 #[derive(Debug, Clone)]

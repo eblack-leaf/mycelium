@@ -4,9 +4,9 @@
 // Built per-query from SchemaGraph + QueryGraph + cross-edges.
 // =============================================================================
 
-use super::graph::SchemaGraph;
-use super::query_graph::QueryGraph;
-use super::operations::{all_operations, is_compatible, OpNode, ConnectsTo};
+use crate::graph::SchemaGraph;
+use crate::query_graph::QueryGraph;
+use crate::operations::{all_operations, is_compatible, OpNode, ConnectsTo};
 
 /// A single relation type: source node type → destination node type.
 #[derive(Debug, Clone)]

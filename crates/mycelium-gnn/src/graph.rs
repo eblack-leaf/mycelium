@@ -5,7 +5,7 @@
 // Edge types: HAS_FIELD, FIELD_OF, LINKS_TO, LINKED_FROM
 // =============================================================================
 
-use super::schema::{Schema, FieldType};
+use crate::schema::{Schema, FieldType};
 
 #[derive(Debug, Clone)]
 pub struct Node {

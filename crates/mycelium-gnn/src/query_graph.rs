@@ -6,7 +6,7 @@
 // resolved by cross-edges in ConvGraph::combined + message passing.
 // =============================================================================
 
-use super::intent::{Extraction, SchemaMatch, OperationMatch};
+use crate::intent::{Extraction, SchemaMatch, OperationMatch};
 
 // =============================================================================
 // Query graph node types

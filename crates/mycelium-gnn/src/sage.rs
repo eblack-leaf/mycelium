@@ -13,8 +13,8 @@ use burn::{
     tensor::{backend::Backend, Tensor},
 };
 use burn::tensor::activation;
-use super::conv_graph::ResolverConv;
-use super::ops;
+use crate::conv_graph::ResolverConv;
+use crate::tensor_ops as ops;
 
 // =============================================================================
 // SAGEConv — single relation message passing

@@ -11,7 +11,7 @@
 //   "none"  — no structural edges, only reachable via Grounding model cross-edges
 // =============================================================================
 
-use super::schema::FieldType;
+use crate::schema::FieldType;
 
 /// One operation node in the graph.
 #[derive(Debug, Clone)]
