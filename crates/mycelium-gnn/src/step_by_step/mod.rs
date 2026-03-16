@@ -10,6 +10,7 @@ pub mod sage;
 pub mod embed;
 pub mod intent;
 pub mod query_graph;
+pub mod operations;
 
 use std::path::Path;
 use schema::{Reader, Extractor, Schema, Validation};

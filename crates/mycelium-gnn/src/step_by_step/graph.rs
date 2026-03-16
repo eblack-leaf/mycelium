@@ -11,6 +11,8 @@ use super::schema::{Schema, FieldType};
 pub struct Node {
     pub id: usize,
     pub name: String,
+    /// Field type, only set for field nodes (used for operation compatibility edges).
+    pub field_type: Option<FieldType>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +57,7 @@ impl SchemaGraph {
             table_nodes.push(Node {
                 id: table_id,
                 name: table.name.clone(),
+                field_type: None,
             });
         }
 
@@ -65,6 +68,7 @@ impl SchemaGraph {
                 field_nodes.push(Node {
                     id: field_id,
                     name: format!("{}.{}", table.name, field.name),
+                    field_type: Some(field.field_type.clone()),
                 });
 
                 has_field.push(Edge { src: table_id, dst: field_id });

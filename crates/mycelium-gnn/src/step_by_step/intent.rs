@@ -19,6 +19,14 @@ pub struct CandidateMatch {
     pub surface_form: String,
     pub confidence: f32,
     pub schema_matches: Vec<SchemaMatch>,
+    pub operation_matches: Vec<OperationMatch>,
+}
+
+/// Scored guess linking a filter phrase to an operation node.
+#[derive(Debug, Clone)]
+pub struct OperationMatch {
+    pub operation_id: usize,   // index into all_operations()
+    pub score: f32,            // Grounding model's confidence
 }
 
 /// A candidate filter: field reference + operator + value.
@@ -28,6 +36,7 @@ pub struct FilterMatch {
     pub operator: String,
     pub value: String,
     pub confidence: f32,
+    pub operation_matches: Vec<OperationMatch>,
 }
 
 /// Model-agnostic output from NL intent extraction.

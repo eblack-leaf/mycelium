@@ -12,6 +12,7 @@ use rand::{Rng, SeedableRng};
 use super::graph::SchemaGraph;
 use super::query_graph::QueryGraph;
 use super::schema::{Schema, FieldType};
+use super::operations::OpNode;
 
 /// Preloaded GloVe vectors: word → f32 vector.
 #[derive(Debug, Clone)]
@@ -88,8 +89,9 @@ impl GloveVocab {
     }
 }
 
-/// Learned type embeddings — one vector per FieldType variant + "table".
-/// These are trainable parameters.
+/// Learned type embeddings — one vector per structural role in the graph.
+/// Covers schema types (table, int, string...) AND operation identities
+/// (op_SELECT, op_gt, op_LIKE...). These are trainable parameters.
 #[derive(Debug, Clone)]
 pub struct TypeVocab {
     pub vectors: HashMap<String, Vec<f32>>,
@@ -101,9 +103,18 @@ impl TypeVocab {
     /// Initialize with small random values from a seeded RNG.
     pub fn new(dim: usize, seed: u64) -> Self {
         let type_names = [
+            // Schema node types
             "table", "any", "bool", "string", "int", "float", "decimal",
             "number", "datetime", "duration", "bytes", "object", "regex",
             "record", "array", "set", "option", "geometry", "literal", "range",
+            // Operation node identities — prefixed to avoid collision
+            "op_SELECT", "op_CREATE", "op_UPDATE", "op_DELETE", "op_RELATE", "op_INSERT",
+            "op_WHERE", "op_ORDER_BY", "op_GROUP_BY", "op_LIMIT", "op_FETCH", "op_SPLIT",
+            "op_eq", "op_neq", "op_gt", "op_lt", "op_gte", "op_lte",
+            "op_LIKE", "op_CONTAINS", "op_STARTS_WITH", "op_ENDS_WITH",
+            "op_add", "op_sub", "op_mul", "op_div",
+            "op_count", "op_sum", "op_avg", "op_min", "op_max", "op_array_group",
+            "op_arrow_right", "op_arrow_left", "op_arrow_both",
         ];
 
         let mut rng = StdRng::seed_from_u64(seed);
@@ -147,9 +158,9 @@ impl Embedder {
         }
     }
 
-    /// Total embedding dim: glove_dim + type_dim
+    /// Total embedding dim: glove_dim + type_dim + 2 (confidence + is_nl flag)
     pub fn dim(&self) -> usize {
-        self.glove.dim + self.types.dim
+        self.glove.dim + self.types.dim + 2
     }
 
     /// Produce initial embeddings for every node type.
@@ -158,6 +169,7 @@ impl Embedder {
         schema: &Schema,
         schema_graph: &SchemaGraph,
         query_graph: &QueryGraph,
+        operations: &[OpNode],
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut result = HashMap::new();
@@ -167,7 +179,7 @@ impl Embedder {
         let table_feats: Vec<f32> = schema_graph.table_nodes.iter().map(|node| {
             let word = self.glove.embed(&node.name);
             let typ = self.types.embed("table");
-            concat(&word, &typ)
+            concat(&word, &typ, 0.0, false)
         }).flatten().collect();
 
         if !schema_graph.table_nodes.is_empty() {
@@ -178,11 +190,10 @@ impl Embedder {
 
         // --- Schema: field nodes ---
         let field_feats: Vec<f32> = schema_graph.field_nodes.iter().map(|node| {
-            // Find this field's type from the schema
             let type_key = find_field_type(schema, &node.name);
             let word = self.glove.embed(&node.name);
             let typ = self.types.embed(&type_key);
-            concat(&word, &typ)
+            concat(&word, &typ, 0.0, false)
         }).flatten().collect();
 
         if !schema_graph.field_nodes.is_empty() {
@@ -195,7 +206,7 @@ impl Embedder {
         let coll_feats: Vec<f32> = query_graph.collections.iter().map(|c| {
             let word = self.glove.embed(&c.surface_form);
             let typ = self.types.embed("table");
-            concat(&word, &typ)
+            concat(&word, &typ, c.confidence, true)
         }).flatten().collect();
 
         if !query_graph.collections.is_empty() {
@@ -208,7 +219,7 @@ impl Embedder {
         let field_cand_feats: Vec<f32> = query_graph.fields.iter().map(|f| {
             let word = self.glove.embed(&f.surface_form);
             let typ = self.types.random_init();
-            concat(&word, &typ)
+            concat(&word, &typ, f.confidence, true)
         }).flatten().collect();
 
         if !query_graph.fields.is_empty() {
@@ -220,8 +231,8 @@ impl Embedder {
         // --- Query: filter candidates ---
         let filter_feats: Vec<f32> = query_graph.filters.iter().map(|f| {
             let word = self.glove.embed(&format!("{} {}", f.operator, f.value));
-            let typ = vec![0.0; self.types.dim];
-            concat(&word, &typ)
+            let typ = self.types.random_init();
+            concat(&word, &typ, f.confidence, true)
         }).flatten().collect();
 
         if !query_graph.filters.is_empty() {
@@ -233,8 +244,8 @@ impl Embedder {
         // --- Query: traversal candidates ---
         let trav_feats: Vec<f32> = query_graph.traversals.iter().map(|t| {
             let word = self.glove.embed(&t.surface_form);
-            let typ = vec![0.0; self.types.dim];
-            concat(&word, &typ)
+            let typ = self.types.random_init();
+            concat(&word, &typ, t.confidence, true)
         }).flatten().collect();
 
         if !query_graph.traversals.is_empty() {
@@ -243,14 +254,31 @@ impl Embedder {
             ));
         }
 
+        // --- Operation nodes ---
+        // Each operation gets its own learned type vector (op_SELECT, op_gt, etc.)
+        // plus a GloVe embedding of its name for word-level signal.
+        let op_feats: Vec<f32> = operations.iter().map(|op| {
+            let word = self.glove.embed(&op.name.to_lowercase().replace('_', " "));
+            let typ = self.types.embed(&format!("op_{}", op.name));
+            concat(&word, &typ, 0.0, false)
+        }).flatten().collect();
+
+        if !operations.is_empty() {
+            result.insert("operation".to_string(), to_tensor::<B>(
+                op_feats, operations.len(), dim, device,
+            ));
+        }
+
         result
     }
 }
 
-fn concat(a: &[f32], b: &[f32]) -> Vec<f32> {
-    let mut out = Vec::with_capacity(a.len() + b.len());
+fn concat(a: &[f32], b: &[f32], confidence: f32, is_nl: bool) -> Vec<f32> {
+    let mut out = Vec::with_capacity(a.len() + b.len() + 2);
     out.extend_from_slice(a);
     out.extend_from_slice(b);
+    out.push(confidence);
+    out.push(if is_nl { 1.0 } else { 0.0 });
     out
 }
 

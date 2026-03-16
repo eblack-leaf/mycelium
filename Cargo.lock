@@ -4783,17 +4783,12 @@ dependencies = [
 name = "mycelium-app"
 version = "0.1.0"
 dependencies = [
- "mycelium-core",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
 ]
-
-[[package]]
-name = "mycelium-core"
-version = "0.1.0"
 
 [[package]]
 name = "naga"

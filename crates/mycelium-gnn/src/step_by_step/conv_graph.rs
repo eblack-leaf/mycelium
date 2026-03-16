@@ -6,6 +6,7 @@
 
 use super::graph::SchemaGraph;
 use super::query_graph::QueryGraph;
+use super::operations::{all_operations, is_compatible, OpNode, ConnectsTo};
 
 /// A single relation type: source node type → destination node type.
 #[derive(Debug, Clone)]
@@ -22,13 +23,17 @@ pub struct ConvRelation {
 pub struct ResolverConv {
     pub node_counts: Vec<(String, usize)>,
     pub relations: Vec<ConvRelation>,
+    pub operations: Vec<OpNode>,
 }
 
 impl ResolverConv {
     pub fn new(schema_graph: &SchemaGraph, query_graph: &QueryGraph) -> Self {
-        let mut node_counts = vec![
+        let operations = all_operations();
+
+        let node_counts = vec![
             ("table".to_string(), schema_graph.table_nodes.len()),
             ("field".to_string(), schema_graph.field_nodes.len()),
+            ("operation".to_string(), operations.len()),
             ("q_collection".to_string(), query_graph.collections.len()),
             ("q_field".to_string(), query_graph.fields.len()),
             ("q_filter".to_string(), query_graph.filters.len()),
@@ -88,6 +93,13 @@ impl ResolverConv {
                 dst_type: "q_field".to_string(),
                 src_indices: query_graph.filters_on.iter().map(|e| e.src).collect(),
                 dst_indices: query_graph.filters_on.iter().map(|e| e.dst).collect(),
+            });
+            relations.push(ConvRelation {
+                src_type: "q_field".to_string(),
+                edge_type: "filtered_by".to_string(),
+                dst_type: "q_filter".to_string(),
+                src_indices: query_graph.filters_on.iter().map(|e| e.dst).collect(),
+                dst_indices: query_graph.filters_on.iter().map(|e| e.src).collect(),
             });
         }
 
@@ -157,6 +169,83 @@ impl ResolverConv {
             });
         }
 
-        Self { node_counts, relations }
+        // --- Schema edges: field ↔ operation (compatible_op) ---
+        // Only for operations that connect to fields, filtered by type.
+
+        let (mut cop_fs, mut cop_fd, mut cop_os, mut cop_od) = (vec![], vec![], vec![], vec![]);
+        for field_node in &schema_graph.field_nodes {
+            if let Some(ref ft) = field_node.field_type {
+                for op in &operations {
+                    if op.connects_to == ConnectsTo::Field && is_compatible(op, ft) {
+                        cop_fs.push(field_node.id); cop_fd.push(op.id);
+                        cop_os.push(op.id); cop_od.push(field_node.id);
+                    }
+                }
+            }
+        }
+        if !cop_fs.is_empty() {
+            relations.push(ConvRelation {
+                src_type: "field".to_string(), edge_type: "compatible_op".to_string(),
+                dst_type: "operation".to_string(), src_indices: cop_fs, dst_indices: cop_fd,
+            });
+            relations.push(ConvRelation {
+                src_type: "operation".to_string(), edge_type: "compatible_field".to_string(),
+                dst_type: "field".to_string(), src_indices: cop_os, dst_indices: cop_od,
+            });
+        }
+
+        // --- Schema edges: table ↔ operation (table_op) ---
+        // Statements and universal aggregates connect to all tables.
+
+        let (mut top_ts, mut top_td, mut top_os, mut top_od) = (vec![], vec![], vec![], vec![]);
+        for table_node in &schema_graph.table_nodes {
+            for op in &operations {
+                if op.connects_to == ConnectsTo::Table {
+                    top_ts.push(table_node.id); top_td.push(op.id);
+                    top_os.push(op.id); top_od.push(table_node.id);
+                }
+            }
+        }
+        if !top_ts.is_empty() {
+            relations.push(ConvRelation {
+                src_type: "table".to_string(), edge_type: "table_op".to_string(),
+                dst_type: "operation".to_string(), src_indices: top_ts, dst_indices: top_td,
+            });
+            relations.push(ConvRelation {
+                src_type: "operation".to_string(), edge_type: "op_table".to_string(),
+                dst_type: "table".to_string(), src_indices: top_os, dst_indices: top_od,
+            });
+        }
+
+        // --- Cross-edges: query candidates ↔ operation (matches_op) ---
+        // Built from Grounding model operation_matches on all candidate types.
+
+        for (node_type, op_sources) in [
+            ("q_filter", query_graph.filters.iter().map(|f| (f.id, &f.operation_matches)).collect::<Vec<_>>()),
+            ("q_field", query_graph.fields.iter().map(|f| (f.id, &f.operation_matches)).collect::<Vec<_>>()),
+            ("q_collection", query_graph.collections.iter().map(|c| (c.id, &c.operation_matches)).collect::<Vec<_>>()),
+            ("q_traversal", query_graph.traversals.iter().map(|t| (t.id, &t.operation_matches)).collect::<Vec<_>>()),
+        ] {
+            let (mut qs, mut qd, mut ros, mut rod) = (vec![], vec![], vec![], vec![]);
+            for (candidate_id, matches) in op_sources {
+                for m in matches {
+                    qs.push(candidate_id); qd.push(m.operation_id);
+                    ros.push(m.operation_id); rod.push(candidate_id);
+                }
+            }
+            if !qs.is_empty() {
+                relations.push(ConvRelation {
+                    src_type: node_type.to_string(), edge_type: "matches_op".to_string(),
+                    dst_type: "operation".to_string(), src_indices: qs, dst_indices: qd,
+                });
+                relations.push(ConvRelation {
+                    src_type: "operation".to_string(),
+                    edge_type: format!("matched_by_{}", node_type.strip_prefix("q_").unwrap_or(node_type)),
+                    dst_type: node_type.to_string(), src_indices: ros, dst_indices: rod,
+                });
+            }
+        }
+
+        Self { node_counts, relations, operations }
     }
 }

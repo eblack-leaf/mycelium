@@ -6,7 +6,7 @@
 // resolved by cross-edges in ConvGraph::combined + message passing.
 // =============================================================================
 
-use super::intent::{Extraction, SchemaMatch};
+use super::intent::{Extraction, SchemaMatch, OperationMatch};
 
 // =============================================================================
 // Query graph node types
@@ -16,14 +16,18 @@ use super::intent::{Extraction, SchemaMatch};
 pub struct CollectionCandidate {
     pub id: usize,
     pub surface_form: String,
+    pub confidence: f32,
     pub schema_matches: Vec<SchemaMatch>,
+    pub operation_matches: Vec<OperationMatch>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FieldCandidate {
     pub id: usize,
     pub surface_form: String,
+    pub confidence: f32,
     pub schema_matches: Vec<SchemaMatch>,
+    pub operation_matches: Vec<OperationMatch>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,13 +36,17 @@ pub struct FilterCandidate {
     pub field_candidate_id: usize,
     pub operator: String,
     pub value: String,
+    pub confidence: f32,
+    pub operation_matches: Vec<OperationMatch>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TraversalCandidate {
     pub id: usize,
     pub surface_form: String,
+    pub confidence: f32,
     pub schema_matches: Vec<SchemaMatch>,
+    pub operation_matches: Vec<OperationMatch>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,7 +76,9 @@ impl QueryGraph {
             CollectionCandidate {
                 id: i,
                 surface_form: c.surface_form.clone(),
+                confidence: c.confidence,
                 schema_matches: c.schema_matches.clone(),
+                operation_matches: c.operation_matches.clone(),
             }
         }).collect();
 
@@ -76,7 +86,9 @@ impl QueryGraph {
             FieldCandidate {
                 id: i,
                 surface_form: f.surface_form.clone(),
+                confidence: f.confidence,
                 schema_matches: f.schema_matches.clone(),
+                operation_matches: f.operation_matches.clone(),
             }
         }).collect();
 
@@ -93,7 +105,9 @@ impl QueryGraph {
                     fields.push(FieldCandidate {
                         id,
                         surface_form: fm.field.surface_form.clone(),
+                        confidence: fm.field.confidence,
                         schema_matches: fm.field.schema_matches.clone(),
+                        operation_matches: fm.field.operation_matches.clone(),
                     });
                     id
                 });
@@ -104,6 +118,8 @@ impl QueryGraph {
                 field_candidate_id: field_id,
                 operator: fm.operator.clone(),
                 value: fm.value.clone(),
+                confidence: fm.confidence,
+                operation_matches: fm.operation_matches.clone(),
             });
             filters_on.push(QueryEdge { src: filter_id, dst: field_id });
         }
@@ -112,7 +128,9 @@ impl QueryGraph {
             TraversalCandidate {
                 id: i,
                 surface_form: t.surface_form.clone(),
+                confidence: t.confidence,
                 schema_matches: t.schema_matches.clone(),
+                operation_matches: t.operation_matches.clone(),
             }
         }).collect();
 
