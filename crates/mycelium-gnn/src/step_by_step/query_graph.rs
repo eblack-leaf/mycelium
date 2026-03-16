@@ -50,6 +50,15 @@ pub struct TraversalCandidate {
 }
 
 #[derive(Debug, Clone)]
+pub struct ModifierCandidate {
+    pub id: usize,
+    pub surface_form: String,
+    pub value: String,
+    pub confidence: f32,
+    pub operation_matches: Vec<OperationMatch>,
+}
+
+#[derive(Debug, Clone)]
 pub struct QueryEdge {
     pub src: usize,
     pub dst: usize,
@@ -65,6 +74,7 @@ pub struct QueryGraph {
     pub fields: Vec<FieldCandidate>,
     pub filters: Vec<FilterCandidate>,
     pub traversals: Vec<TraversalCandidate>,
+    pub modifiers: Vec<ModifierCandidate>,
 
     /// filter → field (only intra-query edge — the model paired these)
     pub filters_on: Vec<QueryEdge>,
@@ -134,11 +144,22 @@ impl QueryGraph {
             }
         }).collect();
 
+        let modifiers: Vec<_> = extraction.modifiers.iter().enumerate().map(|(i, m)| {
+            ModifierCandidate {
+                id: i,
+                surface_form: m.surface_form.clone(),
+                value: m.value.clone(),
+                confidence: m.confidence,
+                operation_matches: m.operation_matches.clone(),
+            }
+        }).collect();
+
         Self {
             collections,
             fields,
             filters,
             traversals,
+            modifiers,
             filters_on,
         }
     }

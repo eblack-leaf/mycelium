@@ -254,6 +254,19 @@ impl Embedder {
             ));
         }
 
+        // --- Query: modifier candidates ---
+        let mod_feats: Vec<f32> = query_graph.modifiers.iter().map(|m| {
+            let word = self.glove.embed(&format!("{} {}", m.surface_form, m.value));
+            let typ = self.types.random_init();
+            concat(&word, &typ, m.confidence, true)
+        }).flatten().collect();
+
+        if !query_graph.modifiers.is_empty() {
+            result.insert("q_modifier".to_string(), to_tensor::<B>(
+                mod_feats, query_graph.modifiers.len(), dim, device,
+            ));
+        }
+
         // --- Operation nodes ---
         // Each operation gets its own learned type vector (op_SELECT, op_gt, etc.)
         // plus a GloVe embedding of its name for word-level signal.

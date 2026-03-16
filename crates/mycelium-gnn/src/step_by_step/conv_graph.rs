@@ -38,6 +38,7 @@ impl ResolverConv {
             ("q_field".to_string(), query_graph.fields.len()),
             ("q_filter".to_string(), query_graph.filters.len()),
             ("q_traversal".to_string(), query_graph.traversals.len()),
+            ("q_modifier".to_string(), query_graph.modifiers.len()),
         ];
 
         let mut relations = Vec::new();
@@ -225,6 +226,7 @@ impl ResolverConv {
             ("q_field", query_graph.fields.iter().map(|f| (f.id, &f.operation_matches)).collect::<Vec<_>>()),
             ("q_collection", query_graph.collections.iter().map(|c| (c.id, &c.operation_matches)).collect::<Vec<_>>()),
             ("q_traversal", query_graph.traversals.iter().map(|t| (t.id, &t.operation_matches)).collect::<Vec<_>>()),
+            ("q_modifier", query_graph.modifiers.iter().map(|m| (m.id, &m.operation_matches)).collect::<Vec<_>>()),
         ] {
             let (mut qs, mut qd, mut ros, mut rod) = (vec![], vec![], vec![], vec![]);
             for (candidate_id, matches) in op_sources {

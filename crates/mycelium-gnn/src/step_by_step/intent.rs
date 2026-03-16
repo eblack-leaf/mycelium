@@ -39,6 +39,15 @@ pub struct FilterMatch {
     pub operation_matches: Vec<OperationMatch>,
 }
 
+/// A query-level modifier (LIMIT, OFFSET, etc.) — not applied to a field.
+#[derive(Debug, Clone)]
+pub struct ModifierMatch {
+    pub surface_form: String,
+    pub value: String,
+    pub confidence: f32,
+    pub operation_matches: Vec<OperationMatch>,
+}
+
 /// Model-agnostic output from NL intent extraction.
 #[derive(Debug, Clone)]
 pub struct Extraction {
@@ -46,4 +55,5 @@ pub struct Extraction {
     pub fields: Vec<CandidateMatch>,
     pub filters: Vec<FilterMatch>,
     pub traversals: Vec<CandidateMatch>,
+    pub modifiers: Vec<ModifierMatch>,
 }
