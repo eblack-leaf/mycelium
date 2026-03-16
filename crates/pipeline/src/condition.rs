@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::Schema;
 
-/// A single extracted condition triple.
+/// A single condition triple — the IR between the orchestrator and query builder.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Condition {
     pub field: String,
@@ -49,7 +49,10 @@ impl Op {
     }
 }
 
-/// Extracted value, typed after schema lookup.
+/// Value in a condition. The orchestrator produces these from spore hints —
+/// numeric hints become Int/Float (based on field type from schema),
+/// temporal hints stay as marker text, everything else is a raw span.
+/// The query builder consumes these to emit SurrealQL literals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Value {
@@ -57,11 +60,9 @@ pub enum Value {
     Float(f64),
     String(String),
     Bool(bool),
-    /// Raw temporal expression resolved by TemporalResolver.
-    /// e.g. "time::now() - 1w"
+    /// Temporal marker text from the input, e.g. "this week", "3 days ago".
+    /// The query builder resolves this to a SurrealQL time expression.
     Temporal(String),
-    /// Passthrough for types we don't parse — plugin provides the literal.
-    Raw(String),
 }
 
 impl Value {
@@ -72,23 +73,20 @@ impl Value {
             Self::String(v) => format!("'{}'", v.replace('\'', "\\'")),
             Self::Bool(v) => v.to_string(),
             Self::Temporal(expr) => expr.clone(),
-            Self::Raw(v) => v.clone(),
         }
     }
 }
 
-/// The orchestrator model's job: take spore hints (positioned fragments)
-/// and associate them into complete Conditions.
+/// The orchestrator takes spore hints (positioned fragments) and associates
+/// them into complete Conditions.
 ///
-/// Spores find the pieces independently:
-///   Field("stock") at [8..13], Op(Lt) at [14..23], Numeric(10) at [24..26]
-///   Temporal("this week") at [35..44], Field("created") at [27..34]
+/// Spores find pieces independently:
+///   Field("stock") at [24..29], Op(Lt) at [30..35], Numeric(10) at [36..38]
+///   Field("created") at [33..38], Temporal("this week") at [39..48]
 ///
-/// The orchestrator decides which field goes with which op goes with which value.
-/// It sees the full input + all hints with positions + schema context.
-///
-/// Architecture: takes the annotated input as a structured feature vector
-/// and outputs association indices — grouping hints into condition triples.
+/// The orchestrator groups them: which field goes with which op and which value.
+/// It also infers missing pieces — e.g. no explicit op near a temporal hint,
+/// but the orchestrator can infer Gt from context.
 pub trait Orchestrator {
     fn assemble(&self, annotated: &crate::hint::AnnotatedInput, schema: &Schema) -> Vec<Condition>;
 }
