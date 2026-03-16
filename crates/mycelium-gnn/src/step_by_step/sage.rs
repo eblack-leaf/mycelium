@@ -1,5 +1,5 @@
 // =============================================================================
-// sage.rs — GraphSAGE message passing over a ConvGraph
+// sage.rs — GraphSAGE message passing over a ResolverConv
 //
 // SAGEConv    — one relation type
 // HeteroConv  — one SAGEConv per relation, merges results per dst type
@@ -13,7 +13,7 @@ use burn::{
     tensor::{backend::Backend, Tensor},
 };
 use burn::tensor::activation;
-use super::conv_graph::ConvGraph;
+use super::conv_graph::ResolverConv;
 use super::ops;
 
 // =============================================================================
@@ -62,16 +62,13 @@ impl<B: Backend> SAGEConv<B> {
 
 #[derive(Module, Debug)]
 pub struct HeteroConv<B: Backend> {
-    /// Parallel vecs: relation key string ↔ SAGEConv
     pub relation_keys: Vec<String>,
     pub convs: Vec<SAGEConv<B>>,
 }
 
 impl<B: Backend> HeteroConv<B> {
-    /// Build one SAGEConv per relation in the ConvGraph.
-    /// in_dims: node_type → current feature dim
     pub fn new(
-        conv_graph: &ConvGraph,
+        conv: &ResolverConv,
         in_dims: &HashMap<String, usize>,
         out_dim: usize,
         device: &B::Device,
@@ -79,7 +76,7 @@ impl<B: Backend> HeteroConv<B> {
         let mut relation_keys = Vec::new();
         let mut convs = Vec::new();
 
-        let mut sorted: Vec<_> = conv_graph.relations.iter().collect();
+        let mut sorted: Vec<_> = conv.relations.iter().collect();
         sorted.sort_by_key(|r| (&r.src_type, &r.edge_type, &r.dst_type));
 
         for rel in sorted {
@@ -92,16 +89,15 @@ impl<B: Backend> HeteroConv<B> {
         Self { relation_keys, convs }
     }
 
-    /// One round of heterogeneous message passing.
     pub fn forward(
         &self,
-        conv_graph: &ConvGraph,
+        conv: &ResolverConv,
         embeddings: &HashMap<String, Tensor<B, 2>>,
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut dst_acc: HashMap<String, Vec<Tensor<B, 2>>> = HashMap::new();
 
-        for (rel, conv) in conv_graph.relations.iter().zip(self.convs.iter()) {
+        for (rel, sage) in conv.relations.iter().zip(self.convs.iter()) {
             let src_emb = match embeddings.get(&rel.src_type) {
                 Some(e) => e.clone(),
                 None => continue,
@@ -111,11 +107,9 @@ impl<B: Backend> HeteroConv<B> {
                 None => continue,
             };
 
-            let updated = conv.forward(
-                src_emb,
-                dst_emb,
-                &rel.src_indices,
-                &rel.dst_indices,
+            let updated = sage.forward(
+                src_emb, dst_emb,
+                &rel.src_indices, &rel.dst_indices,
                 device,
             );
 
@@ -149,7 +143,7 @@ pub struct Encoder<B: Backend> {
 
 impl<B: Backend> Encoder<B> {
     pub fn new(
-        conv_graph: &ConvGraph,
+        conv: &ResolverConv,
         input_dims: &HashMap<String, usize>,
         hidden_dim: usize,
         n_layers: usize,
@@ -161,14 +155,13 @@ impl<B: Backend> Encoder<B> {
             let in_dims: HashMap<String, usize> = if i == 0 {
                 input_dims.clone()
             } else {
-                conv_graph
-                    .node_counts
+                conv.node_counts
                     .iter()
                     .map(|(name, _)| (name.clone(), hidden_dim))
                     .collect()
             };
 
-            layers.push(HeteroConv::new(conv_graph, &in_dims, hidden_dim, device));
+            layers.push(HeteroConv::new(conv, &in_dims, hidden_dim, device));
         }
 
         Self { layers, hidden_dim }
@@ -178,13 +171,13 @@ impl<B: Backend> Encoder<B> {
     /// returns: node_type → [n_nodes, hidden_dim]
     pub fn forward(
         &self,
-        conv_graph: &ConvGraph,
+        conv: &ResolverConv,
         initial: HashMap<String, Tensor<B, 2>>,
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut embeddings = initial;
         for layer in &self.layers {
-            embeddings = layer.forward(conv_graph, &embeddings, device);
+            embeddings = layer.forward(conv, &embeddings, device);
         }
         embeddings
     }

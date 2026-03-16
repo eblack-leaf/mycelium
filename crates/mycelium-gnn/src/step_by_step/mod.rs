@@ -7,6 +7,8 @@ pub mod graph;
 pub mod conv_graph;
 pub mod ops;
 pub mod sage;
+pub mod intent;
+pub mod query_graph;
 
 use std::path::Path;
 use schema::{Reader, Extractor, Schema, Validation};
