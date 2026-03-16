@@ -11,6 +11,10 @@ pub mod embed;
 pub mod intent;
 pub mod query_graph;
 pub mod operations;
+pub mod grounding;
+pub mod head;
+pub mod training;
+pub mod orchestrator;
 
 use std::path::Path;
 use schema::{Reader, Extractor, Schema, Validation};
