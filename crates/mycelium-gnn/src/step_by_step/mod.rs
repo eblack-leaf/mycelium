@@ -7,6 +7,7 @@ pub mod graph;
 pub mod conv_graph;
 pub mod ops;
 pub mod sage;
+pub mod embed;
 pub mod intent;
 pub mod query_graph;
 

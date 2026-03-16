@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 burn = { version = "0.20.1", features = ["ndarray", "autodiff"] }
 regex = "1"
+rand = "0.9"
 
 # For GPU (uncomment when deploying):
 # burn = { version = "0.20.1", features = ["wgpu"] }
