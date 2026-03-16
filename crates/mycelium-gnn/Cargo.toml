@@ -1,0 +1,17 @@
+[package]
+name    = "gnn-burn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+burn = { version = "0.20.1", features = ["ndarray", "autodiff"] }
+regex = "1"
+
+# For GPU (uncomment when deploying):
+# burn = { version = "0.20.1", features = ["wgpu"] }
+
+# For training with autodiff:
+# burn = { version = "0.20.1", features = ["ndarray", "autodiff"] }
+
+[dev-dependencies]
+# nothing extra needed — tests use NdArray backend from main dep
