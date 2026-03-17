@@ -15,7 +15,6 @@ pub mod operations;
 pub mod nlp;
 pub mod candidate_matcher;
 pub mod linguistic_graph;
-pub mod conv_graph;
 pub mod tensor_ops;
 pub mod sage;
 pub mod embed;

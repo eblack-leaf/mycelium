@@ -153,7 +153,6 @@ impl Embedder {
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut result = HashMap::new();
-        let embed_dim = self.schema_dim();
 
         // --- Schema: table nodes ---
         if !schema_graph.table_nodes.is_empty() {
@@ -193,8 +192,8 @@ impl Embedder {
         }
 
         // --- Linguistic nodes (from transformer embeddings) ---
-        // Group by span type, project to match schema dim
-        self.embed_linguistic_nodes::<B>(ling_graph, embed_dim, device, &mut result);
+        // Output full transformer dim — GnnModel.ling_proj handles the projection.
+        self.embed_linguistic_nodes::<B>(ling_graph, self.transformer_dim, device, &mut result);
 
         result
     }

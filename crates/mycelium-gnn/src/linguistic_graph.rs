@@ -58,8 +58,20 @@
 use crate::graph::SchemaGraph;
 use crate::nlp::{LinguisticGraph, DepRelation, SpanType};
 use crate::candidate_matcher::CandidateSet;
-use crate::conv_graph::ConvRelation;
 use crate::operations::{all_operations, is_compatible, OpNode, ConnectsTo};
+
+/// A single relation type: source node type → destination node type.
+#[derive(Debug, Clone)]
+pub struct ConvRelation {
+    pub src_type: String,
+    pub edge_type: String,
+    pub dst_type: String,
+    pub src_indices: Vec<usize>,
+    pub dst_indices: Vec<usize>,
+    /// Per-edge weights. Empty means uniform weight (1.0).
+    /// Used by candidate edges to carry cross-encoder scores.
+    pub weights: Vec<f32>,
+}
 
 /// Combined schema + linguistic topology for the GNN.
 pub struct LinguisticConv {
@@ -189,7 +201,7 @@ impl LinguisticConv {
 fn push_empty(relations: &mut Vec<ConvRelation>, src: &str, edge: &str, dst: &str) {
     relations.push(ConvRelation {
         src_type: src.into(), edge_type: edge.into(), dst_type: dst.into(),
-        src_indices: vec![], dst_indices: vec![],
+        src_indices: vec![], dst_indices: vec![], weights: vec![],
     });
 }
 
@@ -204,11 +216,13 @@ fn add_schema_edges(
             src_type: "table".into(), edge_type: "has_field".into(), dst_type: "field".into(),
             src_indices: schema_graph.has_field.iter().map(|e| e.src).collect(),
             dst_indices: schema_graph.has_field.iter().map(|e| e.dst).collect(),
+            weights: vec![],
         });
         relations.push(ConvRelation {
             src_type: "field".into(), edge_type: "field_of".into(), dst_type: "table".into(),
             src_indices: schema_graph.field_of.iter().map(|e| e.src).collect(),
             dst_indices: schema_graph.field_of.iter().map(|e| e.dst).collect(),
+            weights: vec![],
         });
     }
 
@@ -218,11 +232,13 @@ fn add_schema_edges(
             src_type: "table".into(), edge_type: "links_to".into(), dst_type: "table".into(),
             src_indices: schema_graph.links_to.iter().map(|e| e.src).collect(),
             dst_indices: schema_graph.links_to.iter().map(|e| e.dst).collect(),
+            weights: vec![],
         });
         relations.push(ConvRelation {
             src_type: "table".into(), edge_type: "linked_from".into(), dst_type: "table".into(),
             src_indices: schema_graph.linked_from.iter().map(|e| e.src).collect(),
             dst_indices: schema_graph.linked_from.iter().map(|e| e.dst).collect(),
+            weights: vec![],
         });
     }
 
@@ -241,11 +257,11 @@ fn add_schema_edges(
     if !fs.is_empty() {
         relations.push(ConvRelation {
             src_type: "field".into(), edge_type: "compatible_op".into(), dst_type: "operation".into(),
-            src_indices: fs, dst_indices: fd,
+            src_indices: fs, dst_indices: fd, weights: vec![],
         });
         relations.push(ConvRelation {
             src_type: "operation".into(), edge_type: "compatible_field".into(), dst_type: "field".into(),
-            src_indices: os, dst_indices: od,
+            src_indices: os, dst_indices: od, weights: vec![],
         });
     }
 
@@ -262,11 +278,11 @@ fn add_schema_edges(
     if !ts.is_empty() {
         relations.push(ConvRelation {
             src_type: "table".into(), edge_type: "table_op".into(), dst_type: "operation".into(),
-            src_indices: ts, dst_indices: td,
+            src_indices: ts, dst_indices: td, weights: vec![],
         });
         relations.push(ConvRelation {
             src_type: "operation".into(), edge_type: "op_table".into(), dst_type: "table".into(),
-            src_indices: tos, dst_indices: tod,
+            src_indices: tos, dst_indices: tod, weights: vec![],
         });
     }
 }
@@ -309,7 +325,7 @@ fn add_linguistic_edges(
     for ((src_type, edge_type, dst_type), (src_indices, dst_indices)) in edge_groups {
         relations.push(ConvRelation {
             src_type, edge_type, dst_type,
-            src_indices, dst_indices,
+            src_indices, dst_indices, weights: vec![],
         });
     }
 }
@@ -321,8 +337,11 @@ fn add_candidate_edges(
     candidates: &CandidateSet,
 ) {
     use std::collections::HashMap;
-    let mut groups: HashMap<(String, String), (Vec<usize>, Vec<usize>)> = HashMap::new();
-    let mut inv_groups: HashMap<(String, String), (Vec<usize>, Vec<usize>)> = HashMap::new();
+
+    // Forward: linguistic → schema (with cross-encoder scores as weights)
+    let mut groups: HashMap<(String, String), (Vec<usize>, Vec<usize>, Vec<f32>)> = HashMap::new();
+    // Inverse: schema → linguistic (same scores)
+    let mut inv_groups: HashMap<(String, String), (Vec<usize>, Vec<usize>, Vec<f32>)> = HashMap::new();
 
     for edge in &candidates.edges {
         let ling_node = &ling_graph.nodes[edge.linguistic_node];
@@ -334,29 +353,31 @@ fn add_candidate_edges(
         let entry = groups.entry(key).or_default();
         entry.0.push(local_id);
         entry.1.push(edge.schema_node_id);
+        entry.2.push(edge.score);
 
         // Inverse: schema → linguistic
         let key = (edge.schema_node_type.clone(), ling_type);
         let entry = inv_groups.entry(key).or_default();
         entry.0.push(edge.schema_node_id);
         entry.1.push(local_id);
+        entry.2.push(edge.score);
     }
 
-    for ((ling_type, schema_type), (src_indices, dst_indices)) in groups {
+    for ((ling_type, schema_type), (src_indices, dst_indices, weights)) in groups {
         relations.push(ConvRelation {
             src_type: ling_type,
             edge_type: format!("candidate_{}", schema_type),
             dst_type: schema_type,
-            src_indices, dst_indices,
+            src_indices, dst_indices, weights,
         });
     }
 
-    for ((schema_type, ling_type), (src_indices, dst_indices)) in inv_groups {
+    for ((schema_type, ling_type), (src_indices, dst_indices, weights)) in inv_groups {
         relations.push(ConvRelation {
             src_type: schema_type,
             edge_type: format!("candidate_{}_inv", ling_type),
             dst_type: ling_type,
-            src_indices, dst_indices,
+            src_indices, dst_indices, weights,
         });
     }
 }

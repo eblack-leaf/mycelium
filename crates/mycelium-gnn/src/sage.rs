@@ -35,6 +35,7 @@ impl<B: Backend> SAGEConv<B> {
     }
 
     /// src_features: [n_src, in_dim], dst_features: [n_dst, in_dim]
+    /// weights: per-edge weights (empty = uniform). Cross-encoder scores for candidate edges.
     /// returns: [n_dst, out_dim]
     pub fn forward(
         &self,
@@ -42,12 +43,17 @@ impl<B: Backend> SAGEConv<B> {
         dst_features: Tensor<B, 2>,
         src_indices: &[usize],
         dst_indices: &[usize],
+        weights: &[f32],
         device: &B::Device,
     ) -> Tensor<B, 2> {
         let n_dst = dst_features.dims()[0];
 
         let gathered = ops::gather(src_features, src_indices, device);
-        let agg = ops::scatter_mean(gathered, dst_indices, n_dst, device);
+        let agg = if weights.is_empty() {
+            ops::scatter_mean(gathered, dst_indices, n_dst, device)
+        } else {
+            ops::scatter_weighted_mean(gathered, dst_indices, weights, n_dst, device)
+        };
 
         let neighbor_out = self.neighbor_proj.forward(agg);
         let self_out = self.self_proj.forward(dst_features);
@@ -118,6 +124,7 @@ impl<B: Backend> HeteroConv<B> {
             let updated = sage.forward(
                 src_emb, dst_emb,
                 &rel.src_indices, &rel.dst_indices,
+                &rel.weights,
                 device,
             );
 

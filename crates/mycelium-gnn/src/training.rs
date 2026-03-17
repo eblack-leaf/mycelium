@@ -21,7 +21,7 @@ use burn::{
     tensor::{backend::Backend, Tensor, Int, TensorData},
     tensor::activation,
 };
-use burn::nn::Embedding;
+use burn::nn::{Embedding, Linear, LinearConfig};
 use crate::embed::{Embedder, GloveVocab, create_type_embedding};
 use crate::schema::{Reader, Extractor};
 use crate::graph::SchemaGraph;
@@ -30,7 +30,7 @@ use crate::candidate_matcher::CandidateSet;
 use crate::linguistic_graph::LinguisticConv;
 use crate::operations::all_operations;
 use crate::sage::Encoder;
-use crate::head::{OutputHead, HeadLogits};
+use crate::head::{OutputHead, HeadLogits, CandidateMask};
 
 // =============================================================================
 // Data types
@@ -134,8 +134,27 @@ pub struct TrainingConfig {
 #[derive(Module, Debug)]
 pub struct GnnModel<B: Backend> {
     pub type_embed: Embedding<B>,
+    /// Projects 384-dim transformer embeddings → schema_dim for linguistic nodes.
+    pub ling_proj: Linear<B>,
     pub encoder: Encoder<B>,
     pub head: OutputHead<B>,
+}
+
+const LING_TYPES: &[&str] = &["np", "quantifier", "comparator", "intent"];
+
+/// Project linguistic node embeddings (384-dim transformer → schema_dim) using
+/// a learned linear layer. Replaces the truncation that was here before.
+pub fn project_linguistic<B: Backend>(
+    embeddings: &mut HashMap<String, Tensor<B, 2>>,
+    ling_proj: &Linear<B>,
+) {
+    for &lt in LING_TYPES {
+        if let Some(emb) = embeddings.get(lt) {
+            if emb.dims()[0] > 0 {
+                embeddings.insert(lt.to_string(), ling_proj.forward(emb.clone()));
+            }
+        }
+    }
 }
 
 // =============================================================================
@@ -394,11 +413,12 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         .collect();
 
     let type_embed: Embedding<TrainBackend> = create_type_embedding(config.type_dim, device);
+    let ling_proj: Linear<TrainBackend> = LinearConfig::new(384, embed_dim).init(device);
     let encoder: Encoder<TrainBackend> = Encoder::new(
         &template, &input_dims, config.hidden_dim, config.n_layers, device,
     );
     let head: OutputHead<TrainBackend> = OutputHead::new(config.hidden_dim, device);
-    let mut model = GnnModel { type_embed, encoder, head };
+    let mut model = GnnModel { type_embed, ling_proj, encoder, head };
     let mut optim = AdamConfig::new().init();
 
     // --- Early stopping state ---
@@ -417,12 +437,17 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         for sample in train_samples {
             let conv = LinguisticConv::new(&schema_graph, &sample.linguistic_graph, &sample.candidates);
 
-            let initial = embedder.embed_all::<TrainBackend>(
+            let mut initial = embedder.embed_all::<TrainBackend>(
                 &model.type_embed, &schema, &schema_graph,
                 &sample.linguistic_graph, &operations, device,
             );
+            project_linguistic(&mut initial, &model.ling_proj);
             let encoded = model.encoder.forward(&conv, initial, device);
-            let logits = model.head.forward(&encoded);
+            let mask = CandidateMask::from_candidates(
+                &sample.linguistic_graph, &sample.candidates,
+                schema_graph.table_nodes.len(), schema_graph.field_nodes.len(), operations.len(),
+            );
+            let logits = model.head.forward(&encoded, Some(&mask));
 
             let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, device);
 
@@ -451,12 +476,17 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         for sample in val_samples {
             let conv = LinguisticConv::new(&schema_graph, &sample.linguistic_graph, &sample.candidates);
 
-            let initial = embedder.embed_all(
+            let mut initial = embedder.embed_all(
                 &valid_model.type_embed, &schema, &schema_graph,
                 &sample.linguistic_graph, &operations, device,
             );
+            project_linguistic(&mut initial, &valid_model.ling_proj);
             let encoded = valid_model.encoder.forward(&conv, initial, device);
-            let logits = valid_model.head.forward(&encoded);
+            let mask = CandidateMask::from_candidates(
+                &sample.linguistic_graph, &sample.candidates,
+                schema_graph.table_nodes.len(), schema_graph.field_nodes.len(), operations.len(),
+            );
+            let logits = valid_model.head.forward(&encoded, Some(&mask));
 
             let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, device);
             val_loss += loss.clone().into_data().to_vec::<f32>().unwrap()[0];
@@ -527,12 +557,13 @@ pub fn load_model(
         .collect();
 
     let type_embed: Embedding<NdArray> = create_type_embedding(type_dim, device);
+    let ling_proj: Linear<NdArray> = LinearConfig::new(384, embed_dim).init(device);
     let encoder: Encoder<NdArray> = Encoder::new(
         &template, &input_dims, hidden_dim, n_layers, device,
     );
     let head: OutputHead<NdArray> = OutputHead::new(hidden_dim, device);
 
-    let model = GnnModel { type_embed, encoder, head }
+    let model = GnnModel { type_embed, ling_proj, encoder, head }
         .load_file(model_path, &CompactRecorder::new(), device)
         .expect("load model");
 

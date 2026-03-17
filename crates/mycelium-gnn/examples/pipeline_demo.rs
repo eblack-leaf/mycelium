@@ -20,7 +20,9 @@ use gnn_burn::operations::{all_operations, OpNode};
 use gnn_burn::embed::{GloveVocab, Embedder, create_type_embedding};
 use gnn_burn::linguistic_graph::LinguisticConv;
 use gnn_burn::sage::Encoder;
-use gnn_burn::head::{OutputHead, HeadLogits};
+use gnn_burn::head::{OutputHead, HeadLogits, CandidateMask};
+use gnn_burn::training::{load_model, project_linguistic};
+use burn::nn::LinearConfig;
 
 type B = NdArray;
 
@@ -61,17 +63,33 @@ fn main() {
         CandidateMatcherConfig { top_k: 5, min_score: 0.0 },
     );
 
-    // --- Initialize GNN (Encoder + OutputHead) from template ---
+    // --- Load or initialize GNN ---
     let device = Default::default();
-    let type_embed = create_type_embedding::<B>(TYPE_DIM, &device);
-    let template_conv = LinguisticConv::template(&schema_graph);
-    let embed_dim = embedder.schema_dim();
+    let gnn_model_path = demo_dir.join("demo/gnn_model");
 
-    let input_dims: HashMap<String, usize> = template_conv.node_counts.iter()
-        .map(|(name, _)| (name.clone(), embed_dim))
-        .collect();
-    let encoder = Encoder::<B>::new(&template_conv, &input_dims, HIDDEN_DIM, N_LAYERS, &device);
-    let output_head = OutputHead::<B>::new(HIDDEN_DIM, &device);
+    let embed_dim = embedder.schema_dim();
+    let (type_embed, ling_proj, encoder, output_head) = if gnn_model_path.exists() {
+        println!("Loading trained GNN model...");
+        let (model, _, _) = load_model(
+            &gnn_model_path.to_string_lossy(),
+            &schema_path.to_string_lossy(),
+            &glove_path.to_string_lossy(),
+            HIDDEN_DIM, N_LAYERS, TYPE_DIM,
+        );
+        (model.type_embed, model.ling_proj, model.encoder, model.head)
+    } else {
+        println!("No trained model at {:?}, using random weights", gnn_model_path);
+        let template_conv = LinguisticConv::template(&schema_graph);
+        let input_dims: HashMap<String, usize> = template_conv.node_counts.iter()
+            .map(|(name, _)| (name.clone(), embed_dim))
+            .collect();
+        (
+            create_type_embedding::<B>(TYPE_DIM, &device),
+            LinearConfig::new(384, embed_dim).init::<B>(&device),
+            Encoder::<B>::new(&template_conv, &input_dims, HIDDEN_DIM, N_LAYERS, &device),
+            OutputHead::<B>::new(HIDDEN_DIM, &device),
+        )
+    };
 
     println!("Schema: {} tables, {} fields, {} operations",
         schema_graph.table_nodes.len(),
@@ -105,15 +123,20 @@ fn main() {
         let conv = LinguisticConv::new(&schema_graph, &ling_graph, &candidates);
 
         // Embed all nodes
-        let initial = embedder.embed_all::<B>(
+        let mut initial = embedder.embed_all::<B>(
             &type_embed, &schema, &schema_graph, &ling_graph, &operations, &device,
         );
+        project_linguistic(&mut initial, &ling_proj);
 
         // Run SAGEConv encoder
         let encoded = encoder.forward(&conv, initial, &device);
 
-        // Output head: role + target prediction
-        let logits = output_head.forward(&encoded);
+        // Output head: role + target prediction (masked by candidate edges)
+        let mask = CandidateMask::from_candidates(
+            &ling_graph, &candidates,
+            schema_graph.table_nodes.len(), schema_graph.field_nodes.len(), operations.len(),
+        );
+        let logits = output_head.forward(&encoded, Some(&mask));
         print_stage3(&ling_graph, &logits, &schema_graph, &operations, &device);
     }
 }
