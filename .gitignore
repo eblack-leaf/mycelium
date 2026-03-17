@@ -8,3 +8,4 @@ crates/mycelium-gnn/models/cross-encoder.onnx
 crates/mycelium-gnn/models/cross-tokenizer.json
 crates/mycelium-gnn/models/model.onnx
 crates/mycelium-gnn/models/tokenizer.json
+crates/mycelium-gnn/demo/dataset_nlp.json

@@ -1,5 +1,5 @@
 // =============================================================================
-// orchestrator.rs — Stage 2: Walk resolved graph, emit SurrealQL
+// orchestrator.rs — Stage 4: Walk resolved graph, emit SurrealQL
 //
 // Deterministic — no ML. Takes a ResolvedGraph and produces valid SurrealQL.
 // =============================================================================
