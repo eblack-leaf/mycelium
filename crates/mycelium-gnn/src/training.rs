@@ -12,11 +12,14 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::io::Write;
 use serde::{Serialize, Deserialize};
+use indicatif::{ProgressBar, ProgressStyle};
 use burn::{
     module::{Module, AutodiffModule},
     backend::{Autodiff, NdArray},
     optim::{AdamConfig, GradientsParams, Optimizer},
+    lr_scheduler::{LrScheduler, cosine::CosineAnnealingLrSchedulerConfig},
     tensor::{backend::Backend, Tensor, Int, TensorData},
     tensor::activation,
 };
@@ -261,17 +264,37 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
     let mut model = GnnModel { type_embed, encoder, head };
     let mut optim = AdamConfig::new().init();
 
+    let total_steps = train_samples.len() * config.epochs;
+    let mut scheduler = CosineAnnealingLrSchedulerConfig::new(
+        config.learning_rate, total_steps,
+    ).init().expect("valid scheduler config");
+
     // --- Early stopping state ---
     let mut best_val_loss = f32::INFINITY;
     let mut epochs_without_improvement = 0usize;
 
+    // --- Metrics CSV ---
+    let metrics_path = Path::new(&config.schema_path).parent()
+        .unwrap_or(Path::new(".")).join("metrics.csv");
+    let mut metrics_file = std::fs::File::create(&metrics_path).expect("create metrics.csv");
+    writeln!(metrics_file, "epoch,train_loss,val_loss,train_acc,val_acc,lr").unwrap();
+
     // --- Training loop ---
+    let pb_style = ProgressStyle::with_template(
+        "{msg} [{bar:40.cyan/blue}] {pos}/{len} [{elapsed_precise} < {eta_precise}]"
+    ).unwrap().progress_chars("=> ");
+
     for epoch in 0..config.epochs {
         // --- Train ---
         let mut train_loss = 0.0f32;
         let mut train_correct = 0usize;
         let mut train_total = 0usize;
 
+        let pb = ProgressBar::new(train_samples.len() as u64);
+        pb.set_style(pb_style.clone());
+        pb.set_message(format!("epoch {:>3} train", epoch));
+
+        let mut current_lr = 0.0;
         for sample in train_samples {
             let query_graph = QueryGraph::from_extraction(&sample.extraction);
             let conv = ResolverConv::new(&schema_graph, &query_graph);
@@ -283,8 +306,6 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             let logits = model.head.score_logits(&encoded);
 
             let loss = compute_loss(&logits, &sample.ground_truth, device);
-
-            // Extract metrics (forces sync but needed for reporting)
             let loss_val = loss.clone().into_data().to_vec::<f32>().unwrap()[0];
             train_loss += loss_val;
 
@@ -294,13 +315,21 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
 
             let grads = loss.backward();
             let grads = GradientsParams::from_grads(grads, &model);
-            model = optim.step(config.learning_rate, model, grads);
+            current_lr = scheduler.step();
+            model = optim.step(current_lr, model, grads);
+
+            pb.inc(1);
         }
+        pb.finish_and_clear();
 
         // --- Validate ---
         let mut val_loss = 0.0;
         let mut val_correct = 0usize;
         let mut val_total = 0usize;
+
+        let pb = ProgressBar::new(val_samples.len() as u64);
+        pb.set_style(pb_style.clone());
+        pb.set_message(format!("epoch {:>3} val  ", epoch));
 
         let valid_model = model.valid();
         for sample in val_samples {
@@ -319,16 +348,22 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             let (c, t) = accuracy(&logits, &sample.ground_truth);
             val_correct += c;
             val_total += t;
+
+            pb.inc(1);
         }
+        pb.finish_and_clear();
 
         let train_avg = train_loss / train_samples.len() as f32;
         let val_avg = val_loss / val_samples.len() as f32;
         let train_acc = if train_total > 0 { train_correct as f64 / train_total as f64 } else { 0.0 };
         let val_acc = if val_total > 0 { val_correct as f64 / val_total as f64 } else { 0.0 };
         println!(
-            "epoch {:>3}: train_loss={:.4} val_loss={:.4} train_acc={:.2}% val_acc={:.2}%",
-            epoch, train_avg, val_avg, train_acc * 100.0, val_acc * 100.0,
+            "epoch {:>3}: train_loss={:.4} val_loss={:.4} train_acc={:.2}% val_acc={:.2}% lr={:.6}",
+            epoch, train_avg, val_avg, train_acc * 100.0, val_acc * 100.0, current_lr,
         );
+        writeln!(metrics_file, "{},{:.6},{:.6},{:.6},{:.6},{:.8}",
+            epoch, train_avg, val_avg, train_acc, val_acc, current_lr).unwrap();
+        metrics_file.flush().unwrap();
 
         // Early stopping
         if val_avg < best_val_loss {

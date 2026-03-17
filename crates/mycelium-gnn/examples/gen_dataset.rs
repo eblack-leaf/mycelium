@@ -98,35 +98,82 @@ impl SchemaMeta {
     }
 
     fn random_distractor_tables(&self, exclude: usize, rng: &mut impl Rng) -> Vec<SchemaMatch> {
-        let n = rng.random_range(0..=2).min(self.tables.len() - 1);
+        let n = rng.random_range(1..=3).min(self.tables.len() - 1);
         let mut distractors = Vec::new();
         for _ in 0..n {
             let tid = loop {
                 let t = rng.random_range(0..self.tables.len());
                 if t != exclude { break t; }
             };
+            // Some distractors are competitive (0.3-0.7), most are weak
+            let score = if rng.random_bool(0.3) {
+                rng.random_range(0.35..0.7)
+            } else {
+                rng.random_range(0.1..0.4)
+            };
             distractors.push(SchemaMatch {
                 schema_node_type: "table".into(),
                 schema_node_id: tid,
-                score: rng.random_range(0.15..0.45),
+                score,
             });
         }
         distractors
     }
 
+    /// Find fields with the same local name across different tables (ambiguous matches)
+    fn same_name_fields(&self, target_global_id: usize) -> Vec<usize> {
+        // Find the local name of the target field
+        let mut target_name = None;
+        for table in &self.tables {
+            for field in &table.fields {
+                if field.global_id == target_global_id {
+                    target_name = Some(field.local_name.clone());
+                    break;
+                }
+            }
+        }
+        let target_name = match target_name {
+            Some(n) => n,
+            None => return vec![],
+        };
+
+        // Find all fields with the same name in other tables
+        let mut matches = Vec::new();
+        for table in &self.tables {
+            for field in &table.fields {
+                if field.local_name == target_name && field.global_id != target_global_id {
+                    matches.push(field.global_id);
+                }
+            }
+        }
+        matches
+    }
+
     fn random_distractor_fields(&self, exclude: usize, rng: &mut impl Rng) -> Vec<SchemaMatch> {
         let total_fields: usize = self.tables.iter().map(|t| t.fields.len()).sum();
-        let n = rng.random_range(0..=2).min(total_fields.saturating_sub(1));
         let mut distractors = Vec::new();
+
+        // First: add same-name fields from other tables (hard distractors, high score)
+        let ambiguous = self.same_name_fields(exclude);
+        for fid in &ambiguous {
+            distractors.push(SchemaMatch {
+                schema_node_type: "field".into(),
+                schema_node_id: *fid,
+                score: rng.random_range(0.45..0.85), // competitive with correct match
+            });
+        }
+
+        // Then: random distractors (easy, low score)
+        let n = rng.random_range(0..=2).min(total_fields.saturating_sub(1));
         for _ in 0..n {
             let fid = loop {
                 let f = rng.random_range(0..total_fields);
-                if f != exclude { break f; }
+                if f != exclude && !ambiguous.contains(&f) { break f; }
             };
             distractors.push(SchemaMatch {
                 schema_node_type: "field".into(),
                 schema_node_id: fid,
-                score: rng.random_range(0.15..0.45),
+                score: rng.random_range(0.1..0.35),
             });
         }
         distractors
@@ -147,36 +194,97 @@ fn extract_record_target(ft: &FieldType, schema: &Schema) -> Option<usize> {
 // Surface form generators
 // =============================================================================
 
+/// Synonyms for table/collection names — more natural NL forms
+fn collection_synonyms(name: &str) -> Vec<String> {
+    let base = match name {
+        "users" => vec!["users", "people", "accounts", "members", "staff", "customers", "folks"],
+        "posts" => vec!["posts", "articles", "entries", "content", "publications", "stories", "writings"],
+        "comments" => vec!["comments", "replies", "responses", "feedback", "remarks", "notes"],
+        "tags" => vec!["tags", "labels", "categories", "topics", "markers"],
+        "categories" => vec!["categories", "groups", "sections", "departments", "divisions", "types"],
+        "likes" => vec!["likes", "favorites", "upvotes", "reactions", "endorsements"],
+        "follows" => vec!["follows", "subscriptions", "connections", "followers"],
+        "messages" => vec!["messages", "chats", "conversations", "mail", "inbox", "correspondence"],
+        "products" => vec!["products", "items", "goods", "merchandise", "inventory", "listings"],
+        "orders" => vec!["orders", "purchases", "transactions", "sales", "receipts"],
+        "reviews" => vec!["reviews", "ratings", "evaluations", "assessments", "critiques", "feedback"],
+        _ => vec![name],
+    };
+    base.into_iter().map(|s| s.to_string()).collect()
+}
+
+/// Synonyms for field names — natural ways people refer to fields
+fn field_synonyms(field_name: &str) -> Vec<String> {
+    let base = match field_name {
+        "name" => vec!["name", "title", "label", "called", "named"],
+        "email" => vec!["email", "mail", "email address", "contact"],
+        "age" => vec!["age", "how old", "years old"],
+        "bio" => vec!["bio", "biography", "about", "description", "profile"],
+        "active" => vec!["active", "enabled", "alive", "online", "status"],
+        "score" => vec!["score", "points", "rating", "rank"],
+        "title" => vec!["title", "heading", "subject", "headline"],
+        "content" => vec!["content", "body", "text", "details", "description"],
+        "published" => vec!["published", "public", "visible", "live", "posted"],
+        "views" => vec!["views", "view count", "seen", "impressions", "hits"],
+        "rating" => vec!["rating", "stars", "score", "grade", "rank"],
+        "text" => vec!["text", "content", "message", "body", "what they said"],
+        "price" => vec!["price", "cost", "amount", "how much", "value"],
+        "stock" => vec!["stock", "inventory", "available", "quantity", "in stock", "remaining"],
+        "description" => vec!["description", "details", "about", "info", "summary"],
+        "total" => vec!["total", "amount", "sum", "cost", "price"],
+        "status" => vec!["status", "state", "condition", "progress"],
+        "quantity" => vec!["quantity", "count", "number", "how many", "amount"],
+        "body" => vec!["body", "content", "text", "message", "what they wrote"],
+        "read" => vec!["read", "seen", "opened", "viewed"],
+        "color" => vec!["color", "colour"],
+        "created" => vec!["created", "date", "when", "created at", "timestamp", "time"],
+        "likes" => vec!["likes", "upvotes", "reactions"],
+        "parent" => vec!["parent", "above", "container", "belongs to"],
+        _ => vec![field_name],
+    };
+    base.into_iter().map(|s| s.to_string()).collect()
+}
+
 fn collection_surface(name: &str, rng: &mut impl Rng) -> String {
-    let forms = [
-        name.to_string(),
-        format!("all {}", name),
-        format!("the {}", name),
-        format!("every {}", name),
-        name.trim_end_matches('s').to_string(),
-        format!("all the {}", name),
-        format!("list of {}", name),
+    let synonyms = collection_synonyms(name);
+    let word = &synonyms[rng.random_range(0..synonyms.len())];
+
+    let templates: Vec<String> = vec![
+        word.clone(),
+        format!("all {}", word),
+        format!("the {}", word),
+        format!("every {}", word.trim_end_matches('s')),
+        format!("show me {}", word),
+        format!("get {}", word),
+        format!("find {}", word),
+        format!("list of {}", word),
+        format!("all the {}", word),
+        format!("which {}", word),
     ];
-    forms[rng.random_range(0..forms.len())].clone()
+    templates[rng.random_range(0..templates.len())].clone()
 }
 
 fn field_surface(name: &str, rng: &mut impl Rng) -> String {
-    let forms = [
-        name.to_string(),
-        format!("the {}", name),
-        format!("their {}", name),
-        format!("{}s", name),
+    let synonyms = field_synonyms(name);
+    let word = &synonyms[rng.random_range(0..synonyms.len())];
+
+    let templates: Vec<String> = vec![
+        word.clone(),
+        format!("the {}", word),
+        format!("their {}", word),
+        format!("show {}", word),
+        format!("what {}", word),
     ];
-    forms[rng.random_range(0..forms.len())].clone()
+    templates[rng.random_range(0..templates.len())].clone()
 }
 
 fn filter_op_surface(op_id: usize, rng: &mut impl Rng) -> String {
     let forms: &[&str] = match op_id {
-        11 => &["equals", "is", "equal to", "=", "matching", "exactly"],
-        12 => &["not", "not equal to", "different from", "isn't", "!=", "other than"],
-        13 => &["greater than", "more than", "above", "over", "exceeding", "higher than", ">"],
-        14 => &["less than", "under", "below", "fewer than", "lower than", "<"],
-        15 => &["at least", "minimum", "no less than", ">=", "or more"],
+        11 => &["equals", "is", "equal to", "=", "matching", "exactly", "same as", "where it's"],
+        12 => &["not", "not equal to", "different from", "isn't", "!=", "other than", "excluding", "except"],
+        13 => &["greater than", "more than", "above", "over", "exceeding", "higher than", ">", "bigger than"],
+        14 => &["less than", "under", "below", "fewer than", "lower than", "<", "smaller than", "no more than"],
+        15 => &["at least", "minimum", "no less than", ">=", "or more", "starting from"],
         16 => &["at most", "maximum", "no more than", "<=", "or less"],
         17 => &["like", "matching pattern", "similar to", "resembling"],
         18 => &["containing", "includes", "with", "has", "that contains"],
@@ -256,13 +364,20 @@ fn modifier_surface(op_id: usize, value: &str, rng: &mut impl Rng) -> (String, S
 }
 
 fn traversal_surface(source: &str, target: &str, rng: &mut impl Rng) -> String {
+    let src_syns = collection_synonyms(source);
+    let tgt_syns = collection_synonyms(target);
+    let s = &src_syns[rng.random_range(0..src_syns.len())];
+    let t = &tgt_syns[rng.random_range(0..tgt_syns.len())];
     let forms = [
-        format!("{} of {}", target, source),
-        format!("{}'s {}", source, target),
-        format!("{} from {}", target, source),
-        format!("{} by {}", target, source),
-        format!("{} related to {}", target, source),
-        format!("linked {}", target),
+        format!("{} of {}", t, s),
+        format!("{}'s {}", s, t),
+        format!("{} from {}", t, s),
+        format!("{} by {}", t, s),
+        format!("{} related to {}", t, s),
+        format!("linked {}", t),
+        format!("{} who have {}", s, t),
+        format!("{} with {}", s, t),
+        format!("{} that belong to {}", t, s),
     ];
     forms[rng.random_range(0..forms.len())].clone()
 }
@@ -276,19 +391,22 @@ fn make_collection(
     table: &TableMeta,
     rng: &mut impl Rng,
 ) -> (CandidateMatch, Vec<usize>) {
-    let conf = rng.random_range(0.78..0.98);
+    let conf = rng.random_range(0.55..0.95);
     let mut matches = vec![SchemaMatch {
         schema_node_type: "table".into(),
         schema_node_id: table.id,
-        score: rng.random_range(0.75..0.95),
+        score: rng.random_range(0.5..0.9),
     }];
-    matches.extend(meta.random_distractor_tables(table.id, rng));
+    // Distractors sometimes score close to correct
+    for d in meta.random_distractor_tables(table.id, rng) {
+        matches.push(d);
+    }
 
     let cm = CandidateMatch {
         surface_form: collection_surface(&table.name, rng),
         confidence: conf,
         schema_matches: matches,
-        operation_matches: vec![OperationMatch { operation_id: 0, score: rng.random_range(0.6..0.9) }],
+        operation_matches: vec![OperationMatch { operation_id: 0, score: rng.random_range(0.4..0.85) }],
     };
     (cm, vec![table.id])
 }
@@ -310,12 +428,14 @@ fn make_fields(
     let mut targets = Vec::new();
 
     for field in chosen {
-        let conf = rng.random_range(0.72..0.96);
+        let conf = rng.random_range(0.45..0.92);
+        let correct_score = rng.random_range(0.45..0.88);
         let mut matches = vec![SchemaMatch {
             schema_node_type: "field".into(),
             schema_node_id: field.global_id,
-            score: rng.random_range(0.7..0.93),
+            score: correct_score,
         }];
+        // Ambiguous + random distractors
         matches.extend(meta.random_distractor_fields(field.global_id, rng));
 
         cms.push(CandidateMatch {
@@ -343,21 +463,21 @@ fn make_filter(
     let ops = compatible_filter_ops(&field.field_type);
     let op_id = ops[rng.random_range(0..ops.len())];
 
-    let conf = rng.random_range(0.7..0.95);
+    let conf = rng.random_range(0.5..0.92);
     let value = random_value(&field.field_type, rng);
     let op_surface = filter_op_surface(op_id, rng);
 
     let mut field_matches = vec![SchemaMatch {
         schema_node_type: "field".into(),
         schema_node_id: field.global_id,
-        score: rng.random_range(0.7..0.93),
+        score: rng.random_range(0.45..0.88),
     }];
     field_matches.extend(meta.random_distractor_fields(field.global_id, rng));
 
     let fm = FilterMatch {
         field: CandidateMatch {
             surface_form: field_surface(&field.local_name, rng),
-            confidence: rng.random_range(0.72..0.95),
+            confidence: rng.random_range(0.45..0.9),
             schema_matches: field_matches,
             operation_matches: vec![],
         },
@@ -366,7 +486,7 @@ fn make_filter(
         confidence: conf,
         operation_matches: vec![OperationMatch {
             operation_id: op_id,
-            score: rng.random_range(0.7..0.93),
+            score: rng.random_range(0.5..0.88),
         }],
     };
 
