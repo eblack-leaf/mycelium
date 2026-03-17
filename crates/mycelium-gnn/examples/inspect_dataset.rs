@@ -124,8 +124,8 @@ fn main() {
     let mut sorted_patterns: Vec<_> = patterns.iter().collect();
     sorted_patterns.sort_by(|a, b| b.1.cmp(a.1));
     for (pattern, count) in &sorted_patterns {
-        let pct = *count as f64 / n as f64 * 100.0;
-        let bar = "#".repeat((*count * 40 / n).max(1));
+        let pct = **count as f64 / n as f64 * 100.0;
+        let bar = "#".repeat((**count * 40 / n).max(1));
         println!("  {:<30} {:>5} ({:>5.1}%) {}", pattern, count, pct, bar);
     }
 
