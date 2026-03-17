@@ -1,52 +1,31 @@
 // =============================================================================
-// candidate_matcher.rs — Semantic similarity scoring (phrase ↔ schema nodes)
+// candidate_matcher.rs — Stage 2: Cross-encoder candidate matching
 //
-// Takes phrase embeddings from NlpModel + precomputed schema node embeddings.
-// Produces scored candidate edges: each linguistic node → top-k schema nodes.
-//
-// No role assignment — a noun phrase gets scored against ALL schema node types
-// (tables, fields, operations). The GNN decides what role each phrase plays.
+// Uses MiniLM as cross-encoder to score (phrase, schema_name) pairs.
+// No role assignment — every linguistic node scored against all schema nodes.
 // =============================================================================
 
+use serde::{Serialize, Deserialize};
 use crate::graph::SchemaGraph;
-use crate::nlp::LinguisticGraph;
+use crate::nlp::{NlpModel, LinguisticGraph};
 use crate::operations::OpNode;
 
-/// Precomputed schema embeddings for fast similarity lookup.
-pub struct SchemaEmbeddings {
-    /// Table name embeddings [n_tables, embed_dim]
-    pub table_embeds: Vec<Vec<f32>>,
-    /// Field name embeddings [n_fields, embed_dim]
-    /// Embeds "table_name.field_name" or just "field_name" — TBD
-    pub field_embeds: Vec<Vec<f32>>,
-    /// Operation name embeddings [n_ops, embed_dim]
-    pub operation_embeds: Vec<Vec<f32>>,
-    pub embed_dim: usize,
-}
-
-/// A scored candidate link from a linguistic node to a schema node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateEdge {
-    /// Index into LinguisticGraph.nodes
     pub linguistic_node: usize,
-    /// "table", "field", or "operation"
     pub schema_node_type: String,
-    /// Index into that node type's list
     pub schema_node_id: usize,
-    /// Cosine similarity score
     pub score: f32,
 }
 
-/// All candidate edges for a query — input to the GNN.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateSet {
     pub edges: Vec<CandidateEdge>,
 }
 
+#[derive(Debug, Clone)]
 pub struct CandidateMatcherConfig {
-    /// Max candidates per linguistic node per schema type
     pub top_k: usize,
-    /// Minimum similarity threshold (skip very low matches)
     pub min_score: f32,
 }
 
@@ -54,65 +33,106 @@ impl Default for CandidateMatcherConfig {
     fn default() -> Self {
         Self {
             top_k: 10,
-            min_score: 0.1,
+            min_score: 0.3,
         }
     }
 }
 
+/// Schema node names for cross-encoder pairing.
+pub struct SchemaNames {
+    pub table_names: Vec<String>,
+    pub field_names: Vec<String>,
+    pub operation_names: Vec<String>,
+}
+
 pub struct CandidateMatcher {
-    schema_embeds: SchemaEmbeddings,
+    schema_names: SchemaNames,
     config: CandidateMatcherConfig,
 }
 
 impl CandidateMatcher {
-    /// Build from schema + NLP model. Precomputes schema name embeddings.
     pub fn new(
-        _schema_graph: &SchemaGraph,
-        _operations: &[OpNode],
-        _schema_embeds: SchemaEmbeddings,
+        schema_graph: &SchemaGraph,
+        operations: &[OpNode],
         config: CandidateMatcherConfig,
     ) -> Self {
-        todo!("store schema embeddings for lookup")
-    }
+        let table_names: Vec<String> = schema_graph.table_nodes.iter()
+            .map(|n| n.name.clone())
+            .collect();
 
-    /// Precompute schema node name embeddings using the NLP model.
-    /// Call once at startup.
-    pub fn embed_schema(
-        _schema_graph: &SchemaGraph,
-        _operations: &[OpNode],
-        // nlp_model: &NlpModel,
-    ) -> SchemaEmbeddings {
-        todo!("embed all schema node names via transformer")
-        // For tables: embed table name ("users", "products", ...)
-        // For fields: embed "table.field" or just field name — needs experimentation
-        // For operations: embed operation name + description
+        let field_names: Vec<String> = schema_graph.field_nodes.iter()
+            .map(|n| n.name.clone())
+            .collect();
+
+        let operation_names: Vec<String> = operations.iter()
+            .map(|op| op.name.clone())
+            .collect();
+
+        Self {
+            schema_names: SchemaNames { table_names, field_names, operation_names },
+            config,
+        }
     }
 
     /// Score all linguistic nodes against all schema nodes.
-    /// Returns candidate edges above threshold, limited to top-k per type.
     pub fn match_candidates(
         &self,
-        _ling_graph: &LinguisticGraph,
-        _phrase_embeddings: &[Vec<f32>],
+        nlp: &NlpModel,
+        ling_graph: &LinguisticGraph,
     ) -> CandidateSet {
-        todo!("cosine similarity + top-k filtering")
-        // For each linguistic node:
-        //   1. Compute cosine sim against all table embeddings → take top-k
-        //   2. Compute cosine sim against all field embeddings → take top-k
-        //   3. Compute cosine sim against all operation embeddings → take top-k
-        //   4. Filter by min_score
-        //   5. Collect into CandidateEdge list
-    }
-}
+        let mut edges = Vec::new();
 
-/// Cosine similarity between two vectors.
-fn _cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
-        return 0.0;
+        for node in &ling_graph.nodes {
+            // Score against tables
+            let table_scores: Vec<f32> = self.schema_names.table_names.iter()
+                .map(|name| nlp.cross_encode(&node.text, name))
+                .collect();
+            self.collect_top_k(
+                &mut edges, node.id, "table", &table_scores,
+            );
+
+            // Score against fields
+            let field_scores: Vec<f32> = self.schema_names.field_names.iter()
+                .map(|name| nlp.cross_encode(&node.text, name))
+                .collect();
+            self.collect_top_k(
+                &mut edges, node.id, "field", &field_scores,
+            );
+
+            // Score against operations
+            let op_scores: Vec<f32> = self.schema_names.operation_names.iter()
+                .map(|name| nlp.cross_encode(&node.text, name))
+                .collect();
+            self.collect_top_k(
+                &mut edges, node.id, "operation", &op_scores,
+            );
+        }
+
+        CandidateSet { edges }
     }
-    dot / (norm_a * norm_b)
+
+    fn collect_top_k(
+        &self,
+        edges: &mut Vec<CandidateEdge>,
+        ling_node: usize,
+        schema_type: &str,
+        scores: &[f32],
+    ) {
+        // Sort by score descending, take top-k above threshold
+        let mut indexed: Vec<(usize, f32)> = scores.iter()
+            .enumerate()
+            .map(|(i, &s)| (i, s))
+            .collect();
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        for (schema_id, score) in indexed.into_iter().take(self.config.top_k) {
+            if score < self.config.min_score { break; }
+            edges.push(CandidateEdge {
+                linguistic_node: ling_node,
+                schema_node_type: schema_type.to_string(),
+                schema_node_id: schema_id,
+                score,
+            });
+        }
+    }
 }

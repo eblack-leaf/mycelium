@@ -1,15 +1,12 @@
 // =============================================================================
-// head.rs — Output head: bilinear scoring of query candidates against targets
+// head.rs — Output head: joint role + target prediction for linguistic nodes
 //
-// Each query candidate type gets scored against its target node type:
-//   q_collection → table, q_field → field, q_filter → operation,
-//   q_traversal → table, q_modifier → operation
+// For each linguistic node, predicts:
+//   1. Schema role (Collection, Field, FilterField, Modifier, Traversal, None)
+//   2. Target schema node — scored against all candidates of the resolved type
 //
-// score(q, t) = proj(q) · tᵀ   (learned bilinear via a Linear projection)
-//
-// Two modes:
-//   score_logits() — returns raw tensors for training (differentiable)
-//   resolve()      — argmax into discrete Resolutions for inference
+// score(ling_node, schema_node) = proj(ling_emb) · schema_embᵀ
+// role(ling_node) = role_classifier(ling_emb)
 // =============================================================================
 
 use std::collections::HashMap;
@@ -17,225 +14,116 @@ use burn::{
     module::Module,
     nn::{Linear, LinearConfig},
     tensor::{backend::Backend, Tensor},
-    tensor::activation,
 };
-use crate::query_graph::QueryGraph;
-use crate::operations::OpNode;
+use crate::training::SchemaRole;
 
 // =============================================================================
-// Inference output types
+// Output types
 // =============================================================================
 
+/// Resolution of a single linguistic node.
 #[derive(Debug, Clone)]
-pub struct Resolution {
-    pub candidate_type: String,
-    pub candidate_id: usize,
-    pub resolved_type: String,
-    pub resolved_id: usize,
-    pub score: f32,
+pub struct NodeResolution {
+    pub linguistic_node_id: usize,
+    pub role: SchemaRole,
+    pub role_confidence: f32,
+    pub target_type: String,
+    pub target_id: usize,
+    pub target_score: f32,
 }
 
+/// Full pipeline output.
 #[derive(Debug, Clone)]
 pub struct ResolvedGraph {
-    pub collection: Option<Resolution>,
-    pub fields: Vec<Resolution>,
-    pub filters: Vec<ResolvedFilter>,
-    pub traversals: Vec<Resolution>,
-    pub modifiers: Vec<ResolvedModifier>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedFilter {
-    pub field: Resolution,
-    pub operation: Resolution,
-    pub value: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedModifier {
-    pub operation: Resolution,
-    pub value: String,
+    pub resolutions: Vec<NodeResolution>,
 }
 
 // =============================================================================
-// Training output — raw logit tensors (differentiable)
+// Training output — raw logit tensors
 // =============================================================================
 
-pub struct ScoreLogits<B: Backend> {
-    /// [n_q_collections, n_tables]
-    pub collection: Option<Tensor<B, 2>>,
-    /// [n_q_fields, n_schema_fields]
-    pub field: Option<Tensor<B, 2>>,
-    /// [n_q_filters, n_operations]
-    pub filter_op: Option<Tensor<B, 2>>,
-    /// [n_q_traversals, n_tables]
-    pub traversal: Option<Tensor<B, 2>>,
-    /// [n_q_modifiers, n_operations]
-    pub modifier_op: Option<Tensor<B, 2>>,
+pub struct HeadLogits<B: Backend> {
+    /// Role classification: [n_linguistic_nodes, n_roles]
+    pub role_logits: Tensor<B, 2>,
+    /// Target scores per linguistic node type against each schema type:
+    /// [n_np, n_tables], [n_np, n_fields], [n_np, n_operations]
+    pub target_table: Option<Tensor<B, 2>>,
+    pub target_field: Option<Tensor<B, 2>>,
+    pub target_op: Option<Tensor<B, 2>>,
 }
 
 // =============================================================================
 // Output head
 // =============================================================================
 
-/// One learned projection per candidate→target scoring pair.
 #[derive(Module, Debug)]
 pub struct OutputHead<B: Backend> {
-    collection_proj: Linear<B>,
+    /// Role classifier: hidden_dim → n_roles
+    role_classifier: Linear<B>,
+    /// Target projections: one per schema node type
+    table_proj: Linear<B>,
     field_proj: Linear<B>,
-    filter_proj: Linear<B>,
-    traversal_proj: Linear<B>,
-    modifier_proj: Linear<B>,
+    op_proj: Linear<B>,
 }
 
 impl<B: Backend> OutputHead<B> {
     pub fn new(hidden_dim: usize, device: &B::Device) -> Self {
         Self {
-            collection_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
+            role_classifier: LinearConfig::new(hidden_dim, SchemaRole::COUNT).init(device),
+            table_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
             field_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
-            filter_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
-            traversal_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
-            modifier_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
+            op_proj: LinearConfig::new(hidden_dim, hidden_dim).init(device),
         }
     }
 
-    /// Raw logit scores for each candidate type. Used by training loss.
-    pub fn score_logits(
+    /// Compute logits for training.
+    pub fn forward(
         &self,
         embeddings: &HashMap<String, Tensor<B, 2>>,
-    ) -> ScoreLogits<B> {
-        ScoreLogits {
-            collection: bilinear_score(embeddings, "q_collection", "table", &self.collection_proj),
-            field: bilinear_score(embeddings, "q_field", "field", &self.field_proj),
-            filter_op: bilinear_score(embeddings, "q_filter", "operation", &self.filter_proj),
-            traversal: bilinear_score(embeddings, "q_traversal", "table", &self.traversal_proj),
-            modifier_op: bilinear_score(embeddings, "q_modifier", "operation", &self.modifier_proj),
-        }
-    }
-
-    /// Inference: argmax logits into discrete resolutions.
-    pub fn resolve(
-        &self,
-        embeddings: &HashMap<String, Tensor<B, 2>>,
-        query_graph: &QueryGraph,
-        _operations: &[OpNode],
-    ) -> ResolvedGraph {
-        let logits = self.score_logits(embeddings);
-
-        let collection = logits.collection.map(|l| {
-            let (indices, scores) = argmax_with_scores(&l);
-            // First collection candidate → best table
-            Resolution {
-                candidate_type: "collection".into(),
-                candidate_id: 0,
-                resolved_type: "table".into(),
-                resolved_id: indices[0],
-                score: scores[0],
+    ) -> HeadLogits<B> {
+        // Concatenate all linguistic node embeddings for role classification
+        let ling_types = ["np", "quantifier", "comparator", "intent"];
+        let mut ling_parts: Vec<Tensor<B, 2>> = Vec::new();
+        for t in &ling_types {
+            if let Some(emb) = embeddings.get(*t) {
+                if emb.dims()[0] > 0 {
+                    ling_parts.push(emb.clone());
+                }
             }
-        });
+        }
 
-        let fields: Vec<Resolution> = logits.field.map(|l| {
-            let (indices, scores) = argmax_with_scores(&l);
-            indices.iter().enumerate().map(|(i, &idx)| Resolution {
-                candidate_type: "field".into(),
-                candidate_id: i,
-                resolved_type: "field".into(),
-                resolved_id: idx,
-                score: scores[i],
-            }).collect()
-        }).unwrap_or_default();
+        // If no linguistic nodes, return empty logits
+        if ling_parts.is_empty() {
+            let device = embeddings.values().next().unwrap().device();
+            return HeadLogits {
+                role_logits: Tensor::zeros([0, SchemaRole::COUNT], &device),
+                target_table: None,
+                target_field: None,
+                target_op: None,
+            };
+        }
 
-        let filters: Vec<ResolvedFilter> = logits.filter_op.map(|l| {
-            let (op_indices, op_scores) = argmax_with_scores(&l);
-            query_graph.filters.iter().enumerate().map(|(i, fc)| {
-                let field_res = fields.iter()
-                    .find(|f| f.candidate_id == fc.field_candidate_id)
-                    .cloned()
-                    .unwrap_or(Resolution {
-                        candidate_type: "field".into(),
-                        candidate_id: fc.field_candidate_id,
-                        resolved_type: "field".into(),
-                        resolved_id: 0,
-                        score: 0.0,
-                    });
-                ResolvedFilter {
-                    field: field_res,
-                    operation: Resolution {
-                        candidate_type: "filter".into(),
-                        candidate_id: i,
-                        resolved_type: "operation".into(),
-                        resolved_id: op_indices[i],
-                        score: op_scores[i],
-                    },
-                    value: fc.value.clone(),
-                }
-            }).collect()
-        }).unwrap_or_default();
+        let ling_emb = Tensor::cat(ling_parts, 0); // [n_ling, hidden]
+        let role_logits = self.role_classifier.forward(ling_emb.clone());
 
-        let traversals: Vec<Resolution> = logits.traversal.map(|l| {
-            let (indices, scores) = argmax_with_scores(&l);
-            indices.iter().enumerate().map(|(i, &idx)| Resolution {
-                candidate_type: "traversal".into(),
-                candidate_id: i,
-                resolved_type: "table".into(),
-                resolved_id: idx,
-                score: scores[i],
-            }).collect()
-        }).unwrap_or_default();
+        // Target scoring: project linguistic embeddings, dot with schema embeddings
+        let target_table = bilinear_score(&ling_emb, embeddings.get("table"), &self.table_proj);
+        let target_field = bilinear_score(&ling_emb, embeddings.get("field"), &self.field_proj);
+        let target_op = bilinear_score(&ling_emb, embeddings.get("operation"), &self.op_proj);
 
-        let modifiers: Vec<ResolvedModifier> = logits.modifier_op.map(|l| {
-            let (op_indices, op_scores) = argmax_with_scores(&l);
-            query_graph.modifiers.iter().enumerate().map(|(i, mc)| {
-                ResolvedModifier {
-                    operation: Resolution {
-                        candidate_type: "modifier".into(),
-                        candidate_id: i,
-                        resolved_type: "operation".into(),
-                        resolved_id: op_indices[i],
-                        score: op_scores[i],
-                    },
-                    value: mc.value.clone(),
-                }
-            }).collect()
-        }).unwrap_or_default();
-
-        ResolvedGraph { collection, fields, filters, traversals, modifiers }
+        HeadLogits { role_logits, target_table, target_field, target_op }
     }
 }
 
-// =============================================================================
-// Scoring helpers
-// =============================================================================
-
-/// proj(query_embs) @ target_embs.T → [n_query, n_targets]
 fn bilinear_score<B: Backend>(
-    embeddings: &HashMap<String, Tensor<B, 2>>,
-    query_type: &str,
-    target_type: &str,
+    query: &Tensor<B, 2>,
+    target: Option<&Tensor<B, 2>>,
     proj: &Linear<B>,
 ) -> Option<Tensor<B, 2>> {
-    let q = embeddings.get(query_type)?;
-    let t = embeddings.get(target_type)?;
-    // Skip empty tensors — fusion optimizer can't handle [0, dim] matmuls
-    if q.dims()[0] == 0 || t.dims()[0] == 0 {
+    let t = target?;
+    if query.dims()[0] == 0 || t.dims()[0] == 0 {
         return None;
     }
-    let projected = proj.forward(q.clone());
+    let projected = proj.forward(query.clone());
     Some(projected.matmul(t.clone().transpose()))
-}
-
-/// Argmax per row, returning indices and softmax scores.
-fn argmax_with_scores<B: Backend>(logits: &Tensor<B, 2>) -> (Vec<usize>, Vec<f32>) {
-    let probs = activation::softmax(logits.clone(), 1);
-
-    let idx_data = logits.clone().argmax(1).into_data();
-    let indices: Vec<usize> = idx_data
-        .to_vec::<i32>().expect("argmax to i32")
-        .iter().map(|&x| x as usize).collect();
-
-    let max_data = probs.max_dim(1).into_data();
-    let scores: Vec<f32> = max_data
-        .to_vec::<f32>().expect("max scores to f32");
-
-    (indices, scores)
 }

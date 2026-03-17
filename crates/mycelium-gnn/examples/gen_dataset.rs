@@ -1,18 +1,20 @@
-//! Generate a large training dataset from the demo schema.
+//! Generate training dataset from the demo schema.
+//!
+//! Produces LinguisticGraph + CandidateSet + GroundTruth for each sample.
+//! The LinguisticGraph is synthetic (no real NLP model needed).
+//! The CandidateSet simulates cross-encoder output with noise.
 //!
 //! Usage:
-//!   cargo run --example gen_dataset
-//!
-//! Parses demo/schema.surql, generates 5000 diverse training samples,
-//! writes to demo/dataset.json.
+//!   cargo run --release --example gen_dataset -p gnn-burn
 
 use std::path::Path;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use gnn_burn::schema::{Reader, Extractor, Schema, FieldType};
 use gnn_burn::graph::SchemaGraph;
-use gnn_burn::intent::*;
-use gnn_burn::training::{TrainingSample, GroundTruth, Dataset};
+use gnn_burn::nlp::{LinguisticGraph, LinguisticNode, LinguisticEdge, SpanType, DepRelation};
+use gnn_burn::candidate_matcher::{CandidateEdge, CandidateSet};
+use gnn_burn::training::{TrainingSample, GroundTruth, NodeTarget, SchemaRole, Dataset};
 
 // =============================================================================
 // Schema metadata
@@ -59,10 +61,7 @@ impl SchemaMeta {
             });
         }
 
-        // Verify field count matches schema graph
-        assert_eq!(field_offset, schema_graph.field_nodes.len(),
-            "field count mismatch: {} vs {}", field_offset, schema_graph.field_nodes.len());
-
+        assert_eq!(field_offset, schema_graph.field_nodes.len());
         Self { tables }
     }
 
@@ -96,88 +95,6 @@ impl SchemaMeta {
             .filter(|f| f.record_target.is_some())
             .collect()
     }
-
-    fn random_distractor_tables(&self, exclude: usize, rng: &mut impl Rng) -> Vec<SchemaMatch> {
-        let n = rng.random_range(1..=3).min(self.tables.len() - 1);
-        let mut distractors = Vec::new();
-        for _ in 0..n {
-            let tid = loop {
-                let t = rng.random_range(0..self.tables.len());
-                if t != exclude { break t; }
-            };
-            // Some distractors are competitive (0.3-0.7), most are weak
-            let score = if rng.random_bool(0.3) {
-                rng.random_range(0.35..0.7)
-            } else {
-                rng.random_range(0.1..0.4)
-            };
-            distractors.push(SchemaMatch {
-                schema_node_type: "table".into(),
-                schema_node_id: tid,
-                score,
-            });
-        }
-        distractors
-    }
-
-    /// Find fields with the same local name across different tables (ambiguous matches)
-    fn same_name_fields(&self, target_global_id: usize) -> Vec<usize> {
-        // Find the local name of the target field
-        let mut target_name = None;
-        for table in &self.tables {
-            for field in &table.fields {
-                if field.global_id == target_global_id {
-                    target_name = Some(field.local_name.clone());
-                    break;
-                }
-            }
-        }
-        let target_name = match target_name {
-            Some(n) => n,
-            None => return vec![],
-        };
-
-        // Find all fields with the same name in other tables
-        let mut matches = Vec::new();
-        for table in &self.tables {
-            for field in &table.fields {
-                if field.local_name == target_name && field.global_id != target_global_id {
-                    matches.push(field.global_id);
-                }
-            }
-        }
-        matches
-    }
-
-    fn random_distractor_fields(&self, exclude: usize, rng: &mut impl Rng) -> Vec<SchemaMatch> {
-        let total_fields: usize = self.tables.iter().map(|t| t.fields.len()).sum();
-        let mut distractors = Vec::new();
-
-        // First: add same-name fields from other tables (hard distractors, high score)
-        let ambiguous = self.same_name_fields(exclude);
-        for fid in &ambiguous {
-            distractors.push(SchemaMatch {
-                schema_node_type: "field".into(),
-                schema_node_id: *fid,
-                score: rng.random_range(0.45..0.85), // competitive with correct match
-            });
-        }
-
-        // Then: random distractors (easy, low score)
-        let n = rng.random_range(0..=2).min(total_fields.saturating_sub(1));
-        for _ in 0..n {
-            let fid = loop {
-                let f = rng.random_range(0..total_fields);
-                if f != exclude && !ambiguous.contains(&f) { break f; }
-            };
-            distractors.push(SchemaMatch {
-                schema_node_type: "field".into(),
-                schema_node_id: fid,
-                score: rng.random_range(0.1..0.35),
-            });
-        }
-        distractors
-    }
 }
 
 fn extract_record_target(ft: &FieldType, schema: &Schema) -> Option<usize> {
@@ -191,105 +108,42 @@ fn extract_record_target(ft: &FieldType, schema: &Schema) -> Option<usize> {
 }
 
 // =============================================================================
-// Surface form generators
+// Surface forms
 // =============================================================================
 
-/// Synonyms for table/collection names — more natural NL forms
-fn collection_synonyms(name: &str) -> Vec<String> {
-    let base = match name {
-        "users" => vec!["users", "people", "accounts", "members", "staff", "customers", "folks"],
-        "posts" => vec!["posts", "articles", "entries", "content", "publications", "stories", "writings"],
-        "comments" => vec!["comments", "replies", "responses", "feedback", "remarks", "notes"],
-        "tags" => vec!["tags", "labels", "categories", "topics", "markers"],
-        "categories" => vec!["categories", "groups", "sections", "departments", "divisions", "types"],
-        "likes" => vec!["likes", "favorites", "upvotes", "reactions", "endorsements"],
-        "follows" => vec!["follows", "subscriptions", "connections", "followers"],
-        "messages" => vec!["messages", "chats", "conversations", "mail", "inbox", "correspondence"],
-        "products" => vec!["products", "items", "goods", "merchandise", "inventory", "listings"],
-        "orders" => vec!["orders", "purchases", "transactions", "sales", "receipts"],
-        "reviews" => vec!["reviews", "ratings", "evaluations", "assessments", "critiques", "feedback"],
-        _ => vec![name],
-    };
-    base.into_iter().map(|s| s.to_string()).collect()
-}
-
-/// Synonyms for field names — natural ways people refer to fields
-fn field_synonyms(field_name: &str) -> Vec<String> {
-    let base = match field_name {
-        "name" => vec!["name", "title", "label", "called", "named"],
-        "email" => vec!["email", "mail", "email address", "contact"],
-        "age" => vec!["age", "how old", "years old"],
-        "bio" => vec!["bio", "biography", "about", "description", "profile"],
-        "active" => vec!["active", "enabled", "alive", "online", "status"],
-        "score" => vec!["score", "points", "rating", "rank"],
-        "title" => vec!["title", "heading", "subject", "headline"],
-        "content" => vec!["content", "body", "text", "details", "description"],
-        "published" => vec!["published", "public", "visible", "live", "posted"],
-        "views" => vec!["views", "view count", "seen", "impressions", "hits"],
-        "rating" => vec!["rating", "stars", "score", "grade", "rank"],
-        "text" => vec!["text", "content", "message", "body", "what they said"],
-        "price" => vec!["price", "cost", "amount", "how much", "value"],
-        "stock" => vec!["stock", "inventory", "available", "quantity", "in stock", "remaining"],
-        "description" => vec!["description", "details", "about", "info", "summary"],
-        "total" => vec!["total", "amount", "sum", "cost", "price"],
-        "status" => vec!["status", "state", "condition", "progress"],
-        "quantity" => vec!["quantity", "count", "number", "how many", "amount"],
-        "body" => vec!["body", "content", "text", "message", "what they wrote"],
-        "read" => vec!["read", "seen", "opened", "viewed"],
-        "color" => vec!["color", "colour"],
-        "created" => vec!["created", "date", "when", "created at", "timestamp", "time"],
-        "likes" => vec!["likes", "upvotes", "reactions"],
-        "parent" => vec!["parent", "above", "container", "belongs to"],
-        _ => vec![field_name],
-    };
-    base.into_iter().map(|s| s.to_string()).collect()
-}
-
 fn collection_surface(name: &str, rng: &mut impl Rng) -> String {
-    let synonyms = collection_synonyms(name);
-    let word = &synonyms[rng.random_range(0..synonyms.len())];
-
-    let templates: Vec<String> = vec![
-        word.clone(),
-        format!("all {}", word),
-        format!("the {}", word),
-        format!("every {}", word.trim_end_matches('s')),
-        format!("show me {}", word),
-        format!("get {}", word),
-        format!("find {}", word),
-        format!("list of {}", word),
-        format!("all the {}", word),
-        format!("which {}", word),
+    let forms = [
+        name.to_string(),
+        format!("all {}", name),
+        format!("the {}", name),
+        format!("every {}", name),
+        name.trim_end_matches('s').to_string(),
     ];
-    templates[rng.random_range(0..templates.len())].clone()
+    forms[rng.random_range(0..forms.len())].clone()
 }
 
 fn field_surface(name: &str, rng: &mut impl Rng) -> String {
-    let synonyms = field_synonyms(name);
-    let word = &synonyms[rng.random_range(0..synonyms.len())];
-
-    let templates: Vec<String> = vec![
-        word.clone(),
-        format!("the {}", word),
-        format!("their {}", word),
-        format!("show {}", word),
-        format!("what {}", word),
+    let forms = [
+        name.to_string(),
+        format!("the {}", name),
+        format!("their {}", name),
+        format!("{}s", name),
     ];
-    templates[rng.random_range(0..templates.len())].clone()
+    forms[rng.random_range(0..forms.len())].clone()
 }
 
 fn filter_op_surface(op_id: usize, rng: &mut impl Rng) -> String {
     let forms: &[&str] = match op_id {
-        11 => &["equals", "is", "equal to", "=", "matching", "exactly", "same as", "where it's"],
-        12 => &["not", "not equal to", "different from", "isn't", "!=", "other than", "excluding", "except"],
-        13 => &["greater than", "more than", "above", "over", "exceeding", "higher than", ">", "bigger than"],
-        14 => &["less than", "under", "below", "fewer than", "lower than", "<", "smaller than", "no more than"],
-        15 => &["at least", "minimum", "no less than", ">=", "or more", "starting from"],
-        16 => &["at most", "maximum", "no more than", "<=", "or less"],
-        17 => &["like", "matching pattern", "similar to", "resembling"],
-        18 => &["containing", "includes", "with", "has", "that contains"],
-        19 => &["starting with", "begins with", "prefixed with", "starts with"],
-        20 => &["ending with", "ends with", "suffixed with"],
+        11 => &["equals", "is", "equal to", "matching"],
+        12 => &["not", "not equal to", "different from"],
+        13 => &["greater than", "more than", "above", "over"],
+        14 => &["less than", "under", "below", "fewer than"],
+        15 => &["at least", "minimum", "no less than"],
+        16 => &["at most", "maximum", "no more than"],
+        17 => &["like", "matching pattern", "similar to"],
+        18 => &["containing", "includes", "has"],
+        19 => &["starting with", "begins with"],
+        20 => &["ending with", "ends with"],
         _ => &["equals"],
     };
     forms[rng.random_range(0..forms.len())].to_string()
@@ -301,15 +155,8 @@ fn random_value(ft: &FieldType, rng: &mut impl Rng) -> String {
         FieldType::Float | FieldType::Decimal | FieldType::Number =>
             format!("{:.1}", rng.random_range(0.5..100.0)),
         FieldType::String => {
-            let words = [
-                "hello", "world", "test", "admin", "user", "data", "example",
-                "active", "pending", "draft", "published", "archived",
-                "john", "alice", "bob", "carol", "dave", "eve", "frank",
-                "gmail.com", "yahoo.com", "outlook.com",
-                "news", "update", "review", "guide", "tutorial", "help",
-                "red", "blue", "green", "yellow", "purple",
-                "tech", "science", "art", "music", "sports",
-            ];
+            let words = ["hello", "world", "test", "admin", "user", "active", "pending",
+                "john", "alice", "bob", "news", "update", "review", "red", "blue"];
             words[rng.random_range(0..words.len())].to_string()
         }
         FieldType::Bool => if rng.random_bool(0.5) { "true" } else { "false" }.to_string(),
@@ -322,487 +169,537 @@ fn compatible_filter_ops(ft: &FieldType) -> Vec<usize> {
     match ft {
         FieldType::Int | FieldType::Float | FieldType::Decimal | FieldType::Number =>
             vec![11, 12, 13, 14, 15, 16],
-        FieldType::String =>
-            vec![11, 12, 17, 18, 19, 20],
-        FieldType::Bool =>
-            vec![11, 12],
-        FieldType::Datetime | FieldType::Duration =>
-            vec![11, 12, 13, 14, 15, 16],
+        FieldType::String => vec![11, 12, 17, 18, 19, 20],
+        FieldType::Bool => vec![11, 12],
+        FieldType::Datetime | FieldType::Duration => vec![11, 12, 13, 14, 15, 16],
         _ => vec![11, 12],
     }
 }
 
-fn modifier_surface(op_id: usize, value: &str, rng: &mut impl Rng) -> (String, String) {
-    match op_id {
-        10 => { // LIMIT
-            let forms = [
-                (format!("top {}", value), value.to_string()),
-                (format!("first {}", value), value.to_string()),
-                (format!("limit {}", value), value.to_string()),
-                (format!("only {}", value), value.to_string()),
-                (format!("{}", value), value.to_string()),
-            ];
-            let f = &forms[rng.random_range(0..forms.len())];
-            (f.0.clone(), f.1.clone())
-        }
-        6 => { // ORDER_BY
-            let forms = [
-                ("sorted by".to_string(), value.to_string()),
-                ("ordered by".to_string(), value.to_string()),
-                ("by".to_string(), value.to_string()),
-                ("sort by".to_string(), value.to_string()),
-                ("newest".to_string(), String::new()),
-                ("oldest".to_string(), String::new()),
-                ("highest".to_string(), String::new()),
-                ("lowest".to_string(), String::new()),
-            ];
-            let f = &forms[rng.random_range(0..forms.len())];
-            (f.0.clone(), f.1.clone())
-        }
-        _ => ("modifier".to_string(), value.to_string()),
-    }
-}
-
-fn traversal_surface(source: &str, target: &str, rng: &mut impl Rng) -> String {
-    let src_syns = collection_synonyms(source);
-    let tgt_syns = collection_synonyms(target);
-    let s = &src_syns[rng.random_range(0..src_syns.len())];
-    let t = &tgt_syns[rng.random_range(0..tgt_syns.len())];
-    let forms = [
-        format!("{} of {}", t, s),
-        format!("{}'s {}", s, t),
-        format!("{} from {}", t, s),
-        format!("{} by {}", t, s),
-        format!("{} related to {}", t, s),
-        format!("linked {}", t),
-        format!("{} who have {}", s, t),
-        format!("{} with {}", s, t),
-        format!("{} that belong to {}", t, s),
-    ];
-    forms[rng.random_range(0..forms.len())].clone()
-}
-
 // =============================================================================
-// Sample generators
+// Candidate edge generation (simulates cross-encoder output)
 // =============================================================================
 
-fn make_collection(
+/// Generate candidate edges for a linguistic node.
+/// Puts the correct target first with a high score, adds distractor edges.
+fn make_candidates(
+    ling_node_id: usize,
+    correct_type: &str,
+    correct_id: usize,
     meta: &SchemaMeta,
-    table: &TableMeta,
     rng: &mut impl Rng,
-) -> (CandidateMatch, Vec<usize>) {
-    let conf = rng.random_range(0.55..0.95);
-    let mut matches = vec![SchemaMatch {
-        schema_node_type: "table".into(),
-        schema_node_id: table.id,
-        score: rng.random_range(0.5..0.9),
-    }];
-    // Distractors sometimes score close to correct
-    for d in meta.random_distractor_tables(table.id, rng) {
-        matches.push(d);
-    }
+) -> Vec<CandidateEdge> {
+    let mut edges = Vec::new();
 
-    let cm = CandidateMatch {
-        surface_form: collection_surface(&table.name, rng),
-        confidence: conf,
-        schema_matches: matches,
-        operation_matches: vec![OperationMatch { operation_id: 0, score: rng.random_range(0.4..0.85) }],
-    };
-    (cm, vec![table.id])
-}
+    // Correct target — high score
+    edges.push(CandidateEdge {
+        linguistic_node: ling_node_id,
+        schema_node_type: correct_type.to_string(),
+        schema_node_id: correct_id,
+        score: rng.random_range(0.65..0.95),
+    });
 
-fn make_fields(
-    meta: &SchemaMeta,
-    table: &TableMeta,
-    n: usize,
-    rng: &mut impl Rng,
-) -> (Vec<CandidateMatch>, Vec<usize>) {
-    let available = meta.non_record_fields(table);
-    if available.is_empty() {
-        return (vec![], vec![]);
-    }
-    let n = n.min(available.len());
-    let chosen: Vec<&FieldMeta> = available.choose_multiple(rng, n).copied().collect();
-
-    let mut cms = Vec::new();
-    let mut targets = Vec::new();
-
-    for field in chosen {
-        let conf = rng.random_range(0.45..0.92);
-        let correct_score = rng.random_range(0.45..0.88);
-        let mut matches = vec![SchemaMatch {
-            schema_node_type: "field".into(),
-            schema_node_id: field.global_id,
-            score: correct_score,
-        }];
-        // Ambiguous + random distractors
-        matches.extend(meta.random_distractor_fields(field.global_id, rng));
-
-        cms.push(CandidateMatch {
-            surface_form: field_surface(&field.local_name, rng),
-            confidence: conf,
-            schema_matches: matches,
-            operation_matches: vec![],
+    // Distractor edges
+    let n_distractors = rng.random_range(1..=4);
+    for _ in 0..n_distractors {
+        let (dtype, did) = match rng.random_range(0..3) {
+            0 => {
+                let tid = loop {
+                    let t = rng.random_range(0..meta.tables.len());
+                    if correct_type != "table" || t != correct_id { break t; }
+                };
+                ("table", tid)
+            }
+            1 => {
+                let total_fields: usize = meta.tables.iter().map(|t| t.fields.len()).sum();
+                if total_fields == 0 { continue; }
+                let fid = loop {
+                    let f = rng.random_range(0..total_fields);
+                    if correct_type != "field" || f != correct_id { break f; }
+                };
+                ("field", fid)
+            }
+            _ => {
+                let oid = rng.random_range(0..34); // 34 operations
+                if correct_type == "operation" && oid == correct_id { continue; }
+                ("operation", oid)
+            }
+        };
+        edges.push(CandidateEdge {
+            linguistic_node: ling_node_id,
+            schema_node_type: dtype.to_string(),
+            schema_node_id: did,
+            score: rng.random_range(0.05..0.45),
         });
-        targets.push(field.global_id);
     }
 
-    (cms, targets)
+    edges
 }
 
-fn make_filter(
+/// Generate weak/noise candidates for nodes with no schema target (intent, noise).
+fn make_noise_candidates(
+    ling_node_id: usize,
     meta: &SchemaMeta,
-    table: &TableMeta,
     rng: &mut impl Rng,
-) -> Option<(FilterMatch, usize, usize)> {
-    let filterable = meta.filterable_fields(table);
-    if filterable.is_empty() {
-        return None;
+) -> Vec<CandidateEdge> {
+    let mut edges = Vec::new();
+    let n = rng.random_range(1..=3);
+    for _ in 0..n {
+        let total_fields: usize = meta.tables.iter().map(|t| t.fields.len()).sum();
+        let (dtype, did) = match rng.random_range(0..3) {
+            0 => ("table", rng.random_range(0..meta.tables.len())),
+            1 if total_fields > 0 => ("field", rng.random_range(0..total_fields)),
+            _ => ("operation", rng.random_range(0..34)),
+        };
+        edges.push(CandidateEdge {
+            linguistic_node: ling_node_id,
+            schema_node_type: dtype.to_string(),
+            schema_node_id: did,
+            score: rng.random_range(0.01..0.20),
+        });
     }
+    edges
+}
+
+// =============================================================================
+// Sample builders
+// =============================================================================
+
+/// Helper: create a LinguisticNode with synthetic embedding (zeros — GloVe handles real embed).
+fn make_node(id: usize, text: &str, start: usize, end: usize, span_type: SpanType) -> LinguisticNode {
+    LinguisticNode {
+        id, text: text.to_string(),
+        token_span: (start, end), span_type,
+        embedding: vec![0.0; 384], // placeholder — embedder fills real values
+    }
+}
+
+fn gen_collection_only(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+
+    // Intent + collection NP
+    let intent_text = ["show", "find", "get", "list"][rng.random_range(0..4)];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+    ];
+
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+
+    TrainingSample {
+        linguistic_graph: LinguisticGraph { raw_query: format!("{} {}", intent_text, coll_text), nodes, edges },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth {
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+            ],
+        },
+    }
+}
+
+fn gen_collection_fields(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let available = meta.non_record_fields(table);
+    if available.is_empty() { return gen_collection_only(meta, rng); }
+
+    let n_fields = rng.random_range(1..=2).min(available.len());
+    let chosen: Vec<&FieldMeta> = available.choose_multiple(rng, n_fields).copied().collect();
+
+    let intent_text = ["show", "get", "list", "find"][rng.random_range(0..4)];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let mut nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+    ];
+    let mut edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+    ];
+    let mut targets = vec![
+        NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+        NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+    ];
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+
+    let mut token_pos = 2;
+    for field in chosen.iter() {
+        let nid = nodes.len();
+        let field_text = field_surface(&field.local_name, rng);
+        nodes.push(make_node(nid, &field_text, token_pos, token_pos + 1, SpanType::NounPhrase));
+        // Possessive edge from collection to field
+        edges.push(LinguisticEdge { src: 1, dst: nid, relation: DepRelation::Possessive });
+        targets.push(NodeTarget {
+            linguistic_node: nid, role: SchemaRole::Field,
+            target_type: "field".into(), target_id: field.global_id,
+        });
+        candidate_edges.extend(make_candidates(nid, "field", field.global_id, meta, rng));
+        token_pos += 1;
+    }
+
+    let raw_query = format!("{} {}", intent_text, coll_text);
+    TrainingSample {
+        linguistic_graph: LinguisticGraph { raw_query, nodes, edges },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth { targets },
+    }
+}
+
+fn gen_collection_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let filterable = meta.filterable_fields(table);
+    if filterable.is_empty() { return gen_collection_only(meta, rng); }
+
     let field = filterable[rng.random_range(0..filterable.len())];
     let ops = compatible_filter_ops(&field.field_type);
     let op_id = ops[rng.random_range(0..ops.len())];
-
-    let conf = rng.random_range(0.5..0.92);
     let value = random_value(&field.field_type, rng);
     let op_surface = filter_op_surface(op_id, rng);
 
-    let mut field_matches = vec![SchemaMatch {
-        schema_node_type: "field".into(),
-        schema_node_id: field.global_id,
-        score: rng.random_range(0.45..0.88),
-    }];
-    field_matches.extend(meta.random_distractor_fields(field.global_id, rng));
+    let intent_text = ["find", "get", "show"][rng.random_range(0..3)];
+    let coll_text = collection_surface(&table.name, rng);
+    let field_text = field_surface(&field.local_name, rng);
 
-    let fm = FilterMatch {
-        field: CandidateMatch {
-            surface_form: field_surface(&field.local_name, rng),
-            confidence: rng.random_range(0.45..0.9),
-            schema_matches: field_matches,
-            operation_matches: vec![],
-        },
-        operator: op_surface,
-        value,
-        confidence: conf,
-        operation_matches: vec![OperationMatch {
-            operation_id: op_id,
-            score: rng.random_range(0.5..0.88),
-        }],
-    };
+    let nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+        make_node(2, &field_text, 3, 4, SpanType::NounPhrase),
+        make_node(3, &format!("{} {}", op_surface, value), 5, 7, SpanType::Comparator),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+        LinguisticEdge { src: 3, dst: 2, relation: DepRelation::Comparison },
+    ];
 
-    Some((fm, field.global_id, op_id))
-}
-
-fn gen_collection_only(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+    candidate_edges.extend(make_candidates(2, "field", field.global_id, meta, rng));
+    candidate_edges.extend(make_candidates(3, "operation", op_id, meta, rng));
 
     TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields: vec![], filters: vec![], traversals: vec![], modifiers: vec![],
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("{} {} where {} {} {}", intent_text, coll_text, field_text, op_surface, value),
+            nodes, edges,
         },
+        candidates: CandidateSet { edges: candidate_edges },
         ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets: vec![], filter_op_targets: vec![],
-            traversal_targets: vec![], modifier_op_targets: vec![],
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+                NodeTarget { linguistic_node: 2, role: SchemaRole::FilterField, target_type: "field".into(), target_id: field.global_id },
+                NodeTarget { linguistic_node: 3, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: op_id },
+            ],
         },
     }
 }
 
-fn gen_collection_fields(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
+fn gen_collection_fields_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
     let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-    let n_fields = rng.random_range(1..=3);
-    let (fields, field_targets) = make_fields(meta, table, n_fields, rng);
+    let available = meta.non_record_fields(table);
+    let filterable = meta.filterable_fields(table);
+    if available.is_empty() || filterable.is_empty() { return gen_collection_only(meta, rng); }
+
+    let sel_field = available[rng.random_range(0..available.len())];
+    let filt_field = filterable[rng.random_range(0..filterable.len())];
+    let ops = compatible_filter_ops(&filt_field.field_type);
+    let op_id = ops[rng.random_range(0..ops.len())];
+    let value = random_value(&filt_field.field_type, rng);
+    let op_surface = filter_op_surface(op_id, rng);
+
+    let intent_text = ["show", "get", "find"][rng.random_range(0..3)];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+        make_node(2, &field_surface(&sel_field.local_name, rng), 2, 3, SpanType::NounPhrase),
+        make_node(3, &field_surface(&filt_field.local_name, rng), 4, 5, SpanType::NounPhrase),
+        make_node(4, &format!("{} {}", op_surface, value), 6, 8, SpanType::Comparator),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+        LinguisticEdge { src: 1, dst: 2, relation: DepRelation::Possessive },
+        LinguisticEdge { src: 4, dst: 3, relation: DepRelation::Comparison },
+    ];
+
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+    candidate_edges.extend(make_candidates(2, "field", sel_field.global_id, meta, rng));
+    candidate_edges.extend(make_candidates(3, "field", filt_field.global_id, meta, rng));
+    candidate_edges.extend(make_candidates(4, "operation", op_id, meta, rng));
 
     TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields, filters: vec![], traversals: vec![], modifiers: vec![],
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("{} {}'s {} where {} {} {}", intent_text, coll_text,
+                sel_field.local_name, filt_field.local_name, op_surface, value),
+            nodes, edges,
         },
+        candidates: CandidateSet { edges: candidate_edges },
         ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets, filter_op_targets: vec![],
-            traversal_targets: vec![], modifier_op_targets: vec![],
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+                NodeTarget { linguistic_node: 2, role: SchemaRole::Field, target_type: "field".into(), target_id: sel_field.global_id },
+                NodeTarget { linguistic_node: 3, role: SchemaRole::FilterField, target_type: "field".into(), target_id: filt_field.global_id },
+                NodeTarget { linguistic_node: 4, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: op_id },
+            ],
         },
     }
 }
 
-fn gen_collection_filter(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
+fn gen_collection_modifier(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
     let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
 
-    if let Some((fm, field_target, op_target)) = make_filter(meta, table, rng) {
-        TrainingSample {
-            extraction: Extraction {
-                collections: vec![coll],
-                fields: vec![], filters: vec![fm], traversals: vec![], modifiers: vec![],
-            },
-            ground_truth: GroundTruth {
-                collection_targets: coll_targets,
-                field_targets: vec![field_target],
-                filter_op_targets: vec![op_target],
-                traversal_targets: vec![], modifier_op_targets: vec![],
-            },
-        }
-    } else {
-        gen_collection_only(meta, rng)
-    }
-}
+    let intent_text = ["show", "get", "find", "list"][rng.random_range(0..4)];
+    let coll_text = collection_surface(&table.name, rng);
+    let limit_val = rng.random_range(1..50);
+    let quant_text = format!("first {}", limit_val);
 
-fn gen_collection_fields_filter(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-    let n_fields = rng.random_range(1..=2);
-    let (fields, mut field_targets) = make_fields(meta, table, n_fields, rng);
+    let mut nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+        make_node(2, &quant_text, 3, 5, SpanType::Quantifier),
+    ];
+    let mut edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+        LinguisticEdge { src: 2, dst: 1, relation: DepRelation::Quantifies },
+    ];
+    let mut targets = vec![
+        NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+        NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+        NodeTarget { linguistic_node: 2, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: 10 }, // LIMIT
+    ];
 
-    if let Some((fm, filter_field_target, op_target)) = make_filter(meta, table, rng) {
-        // Filter's field might duplicate a standalone field — QueryGraph deduplicates by surface_form.
-        // If not already in field_targets, add it.
-        let filter_field_name = &fm.field.surface_form;
-        let already_exists = fields.iter().any(|f| f.surface_form == *filter_field_name);
-        if !already_exists {
-            field_targets.push(filter_field_target);
-        }
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+    candidate_edges.extend(make_candidates(2, "operation", 10, meta, rng));
 
-        TrainingSample {
-            extraction: Extraction {
-                collections: vec![coll],
-                fields, filters: vec![fm], traversals: vec![], modifiers: vec![],
-            },
-            ground_truth: GroundTruth {
-                collection_targets: coll_targets,
-                field_targets, filter_op_targets: vec![op_target],
-                traversal_targets: vec![], modifier_op_targets: vec![],
-            },
-        }
-    } else {
-        gen_collection_fields(meta, rng)
-    }
-}
-
-fn gen_collection_modifier(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-
-    let mut modifiers = Vec::new();
-    let mut modifier_targets = Vec::new();
-    let mut fields = Vec::new();
-    let mut field_targets = Vec::new();
-
-    // LIMIT
-    if rng.random_bool(0.7) {
-        let limit_val = rng.random_range(1..50).to_string();
-        let (surface, value) = modifier_surface(10, &limit_val, rng);
-        modifiers.push(ModifierMatch {
-            surface_form: surface, value,
-            confidence: rng.random_range(0.75..0.95),
-            operation_matches: vec![OperationMatch { operation_id: 10, score: rng.random_range(0.75..0.95) }],
-        });
-        modifier_targets.push(10);
-    }
-
-    // ORDER_BY
-    if rng.random_bool(0.6) {
+    // Optionally add ORDER_BY
+    if rng.random_bool(0.5) {
         let orderable = meta.orderable_fields(table);
         if let Some(field) = orderable.choose(rng) {
-            let (surface, value) = modifier_surface(6, &field.local_name, rng);
-            modifiers.push(ModifierMatch {
-                surface_form: surface, value,
-                confidence: rng.random_range(0.72..0.93),
-                operation_matches: vec![OperationMatch { operation_id: 6, score: rng.random_range(0.7..0.92) }],
+            let nid = nodes.len();
+            nodes.push(make_node(nid, &field_surface(&field.local_name, rng), 5, 6, SpanType::NounPhrase));
+            edges.push(LinguisticEdge { src: 1, dst: nid, relation: DepRelation::Possessive });
+            targets.push(NodeTarget {
+                linguistic_node: nid, role: SchemaRole::Field,
+                target_type: "field".into(), target_id: field.global_id,
             });
-            modifier_targets.push(6);
-
-            // Add the sort field
-            let mut matches = vec![SchemaMatch {
-                schema_node_type: "field".into(),
-                schema_node_id: field.global_id,
-                score: rng.random_range(0.65..0.9),
-            }];
-            matches.extend(meta.random_distractor_fields(field.global_id, rng));
-            fields.push(CandidateMatch {
-                surface_form: field_surface(&field.local_name, rng),
-                confidence: rng.random_range(0.65..0.88),
-                schema_matches: matches,
-                operation_matches: vec![],
-            });
-            field_targets.push(field.global_id);
+            candidate_edges.extend(make_candidates(nid, "field", field.global_id, meta, rng));
         }
     }
 
-    // Ensure at least one modifier
-    if modifiers.is_empty() {
-        let limit_val = rng.random_range(1..50).to_string();
-        let (surface, value) = modifier_surface(10, &limit_val, rng);
-        modifiers.push(ModifierMatch {
-            surface_form: surface, value,
-            confidence: rng.random_range(0.75..0.95),
-            operation_matches: vec![OperationMatch { operation_id: 10, score: rng.random_range(0.75..0.95) }],
+    TrainingSample {
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("{} {}, {}", intent_text, coll_text, quant_text),
+            nodes, edges,
+        },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth { targets },
+    }
+}
+
+fn gen_collection_filter_modifier(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let filterable = meta.filterable_fields(table);
+    if filterable.is_empty() { return gen_collection_modifier(meta, rng); }
+
+    let field = filterable[rng.random_range(0..filterable.len())];
+    let ops = compatible_filter_ops(&field.field_type);
+    let op_id = ops[rng.random_range(0..ops.len())];
+    let value = random_value(&field.field_type, rng);
+    let op_surface = filter_op_surface(op_id, rng);
+    let limit_val = rng.random_range(1..50);
+
+    let intent_text = ["find", "get", "show"][rng.random_range(0..3)];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+        make_node(2, &field_surface(&field.local_name, rng), 3, 4, SpanType::NounPhrase),
+        make_node(3, &format!("{} {}", op_surface, value), 5, 7, SpanType::Comparator),
+        make_node(4, &format!("first {}", limit_val), 8, 10, SpanType::Quantifier),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+        LinguisticEdge { src: 3, dst: 2, relation: DepRelation::Comparison },
+        LinguisticEdge { src: 4, dst: 1, relation: DepRelation::Quantifies },
+    ];
+
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+    candidate_edges.extend(make_candidates(2, "field", field.global_id, meta, rng));
+    candidate_edges.extend(make_candidates(3, "operation", op_id, meta, rng));
+    candidate_edges.extend(make_candidates(4, "operation", 10, meta, rng)); // LIMIT
+
+    TrainingSample {
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("{} {} where {} {} {}, first {}", intent_text, coll_text,
+                field.local_name, op_surface, value, limit_val),
+            nodes, edges,
+        },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth {
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+                NodeTarget { linguistic_node: 2, role: SchemaRole::FilterField, target_type: "field".into(), target_id: field.global_id },
+                NodeTarget { linguistic_node: 3, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: op_id },
+                NodeTarget { linguistic_node: 4, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: 10 },
+            ],
+        },
+    }
+}
+
+fn gen_multi_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let filterable = meta.filterable_fields(table);
+    if filterable.len() < 2 { return gen_collection_filter(meta, rng); }
+
+    let n_filters = rng.random_range(2..=3).min(filterable.len());
+    let chosen: Vec<&FieldMeta> = filterable.choose_multiple(rng, n_filters).copied().collect();
+
+    let intent_text = ["find", "get", "show"][rng.random_range(0..3)];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let mut nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+    ];
+    let mut edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+    ];
+    let mut targets = vec![
+        NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+        NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+    ];
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+
+    let mut token_pos = 3;
+    for field in &chosen {
+        let ops = compatible_filter_ops(&field.field_type);
+        let op_id = ops[rng.random_range(0..ops.len())];
+        let value = random_value(&field.field_type, rng);
+        let op_surface = filter_op_surface(op_id, rng);
+
+        let field_nid = nodes.len();
+        nodes.push(make_node(field_nid, &field_surface(&field.local_name, rng), token_pos, token_pos + 1, SpanType::NounPhrase));
+        token_pos += 1;
+
+        let comp_nid = nodes.len();
+        nodes.push(make_node(comp_nid, &format!("{} {}", op_surface, value), token_pos, token_pos + 2, SpanType::Comparator));
+        edges.push(LinguisticEdge { src: comp_nid, dst: field_nid, relation: DepRelation::Comparison });
+        token_pos += 3;
+
+        targets.push(NodeTarget {
+            linguistic_node: field_nid, role: SchemaRole::FilterField,
+            target_type: "field".into(), target_id: field.global_id,
         });
-        modifier_targets.push(10);
+        targets.push(NodeTarget {
+            linguistic_node: comp_nid, role: SchemaRole::Modifier,
+            target_type: "operation".into(), target_id: op_id,
+        });
+        candidate_edges.extend(make_candidates(field_nid, "field", field.global_id, meta, rng));
+        candidate_edges.extend(make_candidates(comp_nid, "operation", op_id, meta, rng));
     }
 
     TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields, filters: vec![], traversals: vec![], modifiers,
-        },
-        ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets, filter_op_targets: vec![],
-            traversal_targets: vec![], modifier_op_targets: modifier_targets,
-        },
+        linguistic_graph: LinguisticGraph { raw_query: format!("{} {} where ...", intent_text, coll_text), nodes, edges },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth { targets },
     }
 }
 
-fn gen_collection_filter_modifier(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-
-    let mut field_targets = Vec::new();
-
-    // Filter
-    let (filters, filter_op_targets) = if let Some((fm, ft, ot)) = make_filter(meta, table, rng) {
-        field_targets.push(ft);
-        (vec![fm], vec![ot])
-    } else {
-        (vec![], vec![])
-    };
-
-    // Modifier (LIMIT)
-    let limit_val = rng.random_range(1..50).to_string();
-    let (surface, value) = modifier_surface(10, &limit_val, rng);
-    let modifiers = vec![ModifierMatch {
-        surface_form: surface, value,
-        confidence: rng.random_range(0.75..0.95),
-        operation_matches: vec![OperationMatch { operation_id: 10, score: rng.random_range(0.75..0.95) }],
-    }];
-
-    TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields: vec![], filters, traversals: vec![], modifiers,
-        },
-        ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets, filter_op_targets,
-            traversal_targets: vec![], modifier_op_targets: vec![10],
-        },
-    }
-}
-
-fn gen_multi_filter(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-
-    let n_filters = rng.random_range(2..=3);
-    let mut filters = Vec::new();
-    let mut field_targets = Vec::new();
-    let mut filter_op_targets = Vec::new();
-    let mut used_fields = std::collections::HashSet::new();
-
-    for _ in 0..n_filters {
-        if let Some((fm, ft, ot)) = make_filter(meta, table, rng) {
-            if !used_fields.contains(&ft) {
-                used_fields.insert(ft);
-                field_targets.push(ft);
-                filter_op_targets.push(ot);
-                filters.push(fm);
-            }
-        }
-    }
-
-    if filters.is_empty() {
-        return gen_collection_only(meta, rng);
-    }
-
-    TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields: vec![], filters, traversals: vec![], modifiers: vec![],
-        },
-        ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets, filter_op_targets,
-            traversal_targets: vec![], modifier_op_targets: vec![],
-        },
-    }
-}
-
-fn gen_traversal(
-    meta: &SchemaMeta,
-    rng: &mut impl Rng,
-) -> TrainingSample {
-    // Find tables with record fields
+fn gen_traversal(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
     let tables_with_records: Vec<&TableMeta> = meta.tables.iter()
-        .filter(|t| meta.record_fields(t).len() > 0)
+        .filter(|t| !meta.record_fields(t).is_empty())
         .collect();
-
-    if tables_with_records.is_empty() {
-        return gen_collection_only(meta, rng);
-    }
+    if tables_with_records.is_empty() { return gen_collection_only(meta, rng); }
 
     let table = tables_with_records[rng.random_range(0..tables_with_records.len())];
-    let (coll, coll_targets) = make_collection(meta, table, rng);
-
     let record_fields = meta.record_fields(table);
     let rec_field = record_fields[rng.random_range(0..record_fields.len())];
     let target_table_id = rec_field.record_target.unwrap();
     let target_name = &meta.tables[target_table_id].name;
 
-    let trav_ops = [31, 32, 33]; // arrow_right, arrow_left, arrow_both
-    let trav_op = trav_ops[rng.random_range(0..trav_ops.len())];
+    let intent_text = ["find", "get", "show"][rng.random_range(0..3)];
+    let coll_text = collection_surface(&table.name, rng);
 
-    let mut matches = vec![SchemaMatch {
-        schema_node_type: "table".into(),
-        schema_node_id: target_table_id,
-        score: rng.random_range(0.7..0.92),
-    }];
-    matches.extend(meta.random_distractor_tables(target_table_id, rng));
+    let nodes = vec![
+        make_node(0, intent_text, 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+        make_node(2, target_name, 3, 4, SpanType::NounPhrase),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+        LinguisticEdge { src: 1, dst: 2, relation: DepRelation::Possessive },
+    ];
 
-    let trav = CandidateMatch {
-        surface_form: traversal_surface(&table.name, target_name, rng),
-        confidence: rng.random_range(0.68..0.92),
-        schema_matches: matches,
-        operation_matches: vec![OperationMatch {
-            operation_id: trav_op,
-            score: rng.random_range(0.65..0.9),
-        }],
-    };
+    let mut candidate_edges = Vec::new();
+    candidate_edges.extend(make_noise_candidates(0, meta, rng));
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+    candidate_edges.extend(make_candidates(2, "table", target_table_id, meta, rng));
 
     TrainingSample {
-        extraction: Extraction {
-            collections: vec![coll],
-            fields: vec![], filters: vec![],
-            traversals: vec![trav], modifiers: vec![],
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("{} {}'s {}", intent_text, coll_text, target_name),
+            nodes, edges,
         },
+        candidates: CandidateSet { edges: candidate_edges },
         ground_truth: GroundTruth {
-            collection_targets: coll_targets,
-            field_targets: vec![], filter_op_targets: vec![],
-            traversal_targets: vec![target_table_id], modifier_op_targets: vec![],
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::None, target_type: String::new(), target_id: 0 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+                NodeTarget { linguistic_node: 2, role: SchemaRole::Traversal, target_type: "table".into(), target_id: target_table_id },
+            ],
+        },
+    }
+}
+
+fn gen_count(meta: &SchemaMeta, rng: &mut impl Rng) -> TrainingSample {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let coll_text = collection_surface(&table.name, rng);
+
+    let nodes = vec![
+        make_node(0, "count", 0, 1, SpanType::Intent),
+        make_node(1, &coll_text, 1, 2, SpanType::NounPhrase),
+    ];
+    let edges = vec![
+        LinguisticEdge { src: 0, dst: 1, relation: DepRelation::IntentTarget },
+    ];
+
+    let mut candidate_edges = Vec::new();
+    // "count" should match the count operation strongly
+    candidate_edges.extend(make_candidates(0, "operation", 24, meta, rng)); // count op
+    candidate_edges.extend(make_candidates(1, "table", table.id, meta, rng));
+
+    TrainingSample {
+        linguistic_graph: LinguisticGraph {
+            raw_query: format!("count {}", coll_text),
+            nodes, edges,
+        },
+        candidates: CandidateSet { edges: candidate_edges },
+        ground_truth: GroundTruth {
+            targets: vec![
+                NodeTarget { linguistic_node: 0, role: SchemaRole::Modifier, target_type: "operation".into(), target_id: 24 },
+                NodeTarget { linguistic_node: 1, role: SchemaRole::Collection, target_type: "table".into(), target_id: table.id },
+            ],
         },
     }
 }
@@ -826,19 +723,19 @@ fn main() {
 
     let mut samples = Vec::new();
 
-    // 5000 total, varied patterns
-    for _ in 0..700  { samples.push(gen_collection_only(&meta, &mut rng)); }
-    for _ in 0..1100 { samples.push(gen_collection_fields(&meta, &mut rng)); }
-    for _ in 0..1000 { samples.push(gen_collection_filter(&meta, &mut rng)); }
+    for _ in 0..600  { samples.push(gen_collection_only(&meta, &mut rng)); }
+    for _ in 0..1000 { samples.push(gen_collection_fields(&meta, &mut rng)); }
+    for _ in 0..900  { samples.push(gen_collection_filter(&meta, &mut rng)); }
     for _ in 0..500  { samples.push(gen_collection_fields_filter(&meta, &mut rng)); }
     for _ in 0..500  { samples.push(gen_collection_modifier(&meta, &mut rng)); }
-    for _ in 0..500  { samples.push(gen_collection_filter_modifier(&meta, &mut rng)); }
+    for _ in 0..400  { samples.push(gen_collection_filter_modifier(&meta, &mut rng)); }
     for _ in 0..400  { samples.push(gen_multi_filter(&meta, &mut rng)); }
     for _ in 0..300  { samples.push(gen_traversal(&meta, &mut rng)); }
+    for _ in 0..400  { samples.push(gen_count(&meta, &mut rng)); }
 
     samples.shuffle(&mut rng);
 
     let dataset = Dataset { samples };
     dataset.save(&demo_dir.join("dataset.json")).expect("save dataset");
-    println!("generated {} samples → demo/dataset.json", dataset.samples.len());
+    println!("generated {} samples -> demo/dataset.json", dataset.samples.len());
 }

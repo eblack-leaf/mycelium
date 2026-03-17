@@ -1,22 +1,58 @@
 // =============================================================================
-// linguistic_graph.rs — Builds the GNN-ready conv topology from linguistic parse
+// linguistic_graph.rs — Stage 3 graph topology: linguistic + schema + candidates
 //
-// Replaces query_graph.rs for the new pipeline. Instead of pre-typed candidates
-// (q_collection, q_field, etc.), linguistic nodes are untyped — the GNN assigns
-// roles through message passing.
+// Architecture (decided 2026-03-17):
+//   Replaces query_graph.rs in the new pipeline. The old query graph had
+//   pre-typed candidates (q_collection, q_field, q_modifier, etc.) — types
+//   that could only exist if an upstream model knew the schema and classified
+//   each NL fragment into a schema role. That's the job we're eliminating.
+//
+//   Instead, linguistic nodes are UNTYPED w.r.t. schema roles. They only carry
+//   grammatical types (NounPhrase, Quantifier, Comparator, Intent) from the
+//   NL parser. The GNN assigns schema roles through message passing:
+//     - A NounPhrase linked by possessive edge to another NounPhrase that
+//       matched a table is likely a field on that table.
+//     - A Quantifier with a "quantifies" edge to a NounPhrase that matched
+//       a table is likely a LIMIT/OFFSET modifier.
+//     - A Comparator with a "comparison" edge to a NounPhrase that matched
+//       a field is likely a WHERE filter.
 //
 // Node types in the combined graph:
-//   Schema:     table, field, operation        (same as before)
-//   Linguistic: np, quantifier, comparator     (from NLP parser)
+//   Schema side (unchanged from old pipeline):
+//     - table: schema table nodes
+//     - field: schema field nodes
+//     - operation: SurrealQL operation nodes (SELECT, WHERE_EQ, ORDER_BY, etc.)
+//
+//   Linguistic side (replaces q_collection, q_field, q_filter, etc.):
+//     - np: noun phrases from NL parser
+//     - quantifier: "first 49", "top 10"
+//     - comparator: "over 100", "before yesterday"
+//     - intent: "show", "find", "count"
 //
 // Edge types:
-//   Schema intra:      has_field, field_of, links_to, linked_from,
-//                      compatible_op, compatible_field, table_op, op_table
-//   Linguistic intra:  possessive, possessive_inv, quantifies, quantifies_inv,
-//                      comparison, comparison_inv
-//   Cross (candidate): candidate_table, candidate_table_inv,
-//                      candidate_field, candidate_field_inv,
-//                      candidate_op, candidate_op_inv
+//   Schema intra (unchanged):
+//     has_field, field_of, links_to, linked_from,
+//     compatible_op, compatible_field, table_op, op_table
+//
+//   Linguistic intra (from biaffine dep parser, bidirectional):
+//     possessive / possessive_inv     — "goods' timestamp"
+//     quantifies / quantified_by      — "first 49" modifies "goods"
+//     comparison / compared_by        — "over 100" modifies "cost"
+//     targets / targeted_by           — "show" targets "goods"
+//
+//   Cross edges (from cross-encoder candidate matcher, bidirectional):
+//     candidate_table / candidate_{ling_type}_inv  — np ↔ table
+//     candidate_field / candidate_{ling_type}_inv  — np ↔ field
+//     candidate_op    / candidate_{ling_type}_inv  — np ↔ operation
+//     (every linguistic node type can match any schema node type)
+//
+// GNN output head changes (vs old pipeline):
+//   Old: for each q_collection pick a table, for each q_field pick a field, etc.
+//   New: for each linguistic node, jointly predict:
+//     a) Schema role (collection, field, filter_field, modifier, traversal, none)
+//     b) Target schema node (which table/field/operation it maps to)
+//   The possessive/quantifies/comparison edges provide structural signal
+//   that constrains both predictions.
 // =============================================================================
 
 use crate::graph::SchemaGraph;
@@ -240,7 +276,6 @@ fn add_linguistic_edges(
     ling_graph: &LinguisticGraph,
     local_ids: &[usize],
 ) {
-    // Group edges by (src_type, relation, dst_type) to batch into ConvRelations
     use std::collections::HashMap;
     let mut edge_groups: HashMap<(String, String, String), (Vec<usize>, Vec<usize>)> =
         HashMap::new();
@@ -286,7 +321,6 @@ fn add_candidate_edges(
     candidates: &CandidateSet,
 ) {
     use std::collections::HashMap;
-    // Group by (ling_node_type, schema_node_type)
     let mut groups: HashMap<(String, String), (Vec<usize>, Vec<usize>)> = HashMap::new();
     let mut inv_groups: HashMap<(String, String), (Vec<usize>, Vec<usize>)> = HashMap::new();
 
@@ -294,9 +328,6 @@ fn add_candidate_edges(
         let ling_node = &ling_graph.nodes[edge.linguistic_node];
         let ling_type = span_node_type(ling_node.span_type).to_string();
         let local_id = local_ids[edge.linguistic_node];
-
-        let _edge_label = format!("candidate_{}", edge.schema_node_type);
-        let _inv_label = format!("candidate_{}_inv", ling_type);
 
         // Forward: linguistic → schema
         let key = (ling_type.clone(), edge.schema_node_type.clone());

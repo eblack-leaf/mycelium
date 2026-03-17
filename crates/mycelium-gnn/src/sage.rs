@@ -13,7 +13,7 @@ use burn::{
     tensor::{backend::Backend, Tensor},
 };
 use burn::tensor::activation;
-use crate::conv_graph::ResolverConv;
+use crate::linguistic_graph::LinguisticConv;
 use crate::tensor_ops as ops;
 
 // =============================================================================
@@ -68,7 +68,7 @@ pub struct HeteroConv<B: Backend> {
 
 impl<B: Backend> HeteroConv<B> {
     pub fn new(
-        conv: &ResolverConv,
+        conv: &LinguisticConv,
         in_dims: &HashMap<String, usize>,
         out_dim: usize,
         device: &B::Device,
@@ -91,7 +91,7 @@ impl<B: Backend> HeteroConv<B> {
 
     pub fn forward(
         &self,
-        conv: &ResolverConv,
+        conv: &LinguisticConv,
         embeddings: &HashMap<String, Tensor<B, 2>>,
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
@@ -151,7 +151,7 @@ pub struct Encoder<B: Backend> {
 
 impl<B: Backend> Encoder<B> {
     pub fn new(
-        conv: &ResolverConv,
+        conv: &LinguisticConv,
         input_dims: &HashMap<String, usize>,
         hidden_dim: usize,
         n_layers: usize,
@@ -179,7 +179,7 @@ impl<B: Backend> Encoder<B> {
     /// returns: node_type → [n_nodes, hidden_dim]
     pub fn forward(
         &self,
-        conv: &ResolverConv,
+        conv: &LinguisticConv,
         initial: HashMap<String, Tensor<B, 2>>,
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
