@@ -16,6 +16,9 @@ pub mod grounding;
 pub mod head;
 pub mod training;
 pub mod orchestrator;
+pub mod nlp;
+pub mod candidate_matcher;
+pub mod linguistic_graph;
 
 use std::path::Path;
 use schema::{Reader, Extractor, Schema, Validation};
