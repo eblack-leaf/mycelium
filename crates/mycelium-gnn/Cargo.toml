@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-burn = { version = "0.20.1", features = ["ndarray", "autodiff"] }
+burn = { version = "0.20.1", default-features = false, features = ["ndarray", "autodiff", "wgpu"] }
 regex = "1"
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }

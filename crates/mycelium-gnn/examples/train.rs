@@ -6,7 +6,7 @@
 //! Expects demo files at crates/mycelium-gnn/demo/:
 //!   schema.surql   — SurrealDB schema
 //!   dataset.json   — training samples (Extraction + GroundTruth)
-//!   glove-demo.txt — small GloVe file for word embeddings
+//!   glove.6B.50d.txt — GloVe pretrained word embeddings (50d)
 
 use std::path::Path;
 use gnn_burn::training::{Dataset, TrainingConfig, train};
@@ -24,9 +24,10 @@ fn main() {
         epochs: 50,
         hidden_dim: 32,
         n_layers: 2,
-        glove_path: demo_dir.join("glove-demo.txt").to_string_lossy().into(),
+        glove_path: demo_dir.join("glove.6B.50d.txt").to_string_lossy().into(),
         schema_path: demo_dir.join("schema.surql").to_string_lossy().into(),
         type_dim: 16,
+        patience: 5,
     };
 
     train(&config, &dataset);

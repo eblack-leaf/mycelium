@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use serde::{Serialize, Deserialize};
 use burn::{
-    module::Module,
+    module::{Module, AutodiffModule},
     backend::{Autodiff, NdArray},
     optim::{AdamConfig, GradientsParams, Optimizer},
     tensor::{backend::Backend, Tensor, Int, TensorData},
@@ -84,6 +84,7 @@ pub struct TrainingConfig {
     pub glove_path: String,
     pub schema_path: String,
     pub type_dim: usize,
+    pub patience: usize,
 }
 
 // =============================================================================
@@ -168,10 +169,72 @@ pub fn compute_loss<B: Backend>(
 // Training loop
 // =============================================================================
 
+// NdArray is faster for per-sample training (small tensors, high kernel overhead on GPU).
+// Switch to Autodiff<Wgpu> when graph batching is implemented.
 type TrainBackend = Autodiff<NdArray>;
+
+/// Compute per-candidate-type accuracy from logits vs ground truth.
+/// Returns (correct, total) across all candidate types.
+fn accuracy<B: Backend>(
+    logits: &ScoreLogits<B>,
+    truth: &GroundTruth,
+) -> (usize, usize) {
+    let mut correct = 0usize;
+    let mut total = 0usize;
+
+    fn check<B: Backend>(l: &Tensor<B, 2>, targets: &[usize]) -> (usize, usize) {
+        let preds = l.clone().argmax(1).float(); // [n, 1] → float for portable extraction
+        let pred_data: Vec<f32> = preds.into_data().to_vec().unwrap();
+        let mut c = 0;
+        for (p, &t) in pred_data.iter().zip(targets.iter()) {
+            if (*p as usize) == t { c += 1; }
+        }
+        (c, targets.len())
+    }
+
+    if let Some(ref l) = logits.collection {
+        if !truth.collection_targets.is_empty() {
+            let (c, t) = check(l, &truth.collection_targets);
+            correct += c; total += t;
+        }
+    }
+    if let Some(ref l) = logits.field {
+        if !truth.field_targets.is_empty() {
+            let (c, t) = check(l, &truth.field_targets);
+            correct += c; total += t;
+        }
+    }
+    if let Some(ref l) = logits.filter_op {
+        if !truth.filter_op_targets.is_empty() {
+            let (c, t) = check(l, &truth.filter_op_targets);
+            correct += c; total += t;
+        }
+    }
+    if let Some(ref l) = logits.traversal {
+        if !truth.traversal_targets.is_empty() {
+            let (c, t) = check(l, &truth.traversal_targets);
+            correct += c; total += t;
+        }
+    }
+    if let Some(ref l) = logits.modifier_op {
+        if !truth.modifier_op_targets.is_empty() {
+            let (c, t) = check(l, &truth.modifier_op_targets);
+            correct += c; total += t;
+        }
+    }
+
+    (correct, total)
+}
 
 pub fn train(config: &TrainingConfig, dataset: &Dataset) {
     let device = &Default::default();
+
+    // --- Train/val split (80/20, deterministic) ---
+    let n = dataset.samples.len();
+    let n_train = (n as f64 * 0.8) as usize;
+    let train_samples = &dataset.samples[..n_train];
+    let val_samples = &dataset.samples[n_train..];
+    println!("split: {} train, {} val", train_samples.len(), val_samples.len());
 
     // --- Shared schema (same for all samples) ---
     let raw = Reader::read(Path::new(&config.schema_path)).expect("read schema");
@@ -198,32 +261,85 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
     let mut model = GnnModel { type_embed, encoder, head };
     let mut optim = AdamConfig::new().init();
 
+    // --- Early stopping state ---
+    let mut best_val_loss = f32::INFINITY;
+    let mut epochs_without_improvement = 0usize;
+
     // --- Training loop ---
     for epoch in 0..config.epochs {
-        let mut epoch_loss = 0.0;
+        // --- Train ---
+        let mut train_loss = 0.0f32;
+        let mut train_correct = 0usize;
+        let mut train_total = 0usize;
 
-        for sample in &dataset.samples {
+        for sample in train_samples {
             let query_graph = QueryGraph::from_extraction(&sample.extraction);
             let conv = ResolverConv::new(&schema_graph, &query_graph);
 
-            // Forward pass (type_embed gradients flow through here)
             let initial = embedder.embed_all::<TrainBackend>(
                 &model.type_embed, &schema, &schema_graph, &query_graph, &operations, device,
             );
             let encoded = model.encoder.forward(&conv, initial, device);
             let logits = model.head.score_logits(&encoded);
 
-            // Loss
             let loss = compute_loss(&logits, &sample.ground_truth, device);
-            epoch_loss += loss.clone().into_data().to_vec::<f32>().unwrap()[0];
 
-            // Backward + optimizer step
+            // Extract metrics (forces sync but needed for reporting)
+            let loss_val = loss.clone().into_data().to_vec::<f32>().unwrap()[0];
+            train_loss += loss_val;
+
+            let (c, t) = accuracy(&logits, &sample.ground_truth);
+            train_correct += c;
+            train_total += t;
+
             let grads = loss.backward();
             let grads = GradientsParams::from_grads(grads, &model);
             model = optim.step(config.learning_rate, model, grads);
         }
 
-        let avg = epoch_loss / dataset.samples.len() as f32;
-        println!("epoch {}: loss = {:.4}", epoch, avg);
+        // --- Validate ---
+        let mut val_loss = 0.0;
+        let mut val_correct = 0usize;
+        let mut val_total = 0usize;
+
+        let valid_model = model.valid();
+        for sample in val_samples {
+            let query_graph = QueryGraph::from_extraction(&sample.extraction);
+            let conv = ResolverConv::new(&schema_graph, &query_graph);
+
+            let initial = embedder.embed_all(
+                &valid_model.type_embed, &schema, &schema_graph, &query_graph, &operations, device,
+            );
+            let encoded = valid_model.encoder.forward(&conv, initial, device);
+            let logits = valid_model.head.score_logits(&encoded);
+
+            let loss = compute_loss(&logits, &sample.ground_truth, device);
+            val_loss += loss.clone().into_data().to_vec::<f32>().unwrap()[0];
+
+            let (c, t) = accuracy(&logits, &sample.ground_truth);
+            val_correct += c;
+            val_total += t;
+        }
+
+        let train_avg = train_loss / train_samples.len() as f32;
+        let val_avg = val_loss / val_samples.len() as f32;
+        let train_acc = if train_total > 0 { train_correct as f64 / train_total as f64 } else { 0.0 };
+        let val_acc = if val_total > 0 { val_correct as f64 / val_total as f64 } else { 0.0 };
+        println!(
+            "epoch {:>3}: train_loss={:.4} val_loss={:.4} train_acc={:.2}% val_acc={:.2}%",
+            epoch, train_avg, val_avg, train_acc * 100.0, val_acc * 100.0,
+        );
+
+        // Early stopping
+        if val_avg < best_val_loss {
+            best_val_loss = val_avg;
+            epochs_without_improvement = 0;
+        } else {
+            epochs_without_improvement += 1;
+            if epochs_without_improvement >= config.patience {
+                println!("early stopping at epoch {} (no improvement for {} epochs)", epoch, config.patience);
+                break;
+            }
+        }
     }
 }

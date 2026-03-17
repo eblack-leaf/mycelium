@@ -294,13 +294,19 @@ impl Embedder {
     ) -> Tensor<B, 2> {
         let n = names.len();
         let glove_dim = self.glove.dim;
+        let total_frozen_dim = glove_dim + 2; // glove + confidence + is_nl
 
-        // GloVe vectors → frozen tensor [n, glove_dim]
-        let glove_data: Vec<f32> = names.iter()
-            .flat_map(|name| self.glove.embed(name))
-            .collect();
-        let glove_t: Tensor<B, 2> = Tensor::from_data(
-            TensorData::new(glove_data, [n, glove_dim]), device,
+        // Build frozen part as single tensor: [glove... | confidence | is_nl]
+        // Avoids separate [n, 2] meta tensor that triggers fusion shape conflicts
+        let is_nl_val = if is_nl { 1.0f32 } else { 0.0 };
+        let mut frozen_data = Vec::with_capacity(n * total_frozen_dim);
+        for (i, name) in names.iter().enumerate() {
+            frozen_data.extend(self.glove.embed(name));
+            frozen_data.push(confidences[i]);
+            frozen_data.push(is_nl_val);
+        }
+        let frozen_t: Tensor<B, 2> = Tensor::from_data(
+            TensorData::new(frozen_data, [n, total_frozen_dim]), device,
         );
 
         // Type indices → trainable embedding lookup [1, n] → [1, n, type_dim] → [n, type_dim]
@@ -312,17 +318,8 @@ impl Embedder {
         );
         let type_t = type_embed.forward(idx_t).reshape([n, self.type_dim]);
 
-        // Meta features: [confidence, is_nl_flag] → frozen tensor [n, 2]
-        let is_nl_val = if is_nl { 1.0f32 } else { 0.0 };
-        let meta_data: Vec<f32> = confidences.iter()
-            .flat_map(|&c| [c, is_nl_val])
-            .collect();
-        let meta_t: Tensor<B, 2> = Tensor::from_data(
-            TensorData::new(meta_data, [n, 2]), device,
-        );
-
-        // Concat along feature dim: [n, glove_dim + type_dim + 2]
-        Tensor::cat(vec![glove_t, type_t, meta_t], 1)
+        // Concat: [n, glove_dim + 2] | [n, type_dim] → [n, glove_dim + type_dim + 2]
+        Tensor::cat(vec![frozen_t, type_t], 1)
     }
 }
 

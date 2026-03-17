@@ -216,6 +216,10 @@ fn bilinear_score<B: Backend>(
 ) -> Option<Tensor<B, 2>> {
     let q = embeddings.get(query_type)?;
     let t = embeddings.get(target_type)?;
+    // Skip empty tensors — fusion optimizer can't handle [0, dim] matmuls
+    if q.dims()[0] == 0 || t.dims()[0] == 0 {
+        return None;
+    }
     let projected = proj.forward(q.clone());
     Some(projected.matmul(t.clone().transpose()))
 }
