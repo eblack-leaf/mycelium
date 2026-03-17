@@ -1,12 +1,17 @@
 // =============================================================================
-// embed.rs — Initial node embeddings from GloVe + type vectors
+// embed.rs — Initial node embeddings from GloVe + learned type embeddings
+//
+// GloVe: frozen pretrained word vectors (not trainable)
+// TypeVocab: burn Embedding module (trainable) — one vector per schema type
+//            and operation identity
 //
 // Produces HashMap<node_type, Tensor[n_nodes, embed_dim]> for the Encoder.
 // =============================================================================
 
 use std::collections::HashMap;
 use std::path::Path;
-use burn::tensor::{backend::Backend, Tensor, TensorData};
+use burn::tensor::{backend::Backend, Tensor, Int, TensorData};
+use burn::nn::{Embedding, EmbeddingConfig, Initializer};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use crate::graph::SchemaGraph;
@@ -14,7 +19,65 @@ use crate::query_graph::QueryGraph;
 use crate::schema::{Schema, FieldType};
 use crate::operations::OpNode;
 
-/// Preloaded GloVe vectors: word → f32 vector.
+// =============================================================================
+// Type vocabulary — name → index mapping
+// =============================================================================
+
+/// All type names in fixed order. Index into this = index into the Embedding.
+const TYPE_NAMES: &[&str] = &[
+    // Schema node types
+    "table", "any", "bool", "string", "int", "float", "decimal",
+    "number", "datetime", "duration", "bytes", "object", "regex",
+    "record", "array", "set", "option", "geometry", "literal", "range",
+    // Operation identities — prefixed to avoid collision
+    "op_SELECT", "op_CREATE", "op_UPDATE", "op_DELETE", "op_RELATE", "op_INSERT",
+    "op_ORDER_BY", "op_GROUP_BY", "op_LIMIT", "op_FETCH", "op_SPLIT",
+    "op_eq", "op_neq", "op_gt", "op_lt", "op_gte", "op_lte",
+    "op_LIKE", "op_CONTAINS", "op_STARTS_WITH", "op_ENDS_WITH",
+    "op_add", "op_sub", "op_mul", "op_div",
+    "op_count", "op_sum", "op_avg", "op_min", "op_max", "op_array_group",
+    "op_arrow_right", "op_arrow_left", "op_arrow_both",
+    // Fallback for unknown types
+    "unknown",
+];
+
+/// Name → index into the Embedding weight matrix.
+#[derive(Debug, Clone)]
+pub struct TypeIndex {
+    names: HashMap<String, usize>,
+    unknown_idx: usize,
+}
+
+impl TypeIndex {
+    pub fn new() -> Self {
+        let names: HashMap<String, usize> = TYPE_NAMES.iter()
+            .enumerate()
+            .map(|(i, &name)| (name.to_string(), i))
+            .collect();
+        let unknown_idx = names["unknown"];
+        Self { names, unknown_idx }
+    }
+
+    pub fn index_of(&self, name: &str) -> usize {
+        self.names.get(name).copied().unwrap_or(self.unknown_idx)
+    }
+
+    pub fn n_types(&self) -> usize {
+        TYPE_NAMES.len()
+    }
+}
+
+/// Create the trainable type Embedding module.
+pub fn create_type_embedding<B: Backend>(type_dim: usize, device: &B::Device) -> Embedding<B> {
+    EmbeddingConfig::new(TYPE_NAMES.len(), type_dim)
+        .with_initializer(Initializer::Uniform { min: -0.1, max: 0.1 })
+        .init(device)
+}
+
+// =============================================================================
+// GloVe — frozen pretrained word vectors
+// =============================================================================
+
 #[derive(Debug, Clone)]
 pub struct GloveVocab {
     pub vectors: HashMap<String, Vec<f32>>,
@@ -23,8 +86,6 @@ pub struct GloveVocab {
 }
 
 impl GloveVocab {
-    /// Load from a GloVe text file (e.g. glove.6B.50d.txt).
-    /// Each line: word f1 f2 f3 ...
     pub fn load(path: &Path, seed: u64) -> std::io::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let mut vectors = HashMap::new();
@@ -48,7 +109,6 @@ impl GloveVocab {
         Ok(Self { vectors, dim, seed })
     }
 
-    /// Look up a word, averaging tokens if multi-word. Random init for unknown words.
     fn embed(&self, text: &str) -> Vec<f32> {
         let tokens: Vec<&str> = text.split_whitespace().collect();
         if tokens.is_empty() {
@@ -67,7 +127,6 @@ impl GloveVocab {
                 }
                 count += 1;
             } else {
-                // Unknown word — add random init so it's not a dead signal
                 let rand_vec = self.random_init(unknown);
                 for (i, v) in rand_vec.iter().enumerate() {
                     sum[i] += v;
@@ -79,7 +138,6 @@ impl GloveVocab {
 
         let scale = 1.0 / count as f32;
         sum.iter_mut().for_each(|v| *v *= scale);
-
         sum
     }
 
@@ -89,83 +147,35 @@ impl GloveVocab {
     }
 }
 
-/// Learned type embeddings — one vector per structural role in the graph.
-/// Covers schema types (table, int, string...) AND operation identities
-/// (op_SELECT, op_gt, op_LIKE...). These are trainable parameters.
-#[derive(Debug, Clone)]
-pub struct TypeVocab {
-    pub vectors: HashMap<String, Vec<f32>>,
-    pub dim: usize,
-    pub seed: u64,
-}
+// =============================================================================
+// Embedder — combines frozen GloVe + trainable type embeddings
+// =============================================================================
 
-impl TypeVocab {
-    /// Initialize with small random values from a seeded RNG.
-    pub fn new(dim: usize, seed: u64) -> Self {
-        let type_names = [
-            // Schema node types
-            "table", "any", "bool", "string", "int", "float", "decimal",
-            "number", "datetime", "duration", "bytes", "object", "regex",
-            "record", "array", "set", "option", "geometry", "literal", "range",
-            // Operation node identities — prefixed to avoid collision
-            "op_SELECT", "op_CREATE", "op_UPDATE", "op_DELETE", "op_RELATE", "op_INSERT",
-            "op_ORDER_BY", "op_GROUP_BY", "op_LIMIT", "op_FETCH", "op_SPLIT",
-            "op_eq", "op_neq", "op_gt", "op_lt", "op_gte", "op_lte",
-            "op_LIKE", "op_CONTAINS", "op_STARTS_WITH", "op_ENDS_WITH",
-            "op_add", "op_sub", "op_mul", "op_div",
-            "op_count", "op_sum", "op_avg", "op_min", "op_max", "op_array_group",
-            "op_arrow_right", "op_arrow_left", "op_arrow_both",
-        ];
-
-        let mut rng = StdRng::seed_from_u64(seed);
-        let mut vectors = HashMap::new();
-
-        for name in &type_names {
-            let vec: Vec<f32> = (0..dim)
-                .map(|_| rng.random_range(-0.1..0.1))
-                .collect();
-            vectors.insert(name.to_string(), vec);
-        }
-
-        Self { vectors, dim, seed }
-    }
-
-    fn embed(&self, type_key: &str) -> Vec<f32> {
-        self.vectors
-            .get(type_key)
-            .cloned()
-            .unwrap_or_else(|| self.random_init())
-    }
-
-    /// Small random vector for query nodes whose type is unknown.
-    fn random_init(&self) -> Vec<f32> {
-        let mut rng = StdRng::seed_from_u64(self.seed.wrapping_add(0xDEAD));
-        (0..self.dim).map(|_| rng.random_range(-0.1..0.1)).collect()
-    }
-}
-
-/// Produces initial embeddings for all nodes in the combined graph.
 pub struct Embedder {
     pub glove: GloveVocab,
-    pub types: TypeVocab,
+    pub type_index: TypeIndex,
+    pub type_dim: usize,
 }
 
 impl Embedder {
-    pub fn new(glove: GloveVocab, type_dim: usize, seed: u64) -> Self {
+    pub fn new(glove: GloveVocab, type_dim: usize) -> Self {
         Self {
             glove,
-            types: TypeVocab::new(type_dim, seed),
+            type_index: TypeIndex::new(),
+            type_dim,
         }
     }
 
     /// Total embedding dim: glove_dim + type_dim + 2 (confidence + is_nl flag)
     pub fn dim(&self) -> usize {
-        self.glove.dim + self.types.dim + 2
+        self.glove.dim + self.type_dim + 2
     }
 
     /// Produce initial embeddings for every node type.
+    /// type_embed is the trainable Embedding from GnnModel.
     pub fn embed_all<B: Backend>(
         &self,
+        type_embed: &Embedding<B>,
         schema: &Schema,
         schema_graph: &SchemaGraph,
         query_graph: &QueryGraph,
@@ -173,139 +183,152 @@ impl Embedder {
         device: &B::Device,
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut result = HashMap::new();
-        let dim = self.dim();
 
         // --- Schema: table nodes ---
-        let table_feats: Vec<f32> = schema_graph.table_nodes.iter().map(|node| {
-            let word = self.glove.embed(&node.name);
-            let typ = self.types.embed("table");
-            concat(&word, &typ, 0.0, false)
-        }).flatten().collect();
-
         if !schema_graph.table_nodes.is_empty() {
-            result.insert("table".to_string(), to_tensor::<B>(
-                table_feats, schema_graph.table_nodes.len(), dim, device,
-            ));
+            let names: Vec<&str> = schema_graph.table_nodes.iter()
+                .map(|n| n.name.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["table"; names.len()];
+            let confs: Vec<f32> = vec![0.0; names.len()];
+            result.insert("table".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, false, device));
         }
 
         // --- Schema: field nodes ---
-        let field_feats: Vec<f32> = schema_graph.field_nodes.iter().map(|node| {
-            let type_key = find_field_type(schema, &node.name);
-            let word = self.glove.embed(&node.name);
-            let typ = self.types.embed(&type_key);
-            concat(&word, &typ, 0.0, false)
-        }).flatten().collect();
-
         if !schema_graph.field_nodes.is_empty() {
-            result.insert("field".to_string(), to_tensor::<B>(
-                field_feats, schema_graph.field_nodes.len(), dim, device,
-            ));
+            let names: Vec<&str> = schema_graph.field_nodes.iter()
+                .map(|n| n.name.as_str()).collect();
+            let type_key_strings: Vec<String> = schema_graph.field_nodes.iter()
+                .map(|n| find_field_type(schema, &n.name)).collect();
+            let type_keys: Vec<&str> = type_key_strings.iter()
+                .map(|s| s.as_str()).collect();
+            let confs: Vec<f32> = vec![0.0; names.len()];
+            result.insert("field".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, false, device));
         }
 
         // --- Query: collection candidates ---
-        let coll_feats: Vec<f32> = query_graph.collections.iter().map(|c| {
-            let word = self.glove.embed(&c.surface_form);
-            let typ = self.types.embed("table");
-            concat(&word, &typ, c.confidence, true)
-        }).flatten().collect();
-
         if !query_graph.collections.is_empty() {
-            result.insert("q_collection".to_string(), to_tensor::<B>(
-                coll_feats, query_graph.collections.len(), dim, device,
-            ));
+            let names: Vec<&str> = query_graph.collections.iter()
+                .map(|c| c.surface_form.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["table"; names.len()];
+            let confs: Vec<f32> = query_graph.collections.iter()
+                .map(|c| c.confidence).collect();
+            result.insert("q_collection".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, true, device));
         }
 
         // --- Query: field candidates ---
-        let field_cand_feats: Vec<f32> = query_graph.fields.iter().map(|f| {
-            let word = self.glove.embed(&f.surface_form);
-            let typ = self.types.random_init();
-            concat(&word, &typ, f.confidence, true)
-        }).flatten().collect();
-
         if !query_graph.fields.is_empty() {
-            result.insert("q_field".to_string(), to_tensor::<B>(
-                field_cand_feats, query_graph.fields.len(), dim, device,
-            ));
+            let names: Vec<&str> = query_graph.fields.iter()
+                .map(|f| f.surface_form.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["unknown"; names.len()];
+            let confs: Vec<f32> = query_graph.fields.iter()
+                .map(|f| f.confidence).collect();
+            result.insert("q_field".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, true, device));
         }
 
         // --- Query: filter candidates ---
-        let filter_feats: Vec<f32> = query_graph.filters.iter().map(|f| {
-            let word = self.glove.embed(&format!("{} {}", f.operator, f.value));
-            let typ = self.types.random_init();
-            concat(&word, &typ, f.confidence, true)
-        }).flatten().collect();
-
         if !query_graph.filters.is_empty() {
-            result.insert("q_filter".to_string(), to_tensor::<B>(
-                filter_feats, query_graph.filters.len(), dim, device,
-            ));
+            let texts: Vec<String> = query_graph.filters.iter()
+                .map(|f| format!("{} {}", f.operator, f.value)).collect();
+            let names: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["unknown"; names.len()];
+            let confs: Vec<f32> = query_graph.filters.iter()
+                .map(|f| f.confidence).collect();
+            result.insert("q_filter".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, true, device));
         }
 
         // --- Query: traversal candidates ---
-        let trav_feats: Vec<f32> = query_graph.traversals.iter().map(|t| {
-            let word = self.glove.embed(&t.surface_form);
-            let typ = self.types.random_init();
-            concat(&word, &typ, t.confidence, true)
-        }).flatten().collect();
-
         if !query_graph.traversals.is_empty() {
-            result.insert("q_traversal".to_string(), to_tensor::<B>(
-                trav_feats, query_graph.traversals.len(), dim, device,
-            ));
+            let names: Vec<&str> = query_graph.traversals.iter()
+                .map(|t| t.surface_form.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["unknown"; names.len()];
+            let confs: Vec<f32> = query_graph.traversals.iter()
+                .map(|t| t.confidence).collect();
+            result.insert("q_traversal".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, true, device));
         }
 
         // --- Query: modifier candidates ---
-        let mod_feats: Vec<f32> = query_graph.modifiers.iter().map(|m| {
-            let word = self.glove.embed(&format!("{} {}", m.surface_form, m.value));
-            let typ = self.types.random_init();
-            concat(&word, &typ, m.confidence, true)
-        }).flatten().collect();
-
         if !query_graph.modifiers.is_empty() {
-            result.insert("q_modifier".to_string(), to_tensor::<B>(
-                mod_feats, query_graph.modifiers.len(), dim, device,
-            ));
+            let texts: Vec<String> = query_graph.modifiers.iter()
+                .map(|m| format!("{} {}", m.surface_form, m.value)).collect();
+            let names: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+            let type_keys: Vec<&str> = vec!["unknown"; names.len()];
+            let confs: Vec<f32> = query_graph.modifiers.iter()
+                .map(|m| m.confidence).collect();
+            result.insert("q_modifier".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, true, device));
         }
 
         // --- Operation nodes ---
-        // Each operation gets its own learned type vector (op_SELECT, op_gt, etc.)
-        // plus a GloVe embedding of its name for word-level signal.
-        let op_feats: Vec<f32> = operations.iter().map(|op| {
-            let word = self.glove.embed(&op.name.to_lowercase().replace('_', " "));
-            let typ = self.types.embed(&format!("op_{}", op.name));
-            concat(&word, &typ, 0.0, false)
-        }).flatten().collect();
-
         if !operations.is_empty() {
-            result.insert("operation".to_string(), to_tensor::<B>(
-                op_feats, operations.len(), dim, device,
-            ));
+            let texts: Vec<String> = operations.iter()
+                .map(|op| op.name.to_lowercase().replace('_', " ")).collect();
+            let names: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+            let type_key_strings: Vec<String> = operations.iter()
+                .map(|op| format!("op_{}", op.name)).collect();
+            let type_keys: Vec<&str> = type_key_strings.iter()
+                .map(|s| s.as_str()).collect();
+            let confs: Vec<f32> = vec![0.0; names.len()];
+            result.insert("operation".into(),
+                self.embed_group(type_embed, &names, &type_keys, &confs, false, device));
         }
 
         result
     }
+
+    /// Embed a group of nodes: GloVe (frozen) + type embedding (trainable) + meta.
+    /// Returns [n_nodes, glove_dim + type_dim + 2].
+    fn embed_group<B: Backend>(
+        &self,
+        type_embed: &Embedding<B>,
+        names: &[&str],
+        type_keys: &[&str],
+        confidences: &[f32],
+        is_nl: bool,
+        device: &B::Device,
+    ) -> Tensor<B, 2> {
+        let n = names.len();
+        let glove_dim = self.glove.dim;
+
+        // GloVe vectors → frozen tensor [n, glove_dim]
+        let glove_data: Vec<f32> = names.iter()
+            .flat_map(|name| self.glove.embed(name))
+            .collect();
+        let glove_t: Tensor<B, 2> = Tensor::from_data(
+            TensorData::new(glove_data, [n, glove_dim]), device,
+        );
+
+        // Type indices → trainable embedding lookup [1, n] → [1, n, type_dim] → [n, type_dim]
+        let type_indices: Vec<i32> = type_keys.iter()
+            .map(|k| self.type_index.index_of(k) as i32)
+            .collect();
+        let idx_t = Tensor::<B, 2, Int>::from_data(
+            TensorData::new(type_indices, [1, n]), device,
+        );
+        let type_t = type_embed.forward(idx_t).reshape([n, self.type_dim]);
+
+        // Meta features: [confidence, is_nl_flag] → frozen tensor [n, 2]
+        let is_nl_val = if is_nl { 1.0f32 } else { 0.0 };
+        let meta_data: Vec<f32> = confidences.iter()
+            .flat_map(|&c| [c, is_nl_val])
+            .collect();
+        let meta_t: Tensor<B, 2> = Tensor::from_data(
+            TensorData::new(meta_data, [n, 2]), device,
+        );
+
+        // Concat along feature dim: [n, glove_dim + type_dim + 2]
+        Tensor::cat(vec![glove_t, type_t, meta_t], 1)
+    }
 }
 
-fn concat(a: &[f32], b: &[f32], confidence: f32, is_nl: bool) -> Vec<f32> {
-    let mut out = Vec::with_capacity(a.len() + b.len() + 2);
-    out.extend_from_slice(a);
-    out.extend_from_slice(b);
-    out.push(confidence);
-    out.push(if is_nl { 1.0 } else { 0.0 });
-    out
-}
-
-fn to_tensor<B: Backend>(
-    data: Vec<f32>,
-    n_nodes: usize,
-    dim: usize,
-    device: &B::Device,
-) -> Tensor<B, 2> {
-    Tensor::<B, 2>::from_data(
-        TensorData::new(data, [n_nodes, dim]),
-        device,
-    )
-}
+// =============================================================================
+// Helpers
+// =============================================================================
 
 /// Look up a field's type key from the schema. Field names are "table.field".
 fn find_field_type(schema: &Schema, full_name: &str) -> String {

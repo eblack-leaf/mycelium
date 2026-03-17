@@ -26,7 +26,64 @@ pub struct ResolverConv {
     pub operations: Vec<OpNode>,
 }
 
+fn empty_rel(src: &str, edge: &str, dst: &str) -> ConvRelation {
+    ConvRelation {
+        src_type: src.into(), edge_type: edge.into(), dst_type: dst.into(),
+        src_indices: vec![], dst_indices: vec![],
+    }
+}
+
 impl ResolverConv {
+    /// Template with all 26 relation types (empty edges). Used to initialize
+    /// the Encoder so every SAGEConv exists regardless of query shape.
+    pub fn template(schema_graph: &SchemaGraph) -> Self {
+        let operations = all_operations();
+        let node_counts = vec![
+            ("table".into(), schema_graph.table_nodes.len()),
+            ("field".into(), schema_graph.field_nodes.len()),
+            ("operation".into(), operations.len()),
+            ("q_collection".into(), 0),
+            ("q_field".into(), 0),
+            ("q_filter".into(), 0),
+            ("q_traversal".into(), 0),
+            ("q_modifier".into(), 0),
+        ];
+        let relations = vec![
+            // Schema intra
+            empty_rel("table", "has_field", "field"),
+            empty_rel("field", "field_of", "table"),
+            empty_rel("table", "links_to", "table"),
+            empty_rel("table", "linked_from", "table"),
+            // Schema ↔ operation
+            empty_rel("field", "compatible_op", "operation"),
+            empty_rel("operation", "compatible_field", "field"),
+            empty_rel("table", "table_op", "operation"),
+            empty_rel("operation", "op_table", "table"),
+            // Query intra
+            empty_rel("q_filter", "filters_on", "q_field"),
+            empty_rel("q_field", "filtered_by", "q_filter"),
+            // Query ↔ schema
+            empty_rel("q_collection", "matches_table", "table"),
+            empty_rel("table", "matched_by_collection", "q_collection"),
+            empty_rel("q_field", "matches_field", "field"),
+            empty_rel("field", "matched_by_field", "q_field"),
+            empty_rel("q_traversal", "matches_table", "table"),
+            empty_rel("table", "matched_by_traversal", "q_traversal"),
+            // Query ↔ operation
+            empty_rel("q_collection", "matches_op", "operation"),
+            empty_rel("operation", "matched_by_collection", "q_collection"),
+            empty_rel("q_field", "matches_op", "operation"),
+            empty_rel("operation", "matched_by_field", "q_field"),
+            empty_rel("q_filter", "matches_op", "operation"),
+            empty_rel("operation", "matched_by_filter", "q_filter"),
+            empty_rel("q_traversal", "matches_op", "operation"),
+            empty_rel("operation", "matched_by_traversal", "q_traversal"),
+            empty_rel("q_modifier", "matches_op", "operation"),
+            empty_rel("operation", "matched_by_modifier", "q_modifier"),
+        ];
+        Self { node_counts, relations, operations }
+    }
+
     pub fn new(schema_graph: &SchemaGraph, query_graph: &QueryGraph) -> Self {
         let operations = all_operations();
 

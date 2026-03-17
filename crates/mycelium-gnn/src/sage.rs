@@ -97,7 +97,15 @@ impl<B: Backend> HeteroConv<B> {
     ) -> HashMap<String, Tensor<B, 2>> {
         let mut dst_acc: HashMap<String, Vec<Tensor<B, 2>>> = HashMap::new();
 
-        for (rel, sage) in conv.relations.iter().zip(self.convs.iter()) {
+        for rel in &conv.relations {
+            if rel.src_indices.is_empty() { continue; }
+
+            let key = format!("{}__{}__{}", rel.src_type, rel.edge_type, rel.dst_type);
+            let sage = match self.relation_keys.iter().position(|k| *k == key) {
+                Some(idx) => &self.convs[idx],
+                None => continue,
+            };
+
             let src_emb = match embeddings.get(&rel.src_type) {
                 Some(e) => e.clone(),
                 None => continue,

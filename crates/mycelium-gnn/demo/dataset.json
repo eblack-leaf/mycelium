@@ -1,0 +1,216 @@
+{
+  "samples": [
+    {
+      "extraction": {
+        "collections": [{"surface_form": "users", "confidence": 0.95, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 0, "score": 0.92}], "operation_matches": [{"operation_id": 0, "score": 0.8}]}],
+        "fields": [],
+        "filters": [],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [0],
+        "field_targets": [],
+        "filter_op_targets": [],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "users", "confidence": 0.92, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 0, "score": 0.88}], "operation_matches": [{"operation_id": 0, "score": 0.75}]}],
+        "fields": [
+          {"surface_form": "names", "confidence": 0.9, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 0, "score": 0.85}], "operation_matches": []},
+          {"surface_form": "emails", "confidence": 0.87, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 2, "score": 0.82}], "operation_matches": []}
+        ],
+        "filters": [],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [0],
+        "field_targets": [0, 2],
+        "filter_op_targets": [],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "users", "confidence": 0.95, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 0, "score": 0.92}], "operation_matches": [{"operation_id": 0, "score": 0.8}]}],
+        "fields": [],
+        "filters": [
+          {
+            "field": {"surface_form": "age", "confidence": 0.9, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 1, "score": 0.88}], "operation_matches": []},
+            "operator": "older than",
+            "value": "30",
+            "confidence": 0.88,
+            "operation_matches": [{"operation_id": 13, "score": 0.85}]
+          }
+        ],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [0],
+        "field_targets": [1],
+        "filter_op_targets": [13],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "posts", "confidence": 0.9, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 1, "score": 0.87}], "operation_matches": [{"operation_id": 0, "score": 0.7}]}],
+        "fields": [],
+        "filters": [
+          {
+            "field": {"surface_form": "title", "confidence": 0.85, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 4, "score": 0.82}], "operation_matches": []},
+            "operator": "containing",
+            "value": "hello",
+            "confidence": 0.83,
+            "operation_matches": [{"operation_id": 18, "score": 0.8}]
+          }
+        ],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [1],
+        "field_targets": [4],
+        "filter_op_targets": [18],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "posts", "confidence": 0.93, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 1, "score": 0.9}], "operation_matches": [{"operation_id": 0, "score": 0.75}]}],
+        "fields": [
+          {"surface_form": "titles", "confidence": 0.91, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 4, "score": 0.88}], "operation_matches": []}
+        ],
+        "filters": [],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [1],
+        "field_targets": [4],
+        "filter_op_targets": [],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "users", "confidence": 0.95, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 0, "score": 0.92}], "operation_matches": [{"operation_id": 0, "score": 0.8}]}],
+        "fields": [],
+        "filters": [
+          {
+            "field": {"surface_form": "name", "confidence": 0.87, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 0, "score": 0.85}], "operation_matches": []},
+            "operator": "named",
+            "value": "John",
+            "confidence": 0.85,
+            "operation_matches": [{"operation_id": 11, "score": 0.9}]
+          }
+        ],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [0],
+        "field_targets": [0],
+        "filter_op_targets": [11],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "comments", "confidence": 0.9, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 2, "score": 0.87}], "operation_matches": [{"operation_id": 0, "score": 0.7}]}],
+        "fields": [
+          {"surface_form": "texts", "confidence": 0.88, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 8, "score": 0.85}], "operation_matches": []}
+        ],
+        "filters": [],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [2],
+        "field_targets": [8],
+        "filter_op_targets": [],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "users", "confidence": 0.93, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 0, "score": 0.9}], "operation_matches": [{"operation_id": 0, "score": 0.75}]}],
+        "fields": [],
+        "filters": [
+          {
+            "field": {"surface_form": "email", "confidence": 0.82, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 2, "score": 0.8}], "operation_matches": []},
+            "operator": "like",
+            "value": "gmail",
+            "confidence": 0.8,
+            "operation_matches": [{"operation_id": 17, "score": 0.85}]
+          }
+        ],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [0],
+        "field_targets": [2],
+        "filter_op_targets": [17],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "posts", "confidence": 0.93, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 1, "score": 0.9}], "operation_matches": [{"operation_id": 0, "score": 0.7}]}],
+        "fields": [
+          {"surface_form": "created", "confidence": 0.75, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 7, "score": 0.7}], "operation_matches": []}
+        ],
+        "filters": [],
+        "traversals": [],
+        "modifiers": [
+          {"surface_form": "limit", "value": "5", "confidence": 0.88, "operation_matches": [{"operation_id": 10, "score": 0.9}]},
+          {"surface_form": "newest", "value": "", "confidence": 0.82, "operation_matches": [{"operation_id": 6, "score": 0.85}]}
+        ]
+      },
+      "ground_truth": {
+        "collection_targets": [1],
+        "field_targets": [7],
+        "filter_op_targets": [],
+        "traversal_targets": [],
+        "modifier_op_targets": [10, 6]
+      }
+    },
+    {
+      "extraction": {
+        "collections": [{"surface_form": "posts", "confidence": 0.9, "schema_matches": [{"schema_node_type": "table", "schema_node_id": 1, "score": 0.87}], "operation_matches": [{"operation_id": 0, "score": 0.7}]}],
+        "fields": [],
+        "filters": [
+          {
+            "field": {"surface_form": "created", "confidence": 0.85, "schema_matches": [{"schema_node_type": "field", "schema_node_id": 7, "score": 0.82}], "operation_matches": []},
+            "operator": "before",
+            "value": "2024",
+            "confidence": 0.83,
+            "operation_matches": [{"operation_id": 14, "score": 0.85}]
+          }
+        ],
+        "traversals": [],
+        "modifiers": []
+      },
+      "ground_truth": {
+        "collection_targets": [1],
+        "field_targets": [7],
+        "filter_op_targets": [14],
+        "traversal_targets": [],
+        "modifier_op_targets": []
+      }
+    }
+  ]
+}

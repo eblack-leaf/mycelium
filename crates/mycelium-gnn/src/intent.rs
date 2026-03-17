@@ -5,8 +5,10 @@
 // Extraction. QueryGraph consumes it without knowing how it was built.
 // =============================================================================
 
+use serde::{Serialize, Deserialize};
+
 /// Tentative link between a candidate and a schema element.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaMatch {
     pub schema_node_type: String,
     pub schema_node_id: usize,
@@ -14,7 +16,7 @@ pub struct SchemaMatch {
 }
 
 /// A candidate that matched a schema entity (collection, field, or traversal target).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateMatch {
     pub surface_form: String,
     pub confidence: f32,
@@ -23,14 +25,14 @@ pub struct CandidateMatch {
 }
 
 /// Scored guess linking a filter phrase to an operation node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationMatch {
     pub operation_id: usize,   // index into all_operations()
     pub score: f32,            // Grounding model's confidence
 }
 
 /// A candidate filter: field reference + operator + value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilterMatch {
     pub field: CandidateMatch,
     pub operator: String,
@@ -40,7 +42,7 @@ pub struct FilterMatch {
 }
 
 /// A query-level modifier (LIMIT, OFFSET, etc.) — not applied to a field.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifierMatch {
     pub surface_form: String,
     pub value: String,
@@ -49,7 +51,7 @@ pub struct ModifierMatch {
 }
 
 /// Model-agnostic output from NL intent extraction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Extraction {
     pub collections: Vec<CandidateMatch>,
     pub fields: Vec<CandidateMatch>,
