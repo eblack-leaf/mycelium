@@ -1,13 +1,15 @@
-//! Generate training dataset using the real NLP + cross-encoder pipeline.
+//! Generate training dataset using the real inference pipeline.
 //!
-//! Unlike gen_dataset.rs (synthetic), this runs actual model inference:
-//!   - NlpModel::parse()  → real LinguisticGraph with transformer embeddings
+//! Runs the full pipeline that the GNN will see at inference:
+//!   - NlpModel::parse() with biaffine head → real LinguisticGraph
 //!   - CandidateMatcher::match_candidates() → real cross-encoder scores
 //!
-//! Ground truth is derived by matching parsed nodes back to known targets.
-//! Samples where the parser fails to produce matchable nodes are skipped.
-//!
-//! The synthetic dataset (gen_dataset) remains for testing the GNN in isolation.
+//! Graph structure comes from the biaffine head (or rule-based fallback),
+//! embeddings are real bi-encoder output, candidate scores are real
+//! cross-encoder output. Ground truth is derived by matching parsed nodes
+//! back to known template targets. Samples where the parser produces
+//! unmatchable output are skipped — the GNN only trains on samples where
+//! the upstream pipeline gave usable results.
 //!
 //! Usage:
 //!   cargo run --release --example gen_dataset_nlp -p gnn-burn
@@ -745,12 +747,23 @@ fn main() {
 
     // --- Load NLP models ---
     println!("Loading NLP models...");
+    // Use biaffine head if available — this is the real inference path
+    let biaffine_path = demo_dir.join("biaffine_model");
+    let biaffine_model_path = if biaffine_path.with_extension("mpk").exists() {
+        println!("Using biaffine head for parsing");
+        Some(biaffine_path.to_string_lossy().into_owned())
+    } else {
+        println!("No biaffine model found — falling back to rule-based parser");
+        None
+    };
+
     let nlp = NlpModel::load(&NlpConfig {
         model_path: model_dir.join("model.onnx").to_string_lossy().into(),
         tokenizer_path: model_dir.join("tokenizer.json").to_string_lossy().into(),
         cross_model_path: model_dir.join("cross-encoder.onnx").to_string_lossy().into(),
         cross_tokenizer_path: model_dir.join("cross-tokenizer.json").to_string_lossy().into(),
-    }).expect("load NLP models — run download_models.sh first");
+        biaffine_model_path,
+    }).expect("load NLP models — run fetch_models.sh first");
 
     // --- Build candidate matcher ---
     let matcher = CandidateMatcher::new(

@@ -12,11 +12,14 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::io::Write;
 use serde::{Serialize, Deserialize};
+use indicatif::{ProgressBar, ProgressStyle};
 use burn::{
     module::{Module, AutodiffModule},
     backend::{Autodiff, NdArray},
     optim::{AdamConfig, GradientsParams, Optimizer},
+    lr_scheduler::{LrScheduler, cosine::CosineAnnealingLrSchedulerConfig},
     record::CompactRecorder,
     tensor::{backend::Backend, Tensor, Int, TensorData},
     tensor::activation,
@@ -420,10 +423,27 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
     let head: OutputHead<TrainBackend> = OutputHead::new(config.hidden_dim, device);
     let mut model = GnnModel { type_embed, ling_proj, encoder, head };
     let mut optim = AdamConfig::new().init();
+    let mut scheduler = CosineAnnealingLrSchedulerConfig::new(
+        config.learning_rate, config.epochs,
+    ).init().expect("valid scheduler config");
+
+    // --- Metrics CSV ---
+    let metrics_path = Path::new(&config.schema_path).parent().unwrap().join("metrics.csv");
+    let mut metrics_file = std::fs::File::create(&metrics_path).expect("create metrics.csv");
+    writeln!(metrics_file, "epoch,train_loss,val_loss,train_role_acc,val_role_acc,train_target_acc,val_target_acc,lr").unwrap();
+
+    let pb_style = ProgressStyle::default_bar()
+        .template("{msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+        .unwrap()
+        .progress_chars("##-");
 
     // --- Early stopping state ---
     let mut best_val_loss = f32::INFINITY;
     let mut epochs_without_improvement = 0usize;
+
+    let n_tables = schema_graph.table_nodes.len();
+    let n_fields = schema_graph.field_nodes.len();
+    let n_ops = operations.len();
 
     // --- Training loop ---
     for epoch in 0..config.epochs {
@@ -434,6 +454,11 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let mut train_target_correct = 0usize;
         let mut train_target_total = 0usize;
 
+        let pb = ProgressBar::new(train_samples.len() as u64);
+        pb.set_style(pb_style.clone());
+        pb.set_message(format!("epoch {:>3} train", epoch));
+
+        let mut current_lr = 0.0;
         for sample in train_samples {
             let conv = LinguisticConv::new(&schema_graph, &sample.linguistic_graph, &sample.candidates);
 
@@ -445,7 +470,7 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             let encoded = model.encoder.forward(&conv, initial, device);
             let mask = CandidateMask::from_candidates(
                 &sample.linguistic_graph, &sample.candidates,
-                schema_graph.table_nodes.len(), schema_graph.field_nodes.len(), operations.len(),
+                n_tables, n_fields, n_ops,
             );
             let logits = model.head.forward(&encoded, Some(&mask));
 
@@ -462,8 +487,12 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
 
             let grads = loss.backward();
             let grads = GradientsParams::from_grads(grads, &model);
-            model = optim.step(config.learning_rate, model, grads);
+            current_lr = scheduler.step();
+            model = optim.step(current_lr, model, grads);
+
+            pb.inc(1);
         }
+        pb.finish_and_clear();
 
         // --- Validate ---
         let mut val_loss = 0.0f32;
@@ -471,6 +500,10 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let mut val_role_total = 0usize;
         let mut val_target_correct = 0usize;
         let mut val_target_total = 0usize;
+
+        let pb = ProgressBar::new(val_samples.len() as u64);
+        pb.set_style(pb_style.clone());
+        pb.set_message(format!("epoch {:>3} val  ", epoch));
 
         let valid_model = model.valid();
         for sample in val_samples {
@@ -484,7 +517,7 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             let encoded = valid_model.encoder.forward(&conv, initial, device);
             let mask = CandidateMask::from_candidates(
                 &sample.linguistic_graph, &sample.candidates,
-                schema_graph.table_nodes.len(), schema_graph.field_nodes.len(), operations.len(),
+                n_tables, n_fields, n_ops,
             );
             let logits = valid_model.head.forward(&encoded, Some(&mask));
 
@@ -496,7 +529,10 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             val_role_total += rt;
             val_target_correct += tc;
             val_target_total += tt;
+
+            pb.inc(1);
         }
+        pb.finish_and_clear();
 
         let train_avg = train_loss / train_samples.len() as f32;
         let val_avg = val_loss / val_samples.len() as f32;
@@ -506,17 +542,20 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let val_target_acc = if val_target_total > 0 { val_target_correct as f64 / val_target_total as f64 } else { 0.0 };
 
         println!(
-            "epoch {:>3}: loss={:.4}/{:.4} role={:.1}%/{:.1}% target={:.1}%/{:.1}%",
+            "epoch {:>3}: loss={:.4}/{:.4} role={:.1}%/{:.1}% target={:.1}%/{:.1}% lr={:.6}",
             epoch, train_avg, val_avg,
             train_role_acc * 100.0, val_role_acc * 100.0,
             train_target_acc * 100.0, val_target_acc * 100.0,
+            current_lr,
         );
+        writeln!(metrics_file, "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.8}",
+            epoch, train_avg, val_avg, train_role_acc, val_role_acc,
+            train_target_acc, val_target_acc, current_lr).unwrap();
 
         // Early stopping + save best
         if val_avg < best_val_loss {
             best_val_loss = val_avg;
             epochs_without_improvement = 0;
-            // Save best model
             model.valid()
                 .save_file(&config.model_path, &CompactRecorder::new())
                 .expect("save model");

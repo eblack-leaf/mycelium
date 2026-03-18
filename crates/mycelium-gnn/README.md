@@ -1,7 +1,8 @@
 # mycelium-gnn
 
 Natural language to SurrealQL query resolution via a 3-stage pipeline:
-rule-based NLP parse, cross-encoder candidate matching, GNN graph resolution.
+NLP parse (biaffine head or rule-based fallback), cross-encoder candidate matching,
+GNN graph resolution.
 
 ## Setup
 
@@ -13,8 +14,12 @@ rule-based NLP parse, cross-encoder candidate matching, GNN graph resolution.
 cargo run --release --example gen_dataset -p gnn-burn       # synthetic (fake scores)
 cargo run --release --example gen_dataset_nlp -p gnn-burn   # real (cross-encoder scores)
 
-# Train
+# Train GNN
 cargo run --release --example train -p gnn-burn
+
+# Train biaffine head (replaces rule-based parser)
+cargo run --release --example gen_biaffine_dataset -p gnn-burn
+cargo run --release --example train_biaffine -p gnn-burn
 
 # Run end-to-end demo
 cargo run --release --example pipeline_demo -p gnn-burn
@@ -26,6 +31,7 @@ cargo run --release --example pipeline_demo -p gnn-burn
 |-------|-------------|------|-------------|
 | **Bi-encoder** (sentence-transformers/all-MiniLM-L6-v2, ONNX) | Takes a text string, returns a 384-dim embedding vector. Used after span extraction to give each span a semantic representation. | `models/model.onnx` | Yes |
 | **Cross-encoder** (cross-encoder/ms-marco-MiniLM-L-6-v2, ONNX) | Takes a (phrase, schema_name) pair, returns a 0-1 relevance score. Used to find which schema nodes each NL phrase might refer to. | `models/cross-encoder.onnx` | Yes |
+| **Biaffine head** (BIO tagger + biaffine dep parser) | Replaces rule-based parser. BIO tags on MiniLM token embeddings → spans, then biaffine attention → dependency edges. Falls back to rule-based if no model. | `demo/biaffine_model` | No, trained by you |
 | **GNN** (SAGEConv encoder + OutputHead) | Takes the combined graph (schema + linguistic + candidate edges), resolves each NL phrase to a schema role and target node. | `demo/gnn_model` | No, trained by you |
 
 ## Pipeline walkthrough
@@ -34,9 +40,13 @@ Concrete example: `"find goods where cost over 100"`
 
 ### Stage 1: NLP Parse
 
-**Code:** `nlp.rs:194` `NlpModel::parse()`
+**Code:** `nlp.rs` `NlpModel::parse()`
 
-The rule-based parser (`nlp.rs:216` `rule_based_parse()`) scans words left to right:
+If a trained biaffine head is available (`demo/biaffine_model.mpk`), Stage 1 uses
+it for BIO tagging on MiniLM token embeddings → span extraction, then biaffine
+attention → dependency edges. Otherwise, it falls back to the rule-based parser.
+
+The rule-based parser (`nlp.rs` `rule_based_parse()`) scans words left to right:
 
 - `"find"` matches the intent word list → **Intent** node
 - `"goods"` doesn't match any special pattern → **NounPhrase** node
@@ -131,12 +141,12 @@ message passing so a 0.82 match contributes more than a 0.12 match
 **Code:** `embed.rs:146` `Embedder::embed_all()`
 
 ```
-Schema nodes:  GloVe("goods") + type_embed("table") + [confidence, is_nl] → 68-dim
-Ling nodes:    bi-encoder("goods") → 384-dim → ling_proj (Linear 384→68) → 68-dim
+Schema nodes:  GloVe("goods") + type_embed("table") + [confidence, is_nl] → 318-dim
+Ling nodes:    bi-encoder("goods") → 384-dim → ling_proj (Linear 384→318) → 318-dim
 ```
 
 Schema nodes use GloVe + a learned type embedding. Linguistic nodes use the
-384-dim bi-encoder output, projected down to 68-dim by a learned linear layer
+384-dim bi-encoder output, projected down to 318-dim by a learned linear layer
 (`training.rs:149` `project_linguistic()`). The projection is trained alongside
 the GNN — not truncated.
 
@@ -214,7 +224,7 @@ Two dataset generators:
   cross-encoder scores are real — messier, sometimes the correct target isn't
   highest. Trains the GNN on what it will actually see at inference.
 
-The GNN trains: `ling_proj` (384→68 projection), `type_embed` (learned type
+The GNN trains: `ling_proj` (384→318 projection), `type_embed` (learned type
 vectors), `Encoder` (SAGEConv weights), `OutputHead` (role classifier + bilinear
 target scoring). GloVe vectors are frozen.
 
@@ -222,7 +232,9 @@ target scoring). GloVe vectors are frozen.
 
 ```
 src/
-  nlp.rs                Stage 1: rule-based parse + bi-encoder embed + cross-encoder
+  nlp.rs                Stage 1: parse (biaffine or rule-based) + bi-encoder embed + cross-encoder
+  biaffine.rs           Biaffine head Burn module: BIO tagger + biaffine dep parser
+  biaffine_data.rs      BIO tags, subword alignment, dataset types, span decoding
   candidate_matcher.rs  Stage 2: cross-encoder scoring, top-k filtering
   linguistic_graph.rs   Stage 3 topology: combined graph with weighted candidate edges
   embed.rs              Stage 3 init: GloVe + type_embed (schema), bi-encoder + ling_proj (ling)
@@ -237,17 +249,21 @@ src/
   lib.rs                Pipeline struct wiring stages 1-2
 
 examples/
-  gen_dataset.rs        Synthetic dataset generator
-  gen_dataset_nlp.rs    Real NLP dataset generator
-  train.rs              Training entrypoint
-  pipeline_demo.rs      End-to-end inference demo
+  gen_dataset.rs            Synthetic GNN dataset generator
+  gen_dataset_nlp.rs        Real NLP GNN dataset generator
+  gen_biaffine_dataset.rs   Biaffine head training data (tokenizer only, no ONNX)
+  train.rs                  GNN training entrypoint
+  train_biaffine.rs         Biaffine head training loop
+  pipeline_demo.rs          End-to-end inference demo
 
 demo/
   schema.surql          Test schema (goods, users, posts, messages, products)
-  dataset.json          Synthetic training data (gitignored)
-  dataset_nlp.json      NLP training data (gitignored)
-  glove.6B.50d.txt      GloVe vectors (gitignored, fetched by fetch_models.sh)
-  gnn_model             Trained model weights (gitignored)
+  dataset.json          Synthetic GNN training data (gitignored)
+  dataset_nlp.json      NLP GNN training data (gitignored)
+  biaffine_dataset.json Biaffine head training data (gitignored)
+  biaffine_model        Trained biaffine head weights (gitignored)
+  glove.6B.300d.txt     GloVe vectors (gitignored, fetched by fetch_models.sh)
+  gnn_model             Trained GNN model weights (gitignored)
 
 models/
   model.onnx            Bi-encoder ONNX (gitignored)

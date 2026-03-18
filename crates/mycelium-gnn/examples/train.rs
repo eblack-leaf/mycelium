@@ -18,7 +18,7 @@ fn main() {
         epochs: 50,
         hidden_dim: 64,
         n_layers: 2,
-        glove_path: demo_dir.join("glove.6B.50d.txt").to_string_lossy().into(),
+        glove_path: demo_dir.join("glove.6B.300d.txt").to_string_lossy().into(),
         schema_path: demo_dir.join("schema.surql").to_string_lossy().into(),
         type_dim: 16,
         patience: 8,

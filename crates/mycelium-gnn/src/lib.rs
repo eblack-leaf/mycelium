@@ -13,6 +13,8 @@ pub mod schema;
 pub mod graph;
 pub mod operations;
 pub mod nlp;
+pub mod biaffine;
+pub mod biaffine_data;
 pub mod candidate_matcher;
 pub mod linguistic_graph;
 pub mod tensor_ops;
@@ -48,6 +50,7 @@ pub struct PipelineConfig {
     pub tokenizer_path: String,
     pub cross_model_path: String,
     pub cross_tokenizer_path: String,
+    pub biaffine_model_path: Option<String>,
     pub matcher_config: CandidateMatcherConfig,
 }
 
@@ -68,6 +71,7 @@ impl Pipeline {
             tokenizer_path: config.tokenizer_path.clone(),
             cross_model_path: config.cross_model_path.clone(),
             cross_tokenizer_path: config.cross_tokenizer_path.clone(),
+            biaffine_model_path: config.biaffine_model_path.clone(),
         })?;
 
         let matcher = CandidateMatcher::new(&graph, &operations, config.matcher_config.clone());

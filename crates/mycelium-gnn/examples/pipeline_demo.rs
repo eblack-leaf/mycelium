@@ -34,15 +34,24 @@ fn main() {
     let demo_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let model_dir = demo_dir.join("models");
     let schema_path = demo_dir.join("demo/schema.surql");
-    let glove_path = demo_dir.join("demo/glove.6B.50d.txt");
+    let glove_path = demo_dir.join("demo/glove.6B.300d.txt");
 
     // --- Load NLP models ---
     println!("Loading NLP models...");
+    // Use biaffine head if model exists
+    let biaffine_path = demo_dir.join("demo/biaffine_model");
+    let biaffine_model_path = if biaffine_path.with_extension("mpk").exists() {
+        Some(biaffine_path.to_string_lossy().into_owned())
+    } else {
+        None
+    };
+
     let nlp = NlpModel::load(&NlpConfig {
         model_path: model_dir.join("model.onnx").to_string_lossy().into(),
         tokenizer_path: model_dir.join("tokenizer.json").to_string_lossy().into(),
         cross_model_path: model_dir.join("cross-encoder.onnx").to_string_lossy().into(),
         cross_tokenizer_path: model_dir.join("cross-tokenizer.json").to_string_lossy().into(),
+        biaffine_model_path,
     }).expect("load NLP models");
 
     // --- Load schema ---
@@ -68,7 +77,8 @@ fn main() {
     let gnn_model_path = demo_dir.join("demo/gnn_model");
 
     let embed_dim = embedder.schema_dim();
-    let (type_embed, ling_proj, encoder, output_head) = if gnn_model_path.exists() {
+    // CompactRecorder appends .mpk — check for the actual file
+    let (type_embed, ling_proj, encoder, output_head) = if gnn_model_path.with_extension("mpk").exists() {
         println!("Loading trained GNN model...");
         let (model, _, _) = load_model(
             &gnn_model_path.to_string_lossy(),

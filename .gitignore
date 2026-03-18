@@ -2,7 +2,7 @@
 target
 node_modules
 dist
-crates/mycelium-gnn/demo/glove.6B.50d.txt
+crates/mycelium-gnn/demo/glove.6B.300d.txt
 crates/mycelium-gnn/demo/dataset.json
 crates/mycelium-gnn/models/cross-encoder.onnx
 crates/mycelium-gnn/models/cross-tokenizer.json
@@ -10,3 +10,6 @@ crates/mycelium-gnn/models/model.onnx
 crates/mycelium-gnn/models/tokenizer.json
 crates/mycelium-gnn/demo/dataset_nlp.json
 crates/mycelium-gnn/demo/gnn_model*
+crates/mycelium-gnn/demo/biaffine_dataset.json
+crates/mycelium-gnn/demo/biaffine_model*
+crates/mycelium-gnn/demo/metrics.csv

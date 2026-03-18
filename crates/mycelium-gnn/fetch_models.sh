@@ -8,7 +8,7 @@
 #   models/tokenizer.json          ~466 KB
 #   models/cross-encoder.onnx      ~90 MB  cross-encoder/ms-marco-MiniLM-L-6-v2
 #   models/cross-tokenizer.json    ~711 KB
-#   demo/glove.6B.50d.txt          ~171 MB GloVe 6B 50d vectors
+#   demo/glove.6B.300d.txt         ~1 GB   GloVe 6B 300d vectors
 #
 # Usage:
 #   cd crates/mycelium-gnn && ./fetch_models.sh
@@ -54,22 +54,22 @@ fetch "$HF/$CROSS_ENCODER/resolve/main/tokenizer.json" \
       "$MODEL_DIR/cross-tokenizer.json"
 
 # ---------------------------------------------------------------------------
-# GloVe 6B 50d
+# GloVe 6B 300d
 # ---------------------------------------------------------------------------
-echo "=== GloVe 6B 50d ==="
-if [ -f "$DEMO_DIR/glove.6B.50d.txt" ]; then
-    echo "  skip  glove.6B.50d.txt (exists)"
+echo "=== GloVe 6B 300d ==="
+if [ -f "$DEMO_DIR/glove.6B.300d.txt" ]; then
+    echo "  skip  glove.6B.300d.txt (exists)"
 else
     GLOVE_ZIP="$DEMO_DIR/glove.6B.zip"
     echo "  fetch glove.6B.zip (~862 MB)"
     wget -q --show-progress -O "$GLOVE_ZIP" \
         "https://nlp.stanford.edu/data/glove.6B.zip"
-    echo "  extract glove.6B.50d.txt"
-    unzip -j -o "$GLOVE_ZIP" "glove.6B.50d.txt" -d "$DEMO_DIR"
+    echo "  extract glove.6B.300d.txt"
+    unzip -j -o "$GLOVE_ZIP" "glove.6B.300d.txt" -d "$DEMO_DIR"
     rm -f "$GLOVE_ZIP"
 fi
 
 echo ""
 echo "done. files:"
 ls -lh "$MODEL_DIR"
-ls -lh "$DEMO_DIR/glove.6B.50d.txt"
+ls -lh "$DEMO_DIR/glove.6B.300d.txt"

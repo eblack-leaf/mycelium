@@ -10,10 +10,18 @@
 // =============================================================================
 
 use std::cell::RefCell;
+use std::path::Path;
 use serde::{Serialize, Deserialize};
 use ort::session::Session;
 use ort::value::Tensor;
 use tokenizers::Tokenizer;
+use burn::backend::NdArray;
+use burn::record::CompactRecorder;
+use burn::module::Module;
+use burn::tensor::TensorData;
+
+use crate::biaffine::{BiaffineHead, mean_pool_spans, HIDDEN_DIM};
+use crate::biaffine_data::{BioTag, build_subword_to_word, decode_bio_spans};
 
 // =============================================================================
 // Linguistic graph types
@@ -78,6 +86,8 @@ pub struct NlpModel {
     /// Cross-encoder (ms-marco-MiniLM) for candidate scoring
     cross_session: RefCell<Session>,
     cross_tokenizer: Tokenizer,
+    /// Trained biaffine head (None = fall back to rule-based)
+    biaffine: Option<BiaffineHead<NdArray>>,
 }
 
 pub struct NlpConfig {
@@ -87,6 +97,8 @@ pub struct NlpConfig {
     /// Cross-encoder model (cross-encoder/ms-marco-MiniLM-L6-v2)
     pub cross_model_path: String,
     pub cross_tokenizer_path: String,
+    /// Optional: path to trained biaffine model (.mpk)
+    pub biaffine_model_path: Option<String>,
 }
 
 impl NlpModel {
@@ -101,9 +113,33 @@ impl NlpModel {
             .commit_from_file(&config.cross_model_path)?;
         let cross_tokenizer = Tokenizer::from_file(&config.cross_tokenizer_path)
             .map_err(|e| format!("cross tokenizer: {}", e))?;
+
+        // Optionally load biaffine head
+        let biaffine = config.biaffine_model_path.as_ref().and_then(|path| {
+            let mpk_path = format!("{}.mpk", path);
+            if Path::new(&mpk_path).exists() {
+                let device = Default::default();
+                match BiaffineHead::<NdArray>::new(&device)
+                    .load_file(path, &CompactRecorder::new(), &device)
+                {
+                    Ok(m) => {
+                        eprintln!("biaffine head loaded from {}", path);
+                        Some(m)
+                    }
+                    Err(e) => {
+                        eprintln!("biaffine head load failed: {} — falling back to rule-based", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        });
+
         Ok(Self {
             session: RefCell::new(session), tokenizer,
             cross_session: RefCell::new(cross_session), cross_tokenizer,
+            biaffine,
         })
     }
 
@@ -189,23 +225,157 @@ impl NlpModel {
         pairs.iter().map(|(p, s)| self.cross_encode(p, s)).collect()
     }
 
-    /// Parse NL query into a LinguisticGraph.
-    /// Currently rule-based spans + transformer embeddings.
-    pub fn parse(&self, query: &str) -> LinguisticGraph {
-        let (nodes, edges) = rule_based_parse(query);
+    /// Encode text, return raw token-level embeddings [seq_len-2, 384] (no CLS/SEP)
+    /// plus the tokenizer Encoding for offset information.
+    fn encode_tokens(&self, text: &str) -> Result<(Vec<f32>, tokenizers::Encoding), Box<dyn std::error::Error>> {
+        let encoding = self.tokenizer.encode(text, true)
+            .map_err(|e| format!("encode: {}", e))?;
+        let ids: Vec<i64> = encoding.get_ids().iter().map(|&x| x as i64).collect();
+        let mask: Vec<i64> = encoding.get_attention_mask().iter().map(|&x| x as i64).collect();
+        let type_ids: Vec<i64> = encoding.get_type_ids().iter().map(|&x| x as i64).collect();
+        let seq_len = ids.len();
 
+        let ids_tensor = Tensor::from_array((vec![1i64, seq_len as i64], ids))?;
+        let mask_tensor = Tensor::from_array((vec![1i64, seq_len as i64], mask))?;
+        let type_tensor = Tensor::from_array((vec![1i64, seq_len as i64], type_ids))?;
+
+        let mut session = self.session.borrow_mut();
+        let outputs = session.run(ort::inputs![ids_tensor, mask_tensor, type_tensor])?;
+
+        let (shape, data) = outputs[0].try_extract_tensor::<f32>()?;
+        let hidden_dim = shape[2] as usize;
+
+        // Extract content tokens (skip CLS=0 and SEP=last)
+        let n_content = seq_len.saturating_sub(2);
+        let mut token_embs = Vec::with_capacity(n_content * hidden_dim);
+        for i in 1..=n_content {
+            let offset = i * hidden_dim;
+            token_embs.extend_from_slice(&data[offset..offset + hidden_dim]);
+        }
+
+        Ok((token_embs, encoding))
+    }
+
+    /// Parse NL query into a LinguisticGraph.
+    /// Uses biaffine head if available, otherwise falls back to rule-based.
+    pub fn parse(&self, query: &str) -> LinguisticGraph {
+        if let Some(ref biaffine) = self.biaffine {
+            if let Some(graph) = self.biaffine_parse(biaffine, query) {
+                return graph;
+            }
+            // Fall through to rule-based on error
+        }
+
+        // Rule-based fallback
+        let (nodes, edges) = rule_based_parse(query);
         let mut enriched_nodes = nodes;
         for node in &mut enriched_nodes {
             if let Ok(embed) = self.encode_pooled(&node.text) {
                 node.embedding = embed;
             }
         }
-
         LinguisticGraph {
             raw_query: query.to_string(),
             nodes: enriched_nodes,
             edges,
         }
+    }
+
+    /// Parse using the trained biaffine head.
+    fn biaffine_parse(&self, biaffine: &BiaffineHead<NdArray>, query: &str) -> Option<LinguisticGraph> {
+        let (token_data, encoding) = self.encode_tokens(query).ok()?;
+        let offsets: Vec<(usize, usize)> = encoding.get_offsets().to_vec();
+        let subword_to_word = build_subword_to_word(&offsets, query);
+        let seq_len = subword_to_word.len();
+        if seq_len == 0 { return None; }
+
+        let device: <NdArray as burn::tensor::backend::Backend>::Device = Default::default();
+        let use_len = seq_len.min(token_data.len() / HIDDEN_DIM);
+        if use_len == 0 { return None; }
+
+        let token_embs = burn::tensor::Tensor::<NdArray, 2>::from_data(
+            TensorData::new(token_data[..use_len * HIDDEN_DIM].to_vec(), [use_len, HIDDEN_DIM]),
+            &device,
+        );
+
+        // Task 1: BIO tagging → argmax → decode spans
+        let bio_logits = biaffine.forward_bio(token_embs.clone());
+        let bio_data = bio_logits.into_data();
+        let bio_vals: Vec<f32> = bio_data.to_vec().unwrap();
+
+        let bio_preds: Vec<usize> = (0..use_len).map(|i| {
+            let row = &bio_vals[i * BioTag::COUNT..(i + 1) * BioTag::COUNT];
+            row.iter().enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .unwrap().0
+        }).collect();
+
+        let decoded_spans = decode_bio_spans(&bio_preds, &subword_to_word[..use_len]);
+        if decoded_spans.is_empty() { return None; }
+
+        // Build span embeddings by mean-pooling
+        let span_bounds: Vec<(usize, usize)> = decoded_spans.iter()
+            .map(|s| (s.start_word, s.end_word))
+            .collect();
+        let span_embs = mean_pool_spans(&token_embs, &subword_to_word[..use_len], &span_bounds);
+
+        // Task 2: Dependency parsing
+        let (arc_scores, rel_logits) = biaffine.forward_deps(span_embs);
+        let n_spans = decoded_spans.len();
+
+        let arc_data = arc_scores.into_data();
+        let arc_vals: Vec<f32> = arc_data.to_vec().unwrap();
+        let rel_data = rel_logits.into_data();
+        let rel_vals: Vec<f32> = rel_data.to_vec().unwrap();
+
+        // Build nodes with embeddings
+        let words: Vec<&str> = query.split_whitespace().collect();
+        let mut nodes: Vec<LinguisticNode> = Vec::new();
+        for (i, span) in decoded_spans.iter().enumerate() {
+            let text: String = words[span.start_word..span.end_word.min(words.len())]
+                .join(" ");
+            let embed = self.encode_pooled(&text).unwrap_or_default();
+            nodes.push(LinguisticNode {
+                id: i,
+                text,
+                token_span: (span.start_word, span.end_word),
+                span_type: span.span_type,
+                embedding: embed,
+            });
+        }
+
+        // Build edges: threshold arc scores > 0.5, pick argmax relation
+        let arc_threshold = 0.5;
+        let mut edges: Vec<LinguisticEdge> = Vec::new();
+        for src in 0..n_spans {
+            for dst in 0..n_spans {
+                if src == dst { continue; }
+                let arc_score = arc_vals[src * n_spans + dst];
+                if arc_score > arc_threshold {
+                    // Argmax over relation logits at (src, dst)
+                    let base = (src * n_spans + dst) * DepRelation::COUNT;
+                    let rel_idx = (0..DepRelation::COUNT)
+                        .max_by(|&a, &b| {
+                            rel_vals[base + a].partial_cmp(&rel_vals[base + b]).unwrap()
+                        })
+                        .unwrap_or(0);
+                    let relation = match rel_idx {
+                        0 => DepRelation::Possessive,
+                        1 => DepRelation::Quantifies,
+                        2 => DepRelation::Comparison,
+                        3 => DepRelation::IntentTarget,
+                        _ => DepRelation::Possessive,
+                    };
+                    edges.push(LinguisticEdge { src, dst, relation });
+                }
+            }
+        }
+
+        Some(LinguisticGraph {
+            raw_query: query.to_string(),
+            nodes,
+            edges,
+        })
     }
 }
 
