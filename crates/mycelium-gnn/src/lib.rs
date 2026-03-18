@@ -22,6 +22,10 @@ pub mod sage;
 pub mod embed;
 pub mod head;
 pub mod orchestrator;
+pub mod reranker;
+pub mod reranker_data;
+pub mod ngram_attn;
+pub mod ngram_data;
 pub mod training;
 
 use std::path::Path;
@@ -51,6 +55,7 @@ pub struct PipelineConfig {
     pub cross_model_path: String,
     pub cross_tokenizer_path: String,
     pub biaffine_model_path: Option<String>,
+    pub ngram_model_path: Option<String>,
     pub matcher_config: CandidateMatcherConfig,
 }
 
@@ -66,13 +71,17 @@ impl Pipeline {
         let graph = SchemaGraph::from_schema(&schema);
         let operations = all_operations();
 
-        let nlp = NlpModel::load(&NlpConfig {
+        let mut nlp = NlpModel::load(&NlpConfig {
             model_path: config.model_path.clone(),
             tokenizer_path: config.tokenizer_path.clone(),
             cross_model_path: config.cross_model_path.clone(),
             cross_tokenizer_path: config.cross_tokenizer_path.clone(),
             biaffine_model_path: config.biaffine_model_path.clone(),
+            ngram_model_path: config.ngram_model_path.clone(),
         })?;
+
+        // Initialize n-gram model with schema if loaded
+        nlp.init_ngram(&graph, &operations);
 
         let matcher = CandidateMatcher::new(&graph, &operations, config.matcher_config.clone());
 
@@ -80,8 +89,8 @@ impl Pipeline {
     }
 
     pub fn run(&self, query: &str) -> PipelineResult {
-        let linguistic_graph = self.nlp.parse(query);
-        let candidates = self.matcher.match_candidates(&self.nlp, &linguistic_graph);
+        let (linguistic_graph, cands) = self.nlp.parse_with_candidates(query);
+        let candidates = cands.unwrap_or_else(|| self.matcher.match_candidates(&self.nlp, &linguistic_graph));
         PipelineResult { linguistic_graph, candidates }
     }
 }

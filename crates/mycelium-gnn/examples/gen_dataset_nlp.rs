@@ -22,8 +22,12 @@ use gnn_burn::schema::{Reader, Extractor, Schema, FieldType};
 use gnn_burn::graph::SchemaGraph;
 use gnn_burn::nlp::{NlpModel, NlpConfig, LinguisticGraph, SpanType};
 use gnn_burn::candidate_matcher::{CandidateMatcher, CandidateMatcherConfig};
+use gnn_burn::reranker::Reranker;
 use gnn_burn::operations::all_operations;
 use gnn_burn::training::{TrainingSample, GroundTruth, NodeTarget, SchemaRole, Dataset};
+use burn::backend::NdArray;
+use burn::module::Module;
+use burn::record::CompactRecorder;
 
 // =============================================================================
 // Schema metadata (same as gen_dataset.rs)
@@ -127,6 +131,8 @@ fn collection_surface(name: &str, rng: &mut impl Rng) -> String {
         format!("the {}", name),
         format!("every {}", name),
         name.trim_end_matches('s').to_string(),
+        format!("each {}", name.trim_end_matches('s')),
+        format!("any {}", name.trim_end_matches('s')),
     ];
     forms[rng.random_range(0..forms.len())].clone()
 }
@@ -137,25 +143,54 @@ fn field_surface(name: &str, rng: &mut impl Rng) -> String {
         format!("the {}", name),
         format!("their {}", name),
         format!("{}s", name),
+        format!("its {}", name),
     ];
     forms[rng.random_range(0..forms.len())].clone()
 }
 
+fn intent_surface(rng: &mut impl Rng) -> &'static str {
+    let forms = [
+        "show", "find", "get", "list", "display", "fetch", "retrieve",
+        "give me", "what are", "return",
+    ];
+    forms[rng.random_range(0..forms.len())]
+}
+
 fn filter_op_surface(op_id: usize, rng: &mut impl Rng) -> String {
     let forms: &[&str] = match op_id {
-        11 => &["equals", "is", "equal to", "matching"],
-        12 => &["not", "not equal to", "different from"],
-        13 => &["greater than", "more than", "above", "over"],
-        14 => &["less than", "under", "below", "fewer than"],
-        15 => &["at least", "minimum", "no less than"],
-        16 => &["at most", "maximum", "no more than"],
-        17 => &["like", "matching pattern", "similar to"],
-        18 => &["containing", "includes", "has"],
-        19 => &["starting with", "begins with"],
+        11 => &["equals", "is", "equal to", "matching", "=", "same as"],
+        12 => &["not", "not equal to", "different from", "isn't", "is not"],
+        13 => &["greater than", "more than", "above", "over", "exceeds", "higher than", "is over", "is above", "is greater than", "is more than"],
+        14 => &["less than", "under", "below", "fewer than", "is under", "is below", "is less than"],
+        15 => &["at least", "minimum", "no less than", "is at least", ">="],
+        16 => &["at most", "maximum", "no more than", "is at most", "<="],
+        17 => &["like", "matching pattern", "similar to", "matches"],
+        18 => &["containing", "includes", "has", "contains", "with"],
+        19 => &["starting with", "begins with", "starts with"],
         20 => &["ending with", "ends with"],
         _ => &["equals"],
     };
     forms[rng.random_range(0..forms.len())].to_string()
+}
+
+fn count_surface(rng: &mut impl Rng) -> &'static str {
+    let forms = ["count", "how many", "total", "number of"];
+    forms[rng.random_range(0..forms.len())]
+}
+
+fn order_surface(rng: &mut impl Rng) -> &'static str {
+    let forms = ["sorted by", "ordered by", "by", "order by", "sort by", "arrange by"];
+    forms[rng.random_range(0..forms.len())]
+}
+
+fn agg_surface(op_id: usize, rng: &mut impl Rng) -> &'static str {
+    match op_id {
+        26 => { let f = ["sum of", "total", "sum", "add up"]; f[rng.random_range(0..f.len())] }
+        27 => { let f = ["average", "avg", "mean", "average of"]; f[rng.random_range(0..f.len())] }
+        28 => { let f = ["minimum", "min", "lowest", "smallest"]; f[rng.random_range(0..f.len())] }
+        29 => { let f = ["maximum", "max", "highest", "largest", "biggest"]; f[rng.random_range(0..f.len())] }
+        _ => "count",
+    }
 }
 
 fn random_value(ft: &FieldType, rng: &mut impl Rng) -> String {
@@ -307,14 +342,14 @@ fn find_matching_node(
 
 fn build_collection_only(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
     let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let intent = ["show", "find", "get", "list"][rng.random_range(0..4)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     QueryTemplate {
         raw_query: format!("{} {}", intent, coll),
         targets: vec![
             IntendedTarget {
-                match_key: intent.to_string(),
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::None,
                 target_type: String::new(),
@@ -339,13 +374,13 @@ fn build_collection_fields(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTempla
     let n_fields = rng.random_range(1..=2).min(available.len());
     let chosen: Vec<&FieldMeta> = available.choose_multiple(rng, n_fields).copied().collect();
 
-    let intent = ["show", "get", "list", "find"][rng.random_range(0..4)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     let mut query_parts = vec![intent.to_string(), format!("{}'s", coll)];
     let mut targets = vec![
         IntendedTarget {
-            match_key: intent.to_string(),
+            match_key: intent.split_whitespace().next().unwrap().to_string(),
             expected_span: ExpectedSpan::Intent,
             role: SchemaRole::None,
             target_type: String::new(),
@@ -390,7 +425,7 @@ fn build_collection_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTempla
     let value = random_value(&field.field_type, rng);
     let op_surface = filter_op_surface(op_id, rng);
 
-    let intent = ["find", "get", "show"][rng.random_range(0..3)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
     let f_surface = field_surface(&field.local_name, rng);
 
@@ -398,7 +433,7 @@ fn build_collection_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTempla
         raw_query: format!("{} {} where {} {} {}", intent, coll, f_surface, op_surface, value),
         targets: vec![
             IntendedTarget {
-                match_key: intent.to_string(),
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::None,
                 target_type: String::new(),
@@ -442,7 +477,7 @@ fn build_collection_fields_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> Quer
     let value = random_value(&filt_field.field_type, rng);
     let op_surface = filter_op_surface(op_id, rng);
 
-    let intent = ["show", "get", "find"][rng.random_range(0..3)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     QueryTemplate {
@@ -451,7 +486,7 @@ fn build_collection_fields_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> Quer
             field_surface(&filt_field.local_name, rng), op_surface, value),
         targets: vec![
             IntendedTarget {
-                match_key: intent.to_string(),
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::None,
                 target_type: String::new(),
@@ -491,13 +526,13 @@ fn build_collection_fields_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> Quer
 
 fn build_collection_modifier(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
     let table = &meta.tables[rng.random_range(0..meta.tables.len())];
-    let intent = ["show", "get", "find", "list"][rng.random_range(0..4)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
     let limit_val = rng.random_range(1..50);
 
     let mut targets = vec![
         IntendedTarget {
-            match_key: intent.to_string(),
+            match_key: intent.split_whitespace().next().unwrap().to_string(),
             expected_span: ExpectedSpan::Intent,
             role: SchemaRole::None,
             target_type: String::new(),
@@ -552,7 +587,7 @@ fn build_collection_filter_modifier(meta: &SchemaMeta, rng: &mut impl Rng) -> Qu
     let op_surface = filter_op_surface(op_id, rng);
     let limit_val = rng.random_range(1..50);
 
-    let intent = ["find", "get", "show"][rng.random_range(0..3)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     QueryTemplate {
@@ -560,7 +595,7 @@ fn build_collection_filter_modifier(meta: &SchemaMeta, rng: &mut impl Rng) -> Qu
             intent, coll, field_surface(&field.local_name, rng), op_surface, value, limit_val),
         targets: vec![
             IntendedTarget {
-                match_key: intent.to_string(),
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::None,
                 target_type: String::new(),
@@ -606,12 +641,12 @@ fn build_multi_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
     let n_filters = rng.random_range(2..=3).min(filterable.len());
     let chosen: Vec<&FieldMeta> = filterable.choose_multiple(rng, n_filters).copied().collect();
 
-    let intent = ["find", "get", "show"][rng.random_range(0..3)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     let mut targets = vec![
         IntendedTarget {
-            match_key: intent.to_string(),
+            match_key: intent.split_whitespace().next().unwrap().to_string(),
             expected_span: ExpectedSpan::Intent,
             role: SchemaRole::None,
             target_type: String::new(),
@@ -670,14 +705,14 @@ fn build_traversal(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
     let target_table_id = rec_field.record_target.unwrap();
     let target_name = &meta.tables[target_table_id].name;
 
-    let intent = ["find", "get", "show"][rng.random_range(0..3)];
+    let intent = intent_surface(rng);
     let coll = collection_surface(&table.name, rng);
 
     QueryTemplate {
         raw_query: format!("{} {}'s {}", intent, coll, target_name),
         targets: vec![
             IntendedTarget {
-                match_key: intent.to_string(),
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::None,
                 target_type: String::new(),
@@ -704,16 +739,17 @@ fn build_traversal(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
 fn build_count(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
     let table = &meta.tables[rng.random_range(0..meta.tables.len())];
     let coll = collection_surface(&table.name, rng);
+    let surface = count_surface(rng);
 
     QueryTemplate {
-        raw_query: format!("count {}", coll),
+        raw_query: format!("{} {}", surface, coll),
         targets: vec![
             IntendedTarget {
-                match_key: "count".to_string(),
+                match_key: surface.split_whitespace().next().unwrap().to_string(),
                 expected_span: ExpectedSpan::Intent,
                 role: SchemaRole::Modifier,
                 target_type: "operation".into(),
-                target_id: 24, // count aggregate
+                target_id: 25, // count aggregate
             },
             IntendedTarget {
                 match_key: table.name.clone(),
@@ -721,6 +757,155 @@ fn build_count(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
                 role: SchemaRole::Collection,
                 target_type: "table".into(),
                 target_id: table.id,
+            },
+        ],
+    }
+}
+
+fn build_count_filter(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let filterable = meta.filterable_fields(table);
+    if filterable.is_empty() { return build_count(meta, rng); }
+
+    let field = filterable[rng.random_range(0..filterable.len())];
+    let ops = compatible_filter_ops(&field.field_type);
+    let op_id = ops[rng.random_range(0..ops.len())];
+    let value = random_value(&field.field_type, rng);
+    let op_surface = filter_op_surface(op_id, rng);
+    let coll = collection_surface(&table.name, rng);
+    let surface = count_surface(rng);
+
+    QueryTemplate {
+        raw_query: format!("{} {} where {} {} {}", surface, coll,
+            field_surface(&field.local_name, rng), op_surface, value),
+        targets: vec![
+            IntendedTarget {
+                match_key: surface.split_whitespace().next().unwrap().to_string(),
+                expected_span: ExpectedSpan::Intent,
+                role: SchemaRole::Modifier,
+                target_type: "operation".into(),
+                target_id: 25,
+            },
+            IntendedTarget {
+                match_key: table.name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::Collection,
+                target_type: "table".into(),
+                target_id: table.id,
+            },
+            IntendedTarget {
+                match_key: field.local_name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::FilterField,
+                target_type: "field".into(),
+                target_id: field.global_id,
+            },
+            IntendedTarget {
+                match_key: op_surface.split_whitespace().next().unwrap_or(&op_surface).to_string(),
+                expected_span: ExpectedSpan::Comparator,
+                role: SchemaRole::Modifier,
+                target_type: "operation".into(),
+                target_id: op_id,
+            },
+        ],
+    }
+}
+
+fn build_aggregate(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let numeric_fields: Vec<&FieldMeta> = table.fields.iter()
+        .filter(|f| matches!(f.field_type,
+            FieldType::String | FieldType::Int | FieldType::Float |
+            FieldType::Decimal | FieldType::Number))
+        .filter(|f| f.record_target.is_none())
+        .collect();
+    if numeric_fields.is_empty() { return build_count(meta, rng); }
+
+    let field = numeric_fields[rng.random_range(0..numeric_fields.len())];
+    let agg_ops = [26usize, 27, 28, 29];
+    let op_id = agg_ops[rng.random_range(0..agg_ops.len())];
+    let surface = agg_surface(op_id, rng);
+    let coll = collection_surface(&table.name, rng);
+
+    let connector = ["of", "for", "across"][rng.random_range(0..3)];
+    let query = if rng.random_bool(0.5) {
+        format!("{} {} {} {}", surface, field_surface(&field.local_name, rng), connector, coll)
+    } else {
+        format!("{} {}'s {}", surface, coll, field_surface(&field.local_name, rng))
+    };
+
+    QueryTemplate {
+        raw_query: query,
+        targets: vec![
+            IntendedTarget {
+                match_key: surface.split_whitespace().next().unwrap().to_string(),
+                expected_span: ExpectedSpan::Intent,
+                role: SchemaRole::Modifier,
+                target_type: "operation".into(),
+                target_id: op_id,
+            },
+            IntendedTarget {
+                match_key: table.name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::Collection,
+                target_type: "table".into(),
+                target_id: table.id,
+            },
+            IntendedTarget {
+                match_key: field.local_name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::Field,
+                target_type: "field".into(),
+                target_id: field.global_id,
+            },
+        ],
+    }
+}
+
+fn build_order_by(meta: &SchemaMeta, rng: &mut impl Rng) -> QueryTemplate {
+    let table = &meta.tables[rng.random_range(0..meta.tables.len())];
+    let orderable = meta.orderable_fields(table);
+    if orderable.is_empty() { return build_collection_only(meta, rng); }
+
+    let field = orderable[rng.random_range(0..orderable.len())];
+    let intent = intent_surface(rng);
+    let coll = collection_surface(&table.name, rng);
+    let order = ["sorted by", "ordered by", "by", "order by", "sort by"][rng.random_range(0..5)];
+
+    let direction = if rng.random_bool(0.3) {
+        [" ascending", " descending", " asc", " desc"][rng.random_range(0..4)]
+    } else { "" };
+
+    QueryTemplate {
+        raw_query: format!("{} {} {} {}{}", intent, coll, order, field_surface(&field.local_name, rng), direction),
+        targets: vec![
+            IntendedTarget {
+                match_key: intent.split_whitespace().next().unwrap().to_string(),
+                expected_span: ExpectedSpan::Intent,
+                role: SchemaRole::None,
+                target_type: String::new(),
+                target_id: 0,
+            },
+            IntendedTarget {
+                match_key: table.name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::Collection,
+                target_type: "table".into(),
+                target_id: table.id,
+            },
+            IntendedTarget {
+                match_key: order.split_whitespace().next().unwrap().to_string(),
+                expected_span: ExpectedSpan::Comparator,
+                role: SchemaRole::Modifier,
+                target_type: "operation".into(),
+                target_id: 6, // ORDER_BY
+            },
+            IntendedTarget {
+                match_key: field.local_name.clone(),
+                expected_span: ExpectedSpan::NounPhrase,
+                role: SchemaRole::Field,
+                target_type: "field".into(),
+                target_id: field.global_id,
             },
         ],
     }
@@ -757,20 +942,47 @@ fn main() {
         None
     };
 
-    let nlp = NlpModel::load(&NlpConfig {
+    // Use n-gram model if available
+    let ngram_path = demo_dir.join("ngram_model");
+    let ngram_model_path = if ngram_path.with_extension("mpk").exists() {
+        println!("Using n-gram cross-attention model");
+        Some(ngram_path.to_string_lossy().into_owned())
+    } else {
+        None
+    };
+
+    let mut nlp = NlpModel::load(&NlpConfig {
         model_path: model_dir.join("model.onnx").to_string_lossy().into(),
         tokenizer_path: model_dir.join("tokenizer.json").to_string_lossy().into(),
         cross_model_path: model_dir.join("cross-encoder.onnx").to_string_lossy().into(),
         cross_tokenizer_path: model_dir.join("cross-tokenizer.json").to_string_lossy().into(),
         biaffine_model_path,
+        ngram_model_path,
     }).expect("load NLP models — run fetch_models.sh first");
 
+    // Initialize n-gram concept map from schema
+    nlp.init_ngram(&schema_graph, &operations);
+
     // --- Build candidate matcher ---
-    let matcher = CandidateMatcher::new(
+    let mut matcher = CandidateMatcher::new(
         &schema_graph,
         &operations,
         CandidateMatcherConfig { top_k: 5, min_score: 0.0 },
     );
+
+    // Load re-ranker if available
+    let reranker_path = demo_dir.join("reranker_model");
+    if reranker_path.with_extension("mpk").exists() {
+        println!("Loading trained re-ranker...");
+        let device: <NdArray as burn::tensor::backend::Backend>::Device = Default::default();
+        let reranker = Reranker::<NdArray>::new(&device)
+            .load_file(&reranker_path, &CompactRecorder::new(), &device)
+            .expect("load reranker model");
+        matcher.load_reranker(reranker, &nlp);
+        println!("Using trained re-ranker for candidate matching");
+    } else {
+        println!("No re-ranker found — using pretrained cross-encoder");
+    }
 
     let mut rng = StdRng::seed_from_u64(42);
 
@@ -786,6 +998,9 @@ fn main() {
         ("multi_filter",            150, build_multi_filter),
         ("traversal",               100, build_traversal),
         ("count",                   150, build_count),
+        ("count_filter",            100, build_count_filter),
+        ("aggregate",               150, build_aggregate),
+        ("order_by",                150, build_order_by),
     ];
 
     let total_attempts: usize = query_specs.iter().map(|(_, n, _)| *n).sum();
@@ -805,11 +1020,12 @@ fn main() {
         for _ in 0..*count {
             let template = builder(&meta, &mut rng);
 
-            // Stage 1: real NLP parse
-            let ling_graph = nlp.parse(&template.raw_query);
-
-            // Stage 2: real cross-encoder candidate matching
-            let candidates = matcher.match_candidates(&nlp, &ling_graph);
+            // Stage 1: biaffine/rule-based parse
+            // Stage 2: n-gram concept scoring if available, else cross-encoder/re-ranker
+            let (ling_graph, ngram_candidates) = nlp.parse_with_candidates(&template.raw_query);
+            let candidates = ngram_candidates.unwrap_or_else(|| {
+                matcher.match_candidates(&nlp, &ling_graph)
+            });
 
             // Match parsed nodes to intended targets
             match match_targets(&ling_graph, &template.targets) {

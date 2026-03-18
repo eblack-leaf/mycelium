@@ -205,6 +205,7 @@ pub fn compute_loss<B: Backend>(
     logits: &HeadLogits<B>,
     truth: &GroundTruth,
     ling_graph: &LinguisticGraph,
+    mask: Option<&CandidateMask>,
     device: &B::Device,
 ) -> Tensor<B, 1> {
     let ordered = ordered_ling_nodes(ling_graph);
@@ -243,13 +244,17 @@ pub fn compute_loss<B: Backend>(
     // Role classification loss
     losses.push(cross_entropy(logits.role_logits.clone(), &role_targets, device));
 
-    // Target losses — only for nodes that have a target of the matching type
+    // Target losses — only for nodes whose ground-truth target is in the
+    // candidate set (unmasked). If the cross-encoder didn't surface the correct
+    // target, the logit is -1e9 and the loss is meaningless — skip it.
     if let Some(ref t_logits) = logits.target_table {
         let active: Vec<(usize, usize)> = table_targets.iter().enumerate()
             .filter_map(|(i, t)| t.map(|tid| (i, tid)))
+            .filter(|&(i, tid)| mask.map_or(true, |m| {
+                tid < m.n_tables && m.table_mask[i * m.n_tables + tid] > -1e8
+            }))
             .collect();
         if !active.is_empty() {
-            // Gather rows for active nodes, build target vector
             let row_indices: Vec<usize> = active.iter().map(|&(i, _)| i).collect();
             let targets: Vec<usize> = active.iter().map(|&(_, t)| t).collect();
             let selected = gather_rows(t_logits, &row_indices, device);
@@ -260,6 +265,9 @@ pub fn compute_loss<B: Backend>(
     if let Some(ref f_logits) = logits.target_field {
         let active: Vec<(usize, usize)> = field_targets.iter().enumerate()
             .filter_map(|(i, t)| t.map(|tid| (i, tid)))
+            .filter(|&(i, tid)| mask.map_or(true, |m| {
+                tid < m.n_fields && m.field_mask[i * m.n_fields + tid] > -1e8
+            }))
             .collect();
         if !active.is_empty() {
             let row_indices: Vec<usize> = active.iter().map(|&(i, _)| i).collect();
@@ -272,6 +280,9 @@ pub fn compute_loss<B: Backend>(
     if let Some(ref o_logits) = logits.target_op {
         let active: Vec<(usize, usize)> = op_targets.iter().enumerate()
             .filter_map(|(i, t)| t.map(|tid| (i, tid)))
+            .filter(|&(i, tid)| mask.map_or(true, |m| {
+                tid < m.n_ops && m.op_mask[i * m.n_ops + tid] > -1e8
+            }))
             .collect();
         if !active.is_empty() {
             let row_indices: Vec<usize> = active.iter().map(|&(i, _)| i).collect();
@@ -314,15 +325,17 @@ fn gather_rows<B: Backend>(
 // =============================================================================
 
 /// Compute role accuracy + target accuracy.
+/// Returns (role_correct, role_total, target_correct, target_total, reachable_correct, reachable_total)
 fn accuracy<B: Backend>(
     logits: &HeadLogits<B>,
     truth: &GroundTruth,
     ling_graph: &LinguisticGraph,
-) -> (usize, usize, usize, usize) {
+    mask: Option<&CandidateMask>,
+) -> (usize, usize, usize, usize, usize, usize) {
     let ordered = ordered_ling_nodes(ling_graph);
     let n_ling = ordered.len();
     if n_ling == 0 {
-        return (0, 0, 0, 0);
+        return (0, 0, 0, 0, 0, 0);
     }
 
     let mut id_to_pos: HashMap<usize, usize> = HashMap::new();
@@ -338,6 +351,8 @@ fn accuracy<B: Backend>(
     let mut role_total = 0usize;
     let mut target_correct = 0usize;
     let mut target_total = 0usize;
+    let mut reachable_correct = 0usize;
+    let mut reachable_total = 0usize;
 
     // Extract target predictions once
     let table_preds = logits.target_table.as_ref().map(|t| {
@@ -361,6 +376,17 @@ fn accuracy<B: Backend>(
                     role_correct += 1;
                 }
 
+                // Check if GT target is reachable in candidate mask
+                let reachable = mask.map_or(true, |m| {
+                    let mask_val = match nt.target_type.as_str() {
+                        "table" => m.table_mask.get(pos * m.n_tables + nt.target_id).copied(),
+                        "field" => m.field_mask.get(pos * m.n_fields + nt.target_id).copied(),
+                        "operation" => m.op_mask.get(pos * m.n_ops + nt.target_id).copied(),
+                        _ => None,
+                    };
+                    mask_val.map_or(false, |v| v > -1e8)
+                });
+
                 // Target accuracy
                 let pred_target = match nt.target_type.as_str() {
                     "table" => table_preds.as_ref().and_then(|p| p.get(pos).map(|&v| v as usize)),
@@ -374,12 +400,18 @@ fn accuracy<B: Backend>(
                     if pred == nt.target_id {
                         target_correct += 1;
                     }
+                    if reachable {
+                        reachable_total += 1;
+                        if pred == nt.target_id {
+                            reachable_correct += 1;
+                        }
+                    }
                 }
             }
         }
     }
 
-    (role_correct, role_total, target_correct, target_total)
+    (role_correct, role_total, target_correct, target_total, reachable_correct, reachable_total)
 }
 
 // =============================================================================
@@ -430,7 +462,7 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
     // --- Metrics CSV ---
     let metrics_path = Path::new(&config.schema_path).parent().unwrap().join("metrics.csv");
     let mut metrics_file = std::fs::File::create(&metrics_path).expect("create metrics.csv");
-    writeln!(metrics_file, "epoch,train_loss,val_loss,train_role_acc,val_role_acc,train_target_acc,val_target_acc,lr").unwrap();
+    writeln!(metrics_file, "epoch,train_loss,val_loss,train_role_acc,val_role_acc,train_target_acc,val_target_acc,train_reachable_acc,val_reachable_acc,lr").unwrap();
 
     let pb_style = ProgressStyle::default_bar()
         .template("{msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
@@ -453,6 +485,8 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let mut train_role_total = 0usize;
         let mut train_target_correct = 0usize;
         let mut train_target_total = 0usize;
+        let mut train_reachable_correct = 0usize;
+        let mut train_reachable_total = 0usize;
 
         let pb = ProgressBar::new(train_samples.len() as u64);
         pb.set_style(pb_style.clone());
@@ -474,16 +508,18 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             );
             let logits = model.head.forward(&encoded, Some(&mask));
 
-            let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, device);
+            let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, Some(&mask), device);
 
             let loss_val = loss.clone().into_data().to_vec::<f32>().unwrap()[0];
             train_loss += loss_val;
 
-            let (rc, rt, tc, tt) = accuracy(&logits, &sample.ground_truth, &sample.linguistic_graph);
+            let (rc, rt, tc, tt, rrc, rrt) = accuracy(&logits, &sample.ground_truth, &sample.linguistic_graph, Some(&mask));
             train_role_correct += rc;
             train_role_total += rt;
             train_target_correct += tc;
             train_target_total += tt;
+            train_reachable_correct += rrc;
+            train_reachable_total += rrt;
 
             let grads = loss.backward();
             let grads = GradientsParams::from_grads(grads, &model);
@@ -500,6 +536,8 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let mut val_role_total = 0usize;
         let mut val_target_correct = 0usize;
         let mut val_target_total = 0usize;
+        let mut val_reachable_correct = 0usize;
+        let mut val_reachable_total = 0usize;
 
         let pb = ProgressBar::new(val_samples.len() as u64);
         pb.set_style(pb_style.clone());
@@ -521,14 +559,16 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
             );
             let logits = valid_model.head.forward(&encoded, Some(&mask));
 
-            let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, device);
+            let loss = compute_loss(&logits, &sample.ground_truth, &sample.linguistic_graph, Some(&mask), device);
             val_loss += loss.clone().into_data().to_vec::<f32>().unwrap()[0];
 
-            let (rc, rt, tc, tt) = accuracy(&logits, &sample.ground_truth, &sample.linguistic_graph);
+            let (rc, rt, tc, tt, rrc, rrt) = accuracy(&logits, &sample.ground_truth, &sample.linguistic_graph, Some(&mask));
             val_role_correct += rc;
             val_role_total += rt;
             val_target_correct += tc;
             val_target_total += tt;
+            val_reachable_correct += rrc;
+            val_reachable_total += rrt;
 
             pb.inc(1);
         }
@@ -540,17 +580,20 @@ pub fn train(config: &TrainingConfig, dataset: &Dataset) {
         let val_role_acc = if val_role_total > 0 { val_role_correct as f64 / val_role_total as f64 } else { 0.0 };
         let train_target_acc = if train_target_total > 0 { train_target_correct as f64 / train_target_total as f64 } else { 0.0 };
         let val_target_acc = if val_target_total > 0 { val_target_correct as f64 / val_target_total as f64 } else { 0.0 };
+        let train_reach_acc = if train_reachable_total > 0 { train_reachable_correct as f64 / train_reachable_total as f64 } else { 0.0 };
+        let val_reach_acc = if val_reachable_total > 0 { val_reachable_correct as f64 / val_reachable_total as f64 } else { 0.0 };
 
         println!(
-            "epoch {:>3}: loss={:.4}/{:.4} role={:.1}%/{:.1}% target={:.1}%/{:.1}% lr={:.6}",
+            "epoch {:>3}: loss={:.4}/{:.4} role={:.1}%/{:.1}% target={:.1}%/{:.1}% reachable={:.1}%/{:.1}% lr={:.6}",
             epoch, train_avg, val_avg,
             train_role_acc * 100.0, val_role_acc * 100.0,
             train_target_acc * 100.0, val_target_acc * 100.0,
+            train_reach_acc * 100.0, val_reach_acc * 100.0,
             current_lr,
         );
-        writeln!(metrics_file, "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.8}",
+        writeln!(metrics_file, "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.8}",
             epoch, train_avg, val_avg, train_role_acc, val_role_acc,
-            train_target_acc, val_target_acc, current_lr).unwrap();
+            train_target_acc, val_target_acc, train_reach_acc, val_reach_acc, current_lr).unwrap();
 
         // Early stopping + save best
         if val_avg < best_val_loss {

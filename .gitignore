@@ -13,3 +13,8 @@ crates/mycelium-gnn/demo/gnn_model*
 crates/mycelium-gnn/demo/biaffine_dataset.json
 crates/mycelium-gnn/demo/biaffine_model*
 crates/mycelium-gnn/demo/metrics.csv
+crates/mycelium-gnn/demo/reranker_dataset.json
+crates/mycelium-gnn/demo/reranker_model*
+crates/mycelium-gnn/demo/ngram_dataset.json
+crates/mycelium-gnn/demo/ngram_model*
+crates/mycelium-gnn/demo/ngram_metrics.csv

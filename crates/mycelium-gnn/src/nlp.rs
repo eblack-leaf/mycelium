@@ -22,6 +22,11 @@ use burn::tensor::TensorData;
 
 use crate::biaffine::{BiaffineHead, mean_pool_spans, HIDDEN_DIM};
 use crate::biaffine_data::{BioTag, build_subword_to_word, decode_bio_spans};
+use crate::ngram_attn::{NgramCrossAttn, words_from_subwords, generate_ngrams, greedy_select, MINILM_DIM};
+use crate::ngram_data::ConceptMap;
+use crate::candidate_matcher::{CandidateSet, CandidateEdge};
+use crate::graph::SchemaGraph;
+use crate::operations::OpNode;
 
 // =============================================================================
 // Linguistic graph types
@@ -88,6 +93,10 @@ pub struct NlpModel {
     cross_tokenizer: Tokenizer,
     /// Trained biaffine head (None = fall back to rule-based)
     biaffine: Option<BiaffineHead<NdArray>>,
+    /// N-gram cross-attention model (None = not loaded)
+    ngram: Option<NgramCrossAttn<NdArray>>,
+    /// Concept map for n-gram model (built from schema + operations)
+    concept_map: Option<ConceptMap>,
 }
 
 pub struct NlpConfig {
@@ -99,6 +108,8 @@ pub struct NlpConfig {
     pub cross_tokenizer_path: String,
     /// Optional: path to trained biaffine model (.mpk)
     pub biaffine_model_path: Option<String>,
+    /// Optional: path to trained n-gram cross-attention model (.mpk)
+    pub ngram_model_path: Option<String>,
 }
 
 impl NlpModel {
@@ -136,15 +147,41 @@ impl NlpModel {
             }
         });
 
+        // Optionally load n-gram cross-attention model
+        let ngram = config.ngram_model_path.as_ref().and_then(|path| {
+            let mpk_path = format!("{}.mpk", path);
+            if Path::new(&mpk_path).exists() {
+                let device = Default::default();
+                // Need a dummy n_concepts to create the model struct, then load overwrites weights.
+                // We use 1 as placeholder — the loaded weights will have the correct shape.
+                match NgramCrossAttn::<NdArray>::new(1, &device)
+                    .load_file(path, &CompactRecorder::new(), &device)
+                {
+                    Ok(m) => {
+                        eprintln!("ngram cross-attention loaded from {}", path);
+                        Some(m)
+                    }
+                    Err(e) => {
+                        eprintln!("ngram model load failed: {} — will not use n-gram path", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        });
+
         Ok(Self {
             session: RefCell::new(session), tokenizer,
             cross_session: RefCell::new(cross_session), cross_tokenizer,
             biaffine,
+            ngram,
+            concept_map: None,
         })
     }
 
     /// Encode single text, return mean-pooled embedding [384].
-    fn encode_pooled(&self, text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    pub fn encode_pooled(&self, text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         let encoding = self.tokenizer.encode(text, true)
             .map_err(|e| format!("encode: {}", e))?;
         let ids: Vec<i64> = encoding.get_ids().iter().map(|&x| x as i64).collect();
@@ -376,6 +413,237 @@ impl NlpModel {
             nodes,
             edges,
         })
+    }
+
+    /// Initialize the n-gram concept map from the schema and operations.
+    /// Must be called after loading the schema if the n-gram model was loaded.
+    pub fn init_ngram(&mut self, schema_graph: &SchemaGraph, operations: &[OpNode]) {
+        if self.ngram.is_none() { return; }
+
+        let table_names: Vec<String> = schema_graph.table_nodes.iter()
+            .map(|n| n.name.clone())
+            .collect();
+        // Strip table prefix for field names (same as candidate_matcher)
+        let field_names: Vec<String> = schema_graph.field_nodes.iter()
+            .map(|n| n.name.splitn(2, '.').nth(1).unwrap_or(&n.name).to_string())
+            .collect();
+        let op_names: Vec<String> = operations.iter()
+            .map(|op| op.name.clone())
+            .collect();
+
+        let concept_map = ConceptMap::new(&table_names, &field_names, &op_names);
+        eprintln!("ngram concept map: {} concepts ({} tables, {} fields, {} ops)",
+            concept_map.total(), concept_map.n_tables, concept_map.n_fields, concept_map.n_ops);
+        self.concept_map = Some(concept_map);
+    }
+
+    /// Parse using the n-gram cross-attention model (standalone mode).
+    /// Returns (LinguisticGraph, CandidateSet) in one pass.
+    /// Currently unused — hybrid approach (biaffine spans + ngram scoring) preferred.
+    #[allow(dead_code)]
+    fn ngram_parse(
+        &self,
+        ngram: &NgramCrossAttn<NdArray>,
+        concept_map: &ConceptMap,
+        query: &str,
+    ) -> Option<(LinguisticGraph, CandidateSet)> {
+        let (token_data, encoding) = self.encode_tokens(query).ok()?;
+        let offsets: Vec<(usize, usize)> = encoding.get_offsets().to_vec();
+        let subword_to_word = build_subword_to_word(&offsets, query);
+        if subword_to_word.is_empty() { return None; }
+
+        // Mean-pool subwords per word
+        let (word_embs, n_words) = words_from_subwords(&token_data, &subword_to_word);
+        if n_words == 0 { return None; }
+
+        // Generate n-gram candidates
+        let (ngram_embs, spans) = generate_ngrams(&word_embs, n_words);
+        let n_ngrams = spans.len();
+        if n_ngrams == 0 { return None; }
+
+        // Run model forward pass
+        let device: <NdArray as burn::tensor::backend::Backend>::Device = Default::default();
+        let ngram_tensor = burn::tensor::Tensor::<NdArray, 2>::from_data(
+            TensorData::new(ngram_embs.clone(), [n_ngrams, MINILM_DIM]),
+            &device,
+        );
+        let (affinity_tensor, type_tensor) = ngram.forward_scores(ngram_tensor);
+
+        let affinity: Vec<f32> = affinity_tensor.into_data().to_vec().unwrap();
+        let type_logits: Vec<f32> = type_tensor.into_data().to_vec().unwrap();
+
+        // Greedy selection — use discriminability (peakiness) instead of absolute threshold
+        // min_peak = minimum (max - mean) across concepts for an n-gram to be considered
+        let words: Vec<&str> = query.split_whitespace().collect();
+        let selected = greedy_select(
+            &affinity, &type_logits, &ngram_embs, &spans,
+            &words, 12.0, 5, concept_map,
+        );
+
+        if selected.is_empty() { return None; }
+
+        // Build LinguisticGraph
+        let mut nodes = Vec::new();
+        let edges_out = Vec::new();
+
+        for (i, span) in selected.iter().enumerate() {
+            nodes.push(LinguisticNode {
+                id: i,
+                text: span.text.clone(),
+                token_span: (span.word_start, span.word_end),
+                span_type: span.span_type,
+                embedding: span.embedding.clone(),
+            });
+        }
+
+        // Build CandidateSet from selected spans' top-k candidates
+        let mut cand_edges = Vec::new();
+        for (i, span) in selected.iter().enumerate() {
+            for &(ref schema_type, schema_id, score) in &span.candidates {
+                cand_edges.push(CandidateEdge {
+                    linguistic_node: i,
+                    schema_node_type: schema_type.clone(),
+                    schema_node_id: schema_id,
+                    score,
+                });
+            }
+        }
+
+        // No dependency edges — GNN relies on schema structure + cross-candidate edges
+        let ling_graph = LinguisticGraph {
+            raw_query: query.to_string(),
+            nodes,
+            edges: edges_out,
+        };
+
+        Some((ling_graph, CandidateSet { edges: cand_edges }))
+    }
+
+    /// Parse query, returning both LinguisticGraph and optional CandidateSet.
+    ///
+    /// If n-gram model is loaded: standalone n-gram parse (span detection + concept scoring).
+    /// Falls back to biaffine/rule-based parse() + None if n-gram unavailable.
+    pub fn parse_with_candidates(&self, query: &str) -> (LinguisticGraph, Option<CandidateSet>) {
+        // If n-gram model is loaded, use standalone n-gram for both spans and concepts
+        if let (Some(ref ngram), Some(ref concept_map)) = (&self.ngram, &self.concept_map) {
+            if let Some((ling_graph, cands)) = self.ngram_parse(ngram, concept_map, query) {
+                return (ling_graph, Some(cands));
+            }
+        }
+
+        // Fallback: biaffine/rule-based parse, no candidates
+        let ling_graph = self.parse(query);
+        (ling_graph, None)
+    }
+
+    /// Score pre-detected spans against learned concept embeddings.
+    ///
+    /// Takes a LinguisticGraph (from biaffine/rule-based) and scores each node
+    /// using the same embedding path as n-gram training:
+    ///   1. encode_tokens() on full query → contextual subword embeddings
+    ///   2. words_from_subwords() → word-level embeddings
+    ///   3. Mean-pool words within each node's span
+    ///   4. Project through ngram_proj + dot against concept_embs
+    ///
+    /// Returns CandidateSet with top-k concept matches per node.
+    fn ngram_score_spans(
+        &self,
+        ngram: &NgramCrossAttn<NdArray>,
+        concept_map: &ConceptMap,
+        ling_graph: &LinguisticGraph,
+    ) -> Option<CandidateSet> {
+        if ling_graph.nodes.is_empty() { return None; }
+
+        let n_nodes = ling_graph.nodes.len();
+        let n_concepts = concept_map.total();
+        let device: <NdArray as burn::tensor::backend::Backend>::Device = Default::default();
+
+        // Get contextual token embeddings from full query (same as training)
+        let (token_data, encoding) = self.encode_tokens(&ling_graph.raw_query).ok()?;
+        let offsets: Vec<(usize, usize)> = encoding.get_offsets().to_vec();
+        let subword_to_word = build_subword_to_word(&offsets, &ling_graph.raw_query);
+        if subword_to_word.is_empty() { return None; }
+
+        // Mean-pool subwords per word
+        let (word_embs, n_words) = words_from_subwords(&token_data, &subword_to_word);
+        if n_words == 0 { return None; }
+
+        // For each linguistic node, generate all n-gram sub-spans within
+        // its word boundaries, score them all, and take the best concept scores.
+        // This matches the n-gram training distribution (uni/bi/trigrams).
+        let top_k = 5;
+        let mut edges = Vec::new();
+
+        for node in &ling_graph.nodes {
+            let (start_word, end_word) = node.token_span;
+            let end_clamped = end_word.min(n_words);
+            let start_clamped = start_word.min(end_clamped);
+            let span_n_words = end_clamped.saturating_sub(start_clamped);
+
+            if span_n_words == 0 { continue; }
+
+            // Extract word embeddings for this span
+            let span_word_embs: Vec<f32> = (start_clamped..end_clamped)
+                .flat_map(|w| {
+                    let off = w * MINILM_DIM;
+                    word_embs[off..off + MINILM_DIM].to_vec()
+                })
+                .collect();
+
+            // Generate all n-gram sub-spans within this span
+            let (sub_ngrams, _sub_spans) = generate_ngrams(&span_word_embs, span_n_words);
+            let n_sub = sub_ngrams.len() / MINILM_DIM;
+            if n_sub == 0 { continue; }
+
+            // Score all sub-ngrams at once
+            let sub_tensor = burn::tensor::Tensor::<NdArray, 2>::from_data(
+                TensorData::new(sub_ngrams, [n_sub, MINILM_DIM]),
+                &device,
+            );
+            let (sub_affinity, _) = ngram.forward_scores(sub_tensor);
+            let sub_aff: Vec<f32> = sub_affinity.into_data().to_vec().unwrap();
+
+            // For each concept, take the max score across all sub-ngrams
+            let mut best_per_concept = vec![f32::NEG_INFINITY; n_concepts];
+            for ng in 0..n_sub {
+                let base = ng * n_concepts;
+                for c in 0..n_concepts {
+                    let score = sub_aff[base + c];
+                    if score > best_per_concept[c] {
+                        best_per_concept[c] = score;
+                    }
+                }
+            }
+
+            // Take top-k concepts
+            let mut indexed: Vec<(usize, f32)> = best_per_concept.iter()
+                .enumerate()
+                .map(|(i, &s)| (i, s))
+                .collect();
+            indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            for &(concept_idx, score) in indexed.iter().take(top_k) {
+                let (schema_type, schema_id) = concept_map.from_idx(concept_idx);
+                edges.push(CandidateEdge {
+                    linguistic_node: node.id,
+                    schema_node_type: schema_type.to_string(),
+                    schema_node_id: schema_id,
+                    score,
+                });
+            }
+        }
+
+        Some(CandidateSet { edges })
+    }
+
+    /// Get a reference to the concept map (for external use, e.g. dataset generation).
+    pub fn concept_map(&self) -> Option<&ConceptMap> {
+        self.concept_map.as_ref()
+    }
+
+    /// Check if the n-gram model is loaded and initialized.
+    pub fn has_ngram(&self) -> bool {
+        self.ngram.is_some() && self.concept_map.is_some()
     }
 }
 

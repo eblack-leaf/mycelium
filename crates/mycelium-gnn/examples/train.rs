@@ -10,7 +10,12 @@ use gnn_burn::training::{Dataset, TrainingConfig, train};
 fn main() {
     let demo_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("demo");
 
-    let dataset = Dataset::load(&demo_dir.join("dataset.json")).expect("load dataset");
+    // Prefer NLP dataset (real biaffine + cross-encoder), fall back to synthetic
+    let nlp_path = demo_dir.join("dataset_nlp.json");
+    let syn_path = demo_dir.join("dataset.json");
+    let dataset_path = if nlp_path.exists() { &nlp_path } else { &syn_path };
+    let dataset = Dataset::load(dataset_path).expect("load dataset");
+    println!("using {:?}", dataset_path.file_name().unwrap());
     println!("loaded {} samples", dataset.samples.len());
 
     let config = TrainingConfig {

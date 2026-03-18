@@ -14,6 +14,7 @@ use burn::backend::NdArray;
 
 use gnn_burn::nlp::{NlpModel, NlpConfig, LinguisticGraph, SpanType};
 use gnn_burn::candidate_matcher::{CandidateMatcher, CandidateMatcherConfig, CandidateSet};
+use gnn_burn::reranker::Reranker;
 use gnn_burn::schema::{Reader, Extractor};
 use gnn_burn::graph::SchemaGraph;
 use gnn_burn::operations::{all_operations, OpNode};
@@ -23,6 +24,8 @@ use gnn_burn::sage::Encoder;
 use gnn_burn::head::{OutputHead, HeadLogits, CandidateMask};
 use gnn_burn::training::{load_model, project_linguistic};
 use burn::nn::LinearConfig;
+use burn::module::Module;
+use burn::record::CompactRecorder;
 
 type B = NdArray;
 
@@ -46,12 +49,21 @@ fn main() {
         None
     };
 
-    let nlp = NlpModel::load(&NlpConfig {
+    // Use n-gram model if available
+    let ngram_path = demo_dir.join("demo/ngram_model");
+    let ngram_model_path = if ngram_path.with_extension("mpk").exists() {
+        Some(ngram_path.to_string_lossy().into_owned())
+    } else {
+        None
+    };
+
+    let mut nlp = NlpModel::load(&NlpConfig {
         model_path: model_dir.join("model.onnx").to_string_lossy().into(),
         tokenizer_path: model_dir.join("tokenizer.json").to_string_lossy().into(),
         cross_model_path: model_dir.join("cross-encoder.onnx").to_string_lossy().into(),
         cross_tokenizer_path: model_dir.join("cross-tokenizer.json").to_string_lossy().into(),
         biaffine_model_path,
+        ngram_model_path,
     }).expect("load NLP models");
 
     // --- Load schema ---
@@ -65,8 +77,11 @@ fn main() {
     let glove = GloveVocab::load(&glove_path, 42).expect("load GloVe");
     let embedder = Embedder::new(glove, TYPE_DIM, 384);
 
+    // Initialize n-gram concept map from schema
+    nlp.init_ngram(&schema_graph, &operations);
+
     // --- Build candidate matcher ---
-    let matcher = CandidateMatcher::new(
+    let mut matcher = CandidateMatcher::new(
         &schema_graph,
         &operations,
         CandidateMatcherConfig { top_k: 5, min_score: 0.0 },
@@ -74,6 +89,19 @@ fn main() {
 
     // --- Load or initialize GNN ---
     let device = Default::default();
+
+    // Load re-ranker if available
+    let reranker_path = demo_dir.join("demo/reranker_model");
+    if reranker_path.with_extension("mpk").exists() {
+        println!("Loading trained re-ranker...");
+        let reranker = Reranker::<B>::new(&device)
+            .load_file(&reranker_path, &CompactRecorder::new(), &device)
+            .expect("load reranker model");
+        matcher.load_reranker(reranker, &nlp);
+        println!("Using trained re-ranker for candidate matching");
+    } else {
+        println!("No re-ranker found — using pretrained cross-encoder");
+    };
     let gnn_model_path = demo_dir.join("demo/gnn_model");
 
     let embed_dim = embedder.schema_dim();
@@ -121,12 +149,13 @@ fn main() {
         println!("Query: \"{}\"", query);
         println!("{}", "=".repeat(70));
 
-        // Stage 1: NL parse
-        let ling_graph = nlp.parse(query);
+        // Stage 1+2: parse (n-gram provides both, otherwise separate)
+        let (ling_graph, candidates) = {
+            let (graph, cands) = nlp.parse_with_candidates(query);
+            let candidates = cands.unwrap_or_else(|| matcher.match_candidates(&nlp, &graph));
+            (graph, candidates)
+        };
         print_stage1(&ling_graph);
-
-        // Stage 2: Cross-encoder candidate matching
-        let candidates = matcher.match_candidates(&nlp, &ling_graph);
         print_stage2(&ling_graph, &candidates, &schema_graph, &operations);
 
         // Stage 3: GNN
