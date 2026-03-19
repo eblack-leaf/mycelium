@@ -1,3 +1,0 @@
-[workspace]
-members = ["src-tauri", "crates/*"]
-resolver = "2"

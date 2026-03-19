@@ -1,7 +1,7 @@
 import "./App.css";
-import { QueryBar } from "./components/QueryBar";
-import { Settings } from "./components/Settings";
-import * as Icon from "./components/Feather";
+import { QueryBar } from "./components/QueryBar.tsx";
+import { Settings } from "./components/Settings.tsx";
+import * as Icon from "./components/Feather.tsx";
 import { createSignal } from "solid-js";
 import { animate } from "motion";
 
