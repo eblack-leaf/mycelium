@@ -254,23 +254,36 @@ impl GroundedGraph {
     }
 }
 
-/// Unordered output from the GNN head — scored nodes, fields, and operation.
-/// Ordering is recovered later by threading through the original Semantics.
+/// Weighted activation over the query composition graph.
+/// The graph encodes all possible query compositions as nodes/edges (fixed per schema).
+/// SageConv weights them by query relevance — the active subgraph IS the query structure.
+/// TODO: node weights per NodeKind, edge weights per valid composition edge
 pub struct Predictions {
-    pub tables: Vec<ScoredTable>,
-    pub fields: Vec<ScoredField>,
-    pub operation: Operation,
+    pub node_weights: Vec<NodeWeight>,
+    pub edge_weights: Vec<EdgeWeight>,
 }
 
-pub struct ScoredTable {
-    pub name: String,
+/// A node in the query composition graph with its activation score.
+pub struct NodeWeight {
+    pub node: QueryNode,
     pub score: f32,
 }
 
-pub struct ScoredField {
-    pub table: String,
-    pub name: String,
+/// An edge between two query composition nodes with its activation score.
+pub struct EdgeWeight {
+    pub from: QueryNode,
+    pub to: QueryNode,
     pub score: f32,
+}
+
+/// All node types in the query composition graph.
+/// Operations and modifiers are universal; tables and fields are schema-specific.
+#[derive(Debug, Clone, PartialEq)]
+pub enum QueryNode {
+    Operation(Operation),
+    Table(String),
+    Field { table: String, name: String },
+    Modifier(Modifier),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -280,4 +293,13 @@ pub enum Operation {
     Update,
     Delete,
     Relate,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Modifier {
+    Where,
+    OrderBy,
+    Limit,
+    GroupBy,
+    Fetch,
 }
