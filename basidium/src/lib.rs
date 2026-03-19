@@ -3,15 +3,15 @@
 // Produces Datum: (nl, surql, slots) — the labelled training unit.
 // Slots are derived from surql against the schema, aligned back to NL spans.
 
-pub mod trainer;
 pub mod trainable;
+pub mod trainer;
 
-pub use septa::{Slots, Intent};
 pub use hyphae::Schema;
+pub use septa::{Intent, Slots};
 
 /// A single training example.
 pub struct Datum {
-    pub nl:    String,
+    pub nl: String,
     pub surql: String,
     pub slots: Slots,
 }

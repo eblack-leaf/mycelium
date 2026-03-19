@@ -1,26 +1,21 @@
 // model.rs — BiLSTM-CRF architecture for slot extraction
 
-use std::path::Path;
 use crate::Slots;
+use std::path::Path;
+use burn::config::Config;
 
+#[derive(Debug, Config)]
 pub struct ModelConfig {
-    pub hidden_dim:  usize,
-    pub num_layers:  usize,
-    pub dropout:     f32,
-    pub vocab_size:  usize,
-    pub embed_dim:   usize,
-}
-
-impl Default for ModelConfig {
-    fn default() -> Self {
-        Self {
-            hidden_dim: 256,
-            num_layers: 2,
-            dropout:    0.3,
-            vocab_size: 10_000,
-            embed_dim:  128,
-        }
-    }
+    #[config(default = "256")]
+    pub hidden_dim: usize,
+    #[config(default = "2")]
+    pub num_layers: usize,
+    #[config(default = "0.3")]
+    pub dropout: f32,
+    #[config(default = "10_000")]
+    pub vocab_size: usize,
+    #[config(default = "128")]
+    pub embed_dim: usize,
 }
 
 pub struct Model {

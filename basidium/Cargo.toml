@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 septa   = { path = "../septa" }
 hyphae  = { path = "../hyphae" }
+burn = { version = "0.20.1", features = ["ndarray", "autodiff"]}

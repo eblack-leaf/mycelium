@@ -261,34 +261,34 @@ impl GroundedGraph {
 /// Semantic content (comparator, value, modifier kind) flows from septa directly.
 /// Operation is deterministic from intent — not resolved by GNN.
 pub struct Predictions {
-    pub operation:   Operation,
-    pub entities:    Vec<EntityResolution>,
+    pub operation: Operation,
+    pub entities: Vec<EntityResolution>,
     pub projections: Vec<FieldResolution>,
-    pub conditions:  Vec<FieldResolution>,   // comparator + value come from ConditionSpan
-    pub assignments: Vec<FieldResolution>,   // value comes from AssignmentSpan
-    pub modifiers:   Vec<ModifierResolution>,
+    pub conditions: Vec<FieldResolution>, // comparator + value come from ConditionSpan
+    pub assignments: Vec<FieldResolution>, // value comes from AssignmentSpan
+    pub modifiers: Vec<ModifierResolution>,
 }
 
 /// Span resolved to a table.
 pub struct EntityResolution {
     pub span_index: usize,
-    pub table:      String,
-    pub score:      f32,
+    pub table: String,
+    pub score: f32,
 }
 
 /// Span resolved to a field on a table.
 pub struct FieldResolution {
     pub span_index: usize,
-    pub table:      String,
-    pub field:      String,
-    pub score:      f32,
+    pub table: String,
+    pub field: String,
+    pub score: f32,
 }
 
 /// Span resolved to a modifier kind.
 pub struct ModifierResolution {
     pub span_index: usize,
-    pub modifier:   Modifier,
-    pub score:      f32,
+    pub modifier: Modifier,
+    pub score: f32,
 }
 
 /// All node types in the query composition graph.
@@ -298,8 +298,8 @@ pub enum QueryNode {
     Operation(Operation),
     Table(String),
     Field { table: String, name: String },
-    Comparator(Comparator),   // field → comparator → value  (condition)
-    Assignment,               // field → value               (INSERT/UPDATE SET)
+    Comparator(Comparator), // field → comparator → value  (condition)
+    Assignment,             // field → value               (INSERT/UPDATE SET)
     Modifier(Modifier),
 }
 

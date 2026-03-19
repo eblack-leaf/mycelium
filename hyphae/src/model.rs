@@ -1,24 +1,19 @@
 // model.rs — SageConv + bilinear head GNN architecture
 
-use std::path::Path;
 use crate::Predictions;
+use std::path::Path;
+use burn::config::Config;
 
+#[derive(Debug, Config)]
 pub struct GnnConfig {
-    pub hidden_dim:  usize,
-    pub num_layers:  usize,
-    pub dropout:     f32,
-    pub node_feat_dim: usize,  // input node feature dimensionality
-}
-
-impl Default for GnnConfig {
-    fn default() -> Self {
-        Self {
-            hidden_dim:    256,
-            num_layers:    3,
-            dropout:       0.3,
-            node_feat_dim: 64,
-        }
-    }
+    #[config(default = "256")]
+    pub hidden_dim: usize,
+    #[config(default = "3")]
+    pub num_layers: usize,
+    #[config(default = "0.3")]
+    pub dropout: f32,
+    #[config(default = "64")]
+    pub node_feat_dim: usize, // input node feature dimensionality
 }
 
 pub struct GnnModel {
