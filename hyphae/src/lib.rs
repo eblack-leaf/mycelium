@@ -247,27 +247,44 @@ impl SchemaGraph {
     pub fn new(schema: Schema) -> Self {
         let mut nodes = Vec::new();
         let mut edges = TypedEdges::new();
+        // core schema edges
         edges.insert(EdgeType::HasField, vec![]);
         edges.insert(EdgeType::FieldOf, vec![]);
         edges.insert(EdgeType::LinksTo, vec![]);
         edges.insert(EdgeType::LinkedFrom, vec![]);
+        // query structure edges
+        edges.insert(EdgeType::OperationToTable, vec![]);
+        edges.insert(EdgeType::OperationToModifier, vec![]);
+        edges.insert(EdgeType::FieldHasComparator, vec![]);
+        edges.insert(EdgeType::ModifierToField, vec![]);
+        // init vars
         let mut node_idx = 0;
         let mut node_map = HashMap::new();
+        // run all tables first for linkage targets
         for table in schema.tables.iter() {
+            // add table
             let table_idx = node_idx;
             nodes.push(QueryNode::Table(table.name.clone()));
             node_idx += 1;
             node_map.insert(table.name.clone(), table_idx);
+            // map all operation possibilities
+            for op in [Operation::Select, Operation::Insert, Operation::Update, Operation::Delete] {
+                edges.get_mut(&EdgeType::OperationToTable).unwrap().push(Edge { src: 0, dst: 0 });
+            }
         }
         for table in schema.tables.iter() {
+            // retrieve table-idx
             let table_idx = node_map.get(&table.name).copied().unwrap();
+            // for every field
             for field in table.fields.iter() {
+                // store field
                 let field_idx = node_idx;
                 nodes.push(QueryNode::Field {
                     table: table.name.clone(),
                     name: field.name.clone(),
                 });
                 node_idx += 1;
+                // edges for field + table
                 edges.get_mut(&EdgeType::HasField).unwrap().push(Edge {
                     src: table_idx,
                     dst: field_idx,
@@ -276,6 +293,7 @@ impl SchemaGraph {
                     src: field_idx,
                     dst: table_idx,
                 });
+                // record links (bidirectional)
                 match field.field_type {
                     FieldType::Record { ref tables } => {
                         for t in tables.iter() {
