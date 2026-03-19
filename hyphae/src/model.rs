@@ -1,8 +1,9 @@
 // model.rs — SageConv + bilinear head GNN architecture
 
 use crate::Predictions;
-use std::path::Path;
 use burn::config::Config;
+use burn::module::Module;
+use std::path::Path;
 
 #[derive(Debug, Config)]
 pub struct GnnConfig {
@@ -19,6 +20,8 @@ pub struct GnnConfig {
 pub struct GnnModel {
     config: GnnConfig,
 }
+#[derive(Module, Debug, Clone)]
+pub struct Hyphae {}
 
 impl GnnModel {
     pub fn new(config: GnnConfig) -> Self {

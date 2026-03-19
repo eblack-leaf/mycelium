@@ -1,10 +1,11 @@
 // hyphae — graph neural network
 
 pub mod model;
+pub mod ops;
 pub mod sage;
 
 use regex::Regex;
-use septa::Semantics;
+use septa::{Comparator, Semantics};
 use std::path::Path;
 
 // =============================================================================
@@ -310,8 +311,6 @@ pub enum Operation {
     Update,
     Delete,
 }
-
-pub use septa::Comparator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Modifier {

@@ -6,14 +6,20 @@
 pub mod trainable;
 pub mod trainer;
 
-pub use hyphae::Schema;
-pub use septa::{Intent, Slots};
+use hyphae::{QueryNode, Schema};
+use septa::{Slots};
 
 /// A single training example.
 pub struct Datum {
     pub nl: String,
     pub surql: String,
     pub slots: Slots,
+    pub resolved: Vec<SpanLabel>,
+}
+
+pub struct SpanLabel {
+    pub span_index: usize, // index into the relevant Slots vec (entities, projections, etc.)
+    pub target: QueryNode, // the correct resolution — variant implies which vec
 }
 
 impl Datum {

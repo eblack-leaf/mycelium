@@ -1,8 +1,9 @@
 // model.rs — BiLSTM-CRF architecture for slot extraction
 
 use crate::Slots;
-use std::path::Path;
 use burn::config::Config;
+use burn::module::Module;
+use std::path::Path;
 
 #[derive(Debug, Config)]
 pub struct ModelConfig {
@@ -21,6 +22,8 @@ pub struct ModelConfig {
 pub struct Model {
     config: ModelConfig,
 }
+#[derive(Module, Debug, Clone)]
+pub struct Septa {}
 
 impl Model {
     pub fn new(config: ModelConfig) -> Self {

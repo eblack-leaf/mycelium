@@ -1,7 +1,7 @@
 // stipe — main interface, connects UI to the network
 
 use hyphae::{Predictions, Schema, SchemaGraph};
-use septa::Semantics;
+use septa::{Comparator, Semantics};
 use std::path::Path;
 
 pub struct Prompt {
@@ -27,7 +27,7 @@ pub struct ResolvedField {
 pub struct ResolvedCondition {
     pub table:      String,
     pub field:      String,
-    pub comparator: hyphae::Comparator,
+    pub comparator: Comparator,
     pub value:      String,
 }
 

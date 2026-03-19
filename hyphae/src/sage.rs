@@ -3,9 +3,11 @@
 // One Linear per edge type (HeteroConv pattern).
 // Covers: schema possibility graph edges + cross edges (slot→schema) + inter-span edges.
 
+use crate::ops;
 use burn::{
+    module::Module,
     nn::{Linear, LinearConfig},
-    tensor::{backend::Backend, Tensor},
+    tensor::{activation, backend::Backend, Tensor},
 };
 use std::collections::HashMap;
 
@@ -74,22 +76,19 @@ pub struct Edge {
 pub type TypedEdges = HashMap<EdgeType, Vec<Edge>>;
 
 /// Single HeteroConv layer — one Linear per edge type.
-/// HashMap<EdgeType, Linear> cannot derive Module — needs custom impl.
+/// Uses parallel Vec instead of HashMap so burn can derive Module.
+/// Index into edge_projs matches index into EdgeType::all().
+#[derive(Module, Debug)]
 pub struct SageConvLayer<B: Backend> {
     pub self_proj: Linear<B>,
-    pub edge_projs: HashMap<EdgeType, Linear<B>>,
+    pub edge_projs: Vec<Linear<B>>,
 }
 
 impl<B: Backend> SageConvLayer<B> {
     pub fn new(feat_dim: usize, hidden_dim: usize, device: &B::Device) -> Self {
         let edge_projs = EdgeType::all()
             .iter()
-            .map(|et| {
-                (
-                    et.clone(),
-                    LinearConfig::new(feat_dim, hidden_dim).init(device),
-                )
-            })
+            .map(|_| LinearConfig::new(feat_dim, hidden_dim).init(device))
             .collect();
 
         Self {
@@ -104,12 +103,39 @@ impl<B: Backend> SageConvLayer<B> {
         features: Tensor<B, 2>,
         edges: &TypedEdges,
         num_nodes: usize,
+        device: &B::Device,
     ) -> Tensor<B, 2> {
-        todo!()
+        // Self contribution: every node projects its own features.
+        let mut out = self.self_proj.forward(features.clone()); // [num_nodes, hidden_dim]
+
+        // Neighbor contributions: one Linear per edge type.
+        // For each edge type, gather src features, project them, scatter-add into dst positions.
+        for (edge_type, edge_list) in edges {
+            if edge_list.is_empty() {
+                continue;
+            }
+            let proj = match EdgeType::all().iter().position(|e| e == edge_type) {
+                Some(i) => &self.edge_projs[i],
+                None => continue,
+            };
+
+            let src_idx: Vec<usize> = edge_list.iter().map(|e| e.src).collect();
+            let dst_idx: Vec<usize> = edge_list.iter().map(|e| e.dst).collect();
+
+            // [n_edges, feat_dim]
+            let gathered = ops::gather(features.clone(), &src_idx, device);
+            // [n_edges, hidden_dim]
+            let projected = proj.forward(gathered);
+            // accumulate into dst nodes
+            out = out + ops::scatter_add(projected, &dst_idx, num_nodes, device);
+        }
+
+        ops::l2_normalize(activation::relu(out))
     }
 }
 
 /// Multi-layer SageConv stack.
+#[derive(Module, Debug)]
 pub struct SageConv<B: Backend> {
     pub layers: Vec<SageConvLayer<B>>,
 }
@@ -130,7 +156,12 @@ impl<B: Backend> SageConv<B> {
         features: Tensor<B, 2>,
         edges: &TypedEdges,
         num_nodes: usize,
+        device: &B::Device,
     ) -> Tensor<B, 2> {
-        todo!()
+        let mut h = features;
+        for layer in &self.layers {
+            h = layer.forward(h, edges, num_nodes, device);
+        }
+        h
     }
 }
