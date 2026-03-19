@@ -250,7 +250,24 @@ impl SchemaGraph {
     }
 }
 
-pub struct GroundedGraph {}
+pub struct GroundedGraph {
+    /// Every node in the flat index space, in order.
+    /// Index into this vec == node index used everywhere else.
+    pub nodes: Vec<QueryNode>,
+
+    /// Typed edges over node indices.
+    pub edges: crate::sage::TypedEdges,
+
+    /// Which node indices are span nodes (need resolution).
+    /// Parallel to the span order: entities first, then projections,
+    /// conditions, assignments, modifiers — matching Slots vec order.
+    pub span_indices: Vec<usize>,
+
+    /// Which node indices are schema candidates for each span.
+    /// span_candidates[i] = node indices reachable via cross edges from span_indices[i].
+    /// Used by the bilinear head to restrict scoring to plausible targets.
+    pub span_candidates: Vec<Vec<usize>>,
+}
 
 impl GroundedGraph {
     pub fn forward(&self) -> Predictions {
