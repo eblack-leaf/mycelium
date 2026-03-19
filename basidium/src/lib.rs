@@ -6,7 +6,7 @@
 pub mod trainer;
 pub mod trainable;
 
-pub use septa::{Slots, Span, Intent};
+pub use septa::{Slots, Intent};
 pub use hyphae::Schema;
 
 /// A single training example.
