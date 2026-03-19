@@ -13,8 +13,8 @@ use septa::{Semantics};
 pub struct Datum {
     pub nl: String,
     pub surql: String,
-    pub slots: Semantics,
-    pub resolved: Vec<SpanLabel>,
+    pub semantics: Semantics,
+    pub labels: Vec<SpanLabel>,
 }
 
 pub struct SpanLabel {
