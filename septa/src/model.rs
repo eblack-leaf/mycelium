@@ -6,15 +6,15 @@ use burn::config::Config;
 
 #[derive(Debug, Config)]
 pub struct ModelConfig {
-    #[config(default = "256")]
+    #[config(default = 256)]
     pub hidden_dim: usize,
-    #[config(default = "2")]
+    #[config(default = 2)]
     pub num_layers: usize,
-    #[config(default = "0.3")]
+    #[config(default = 0.3)]
     pub dropout: f32,
-    #[config(default = "10_000")]
+    #[config(default = 10_000)]
     pub vocab_size: usize,
-    #[config(default = "128")]
+    #[config(default = 128)]
     pub embed_dim: usize,
 }
 

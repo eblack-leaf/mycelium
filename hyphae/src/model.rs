@@ -6,13 +6,13 @@ use burn::config::Config;
 
 #[derive(Debug, Config)]
 pub struct GnnConfig {
-    #[config(default = "256")]
+    #[config(default = 256)]
     pub hidden_dim: usize,
-    #[config(default = "3")]
+    #[config(default = 3)]
     pub num_layers: usize,
-    #[config(default = "0.3")]
+    #[config(default = 0.3)]
     pub dropout: f32,
-    #[config(default = "64")]
+    #[config(default = 64)]
     pub node_feat_dim: usize, // input node feature dimensionality
 }
 
