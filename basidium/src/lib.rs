@@ -1,36 +1,24 @@
 // basidium — synthetic training data generation for the mycelium domain
 //
-// Produces Datum: (nl, surql, schema) triples.
-// Labels for septa (span extraction) and hyphae (GNN) are derived downstream —
-// not baked into this format.
+// Produces Datum: (nl, surql, slots) — the labelled training unit.
+// Slots are derived from surql against the schema, aligned back to NL spans.
 
-/// A single training example — schema-grounded NL query paired with its SurrealQL.
+pub mod trainer;
+pub mod trainable;
+
+pub use septa::{Slots, Span, Intent};
+pub use hyphae::Schema;
+
+/// A single training example.
 pub struct Datum {
     pub nl:    String,
     pub surql: String,
+    pub slots: Slots,
 }
 
 impl Datum {
-    /// Generate a batch of (nl, surql) training pairs for a given schema.
+    /// Generate a batch of labelled training datums for a given schema.
     pub fn generate(schema: &Schema) -> Vec<Datum> {
         todo!()
     }
 }
-/// Minimal schema reference for data generation context.
-/// Kept independent of hyphae::Schema to avoid coupling.
-pub struct Schema {
-    pub name:   String,
-    pub tables: Vec<Table>,
-}
-
-pub struct Table {
-    pub name:   String,
-    pub fields: Vec<Field>,
-}
-
-pub struct Field {
-    pub name:       String,
-    pub field_type: String,
-}
-
-

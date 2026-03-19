@@ -1,5 +1,8 @@
 // hyphae — graph neural network
 
+pub mod model;
+pub mod sage;
+
 use regex::Regex;
 use septa::Semantics;
 use std::path::Path;
@@ -283,6 +286,8 @@ pub enum QueryNode {
     Operation(Operation),
     Table(String),
     Field { table: String, name: String },
+    Comparator(Comparator),   // field → comparator → value  (condition)
+    Assignment,               // field → value               (INSERT/UPDATE SET)
     Modifier(Modifier),
 }
 
@@ -292,7 +297,17 @@ pub enum Operation {
     Insert,
     Update,
     Delete,
-    Relate,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Comparator {
+    Eq,
+    Neq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+    Contains,
 }
 
 #[derive(Debug, Clone, PartialEq)]

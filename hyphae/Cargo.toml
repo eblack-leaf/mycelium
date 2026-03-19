@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 septa  = { path = "../septa" }
 regex  = "1"
+burn   = { version = "0.20.1", features = ["ndarray"] }

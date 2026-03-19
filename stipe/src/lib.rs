@@ -8,7 +8,31 @@ pub struct Prompt {
     pub text: String,
 }
 
-pub struct QueryIr {}
+pub struct QueryIr {
+    pub intent:      septa::Intent,
+    pub table:       String,
+    pub projections: Vec<String>,              // field names — empty = *
+    pub conditions:  Vec<ResolvedCondition>,
+    pub assignments: Vec<ResolvedAssignment>,
+    pub modifiers:   Vec<ResolvedModifier>,
+}
+
+pub struct ResolvedCondition {
+    pub field:      String,
+    pub comparator: hyphae::Comparator,
+    pub value:      String,
+}
+
+pub struct ResolvedAssignment {
+    pub field: String,
+    pub value: String,
+}
+
+pub enum ResolvedModifier {
+    OrderBy { field: String, descending: bool },
+    Limit   { n: usize },
+    Fetch   { field: String },
+}
 
 impl QueryIr {
     pub fn new(predictions: Predictions, semantics: &Semantics) -> Self {
