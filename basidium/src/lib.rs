@@ -7,13 +7,13 @@ pub mod trainable;
 pub mod trainer;
 
 use hyphae::{QueryNode, Schema};
-use septa::{Slots};
+use septa::{Semantics};
 
 /// A single training example.
 pub struct Datum {
     pub nl: String,
     pub surql: String,
-    pub slots: Slots,
+    pub slots: Semantics,
     pub resolved: Vec<SpanLabel>,
 }
 

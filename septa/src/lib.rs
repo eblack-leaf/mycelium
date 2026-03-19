@@ -3,22 +3,18 @@
 pub mod model;
 
 pub struct Semantics {
-    pub slots: Slots,
-}
-
-impl Semantics {
-    pub fn parse(text: &str) -> Self {
-        todo!()
-    }
-}
-
-pub struct Slots {
     pub intent: Intent,
     pub entities: Vec<EntitySpan>,
     pub projections: Vec<ProjectionSpan>,
     pub conditions: Vec<ConditionSpan>,
     pub assignments: Vec<AssignmentSpan>,
     pub modifiers: Vec<ModifierSpan>,
+}
+
+impl Semantics {
+    pub fn parse(text: &str) -> Self {
+        todo!()
+    }
 }
 
 /// Noun phrase referring to a table or record.

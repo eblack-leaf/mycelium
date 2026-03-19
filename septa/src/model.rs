@@ -1,9 +1,9 @@
 // model.rs — BiLSTM-CRF architecture for slot extraction
 
-use crate::Slots;
 use burn::config::Config;
 use burn::module::Module;
 use std::path::Path;
+use crate::Semantics;
 
 #[derive(Debug, Config)]
 pub struct ModelConfig {
@@ -38,7 +38,7 @@ impl Model {
         todo!()
     }
 
-    pub fn forward(&self, tokens: &[&str]) -> Slots {
+    pub fn forward(&self, tokens: &[&str]) -> Semantics {
         todo!()
     }
 }
