@@ -7,7 +7,7 @@ pub mod trainable;
 pub mod trainer;
 
 use hyphae::{QueryNode, Schema};
-use septa::{Semantics};
+use septa::Semantics;
 
 /// A single training example.
 pub struct Datum {

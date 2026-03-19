@@ -4,10 +4,11 @@ pub mod model;
 pub mod ops;
 pub mod sage;
 
+use crate::sage::{Edge, EdgeType, TypedEdges};
 use regex::Regex;
 use septa::{Comparator, Semantics};
+use std::collections::HashMap;
 use std::path::Path;
-
 // =============================================================================
 // Schema
 // =============================================================================
@@ -97,7 +98,7 @@ pub enum FieldType {
     Object,
     Regex,
     Record {
-        tables: Vec<std::string::String>,
+        tables: Vec<String>,
     },
     Array {
         inner: Option<Box<FieldType>>,
@@ -114,10 +115,10 @@ pub enum FieldType {
         variant: GeometryVariant,
     },
     Literal {
-        raw: std::string::String,
+        raw: String,
     },
     Range {
-        raw: std::string::String,
+        raw: String,
     },
 }
 
@@ -237,12 +238,69 @@ fn split_len(s: &str) -> (&str, Option<usize>) {
 // =============================================================================
 
 pub struct SchemaGraph {
-    pub schema: Schema,
+    schema: Schema,
+    nodes: Vec<QueryNode>,
+    edges: TypedEdges,
 }
 
 impl SchemaGraph {
     pub fn new(schema: Schema) -> Self {
-        Self { schema }
+        let mut nodes = Vec::new();
+        let mut edges = TypedEdges::new();
+        edges.insert(EdgeType::HasField, vec![]);
+        edges.insert(EdgeType::FieldOf, vec![]);
+        edges.insert(EdgeType::LinksTo, vec![]);
+        edges.insert(EdgeType::LinkedFrom, vec![]);
+        let mut node_idx = 0;
+        let mut node_map = HashMap::new();
+        for table in schema.tables.iter() {
+            let table_idx = node_idx;
+            nodes.push(QueryNode::Table(table.name.clone()));
+            node_idx += 1;
+            node_map.insert(table.name.clone(), table_idx);
+        }
+        for table in schema.tables.iter() {
+            let table_idx = node_map.get(&table.name).copied().unwrap();
+            for field in table.fields.iter() {
+                let field_idx = node_idx;
+                nodes.push(QueryNode::Field {
+                    table: table.name.clone(),
+                    name: field.name.clone(),
+                });
+                node_idx += 1;
+                edges.get_mut(&EdgeType::HasField).unwrap().push(Edge {
+                    src: table_idx,
+                    dst: field_idx,
+                });
+                edges.get_mut(&EdgeType::FieldOf).unwrap().push(Edge {
+                    src: field_idx,
+                    dst: table_idx,
+                });
+                match field.field_type {
+                    FieldType::Record { ref tables } => {
+                        for t in tables.iter() {
+                            // add links to target
+                            let ti = node_map.get(t).copied().unwrap();
+                            edges.get_mut(&EdgeType::LinksTo).unwrap().push(Edge {
+                                src: table_idx,
+                                dst: ti,
+                            });
+                            // add links from other table
+                            edges.get_mut(&EdgeType::LinkedFrom).unwrap().push(Edge {
+                                src: ti,
+                                dst: table_idx,
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Self {
+            schema,
+            nodes,
+            edges,
+        }
     }
 
     pub fn inject(&self, semantics: &Semantics) -> GroundedGraph {
@@ -256,7 +314,7 @@ pub struct GroundedGraph {
     pub nodes: Vec<QueryNode>,
 
     /// Typed edges over node indices.
-    pub edges: crate::sage::TypedEdges,
+    pub edges: TypedEdges,
 
     /// Which node indices are span nodes (need resolution).
     /// Parallel to the span order: entities first, then projections,
