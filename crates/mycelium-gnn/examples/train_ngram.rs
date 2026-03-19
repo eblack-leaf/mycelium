@@ -1,7 +1,9 @@
-//! Train the n-gram cross-attention model.
+//! Train the n-gram cross-attention model (multi-label).
 //!
 //! Loads MiniLM ONNX for token embeddings, trains NgramCrossAttn with:
-//!   - Affinity loss: BCE on (n-gram, concept) pairs
+//!   - Multi-label BCE: n-grams inherit ALL concept labels from GT spans they
+//!     contain. "age over 25" (trigram) inherits {field:age, op:gt}.
+//!     Uses sigmoid per concept with pos-weighted BCE.
 //!   - Type loss: cross-entropy on span type classification
 //!
 //! Usage:
@@ -110,7 +112,7 @@ fn main() {
     // --- Init model ---
     let device = &Default::default();
     let mut model = NgramCrossAttn::<B>::new(n_concepts, device);
-    let mut optim = AdamConfig::new().init();
+    let mut optim = AdamConfig::new().with_weight_decay(Some(burn::optim::decay::WeightDecayConfig::new(1e-4))).init();
 
     let epochs = 50;
     let lr = 0.0005;
@@ -164,26 +166,9 @@ fn main() {
             );
             let (affinity, type_logits) = model.forward_scores(ngram_tensor);
 
-            // Build targets
-            let mut affinity_targets = vec![0.0f32; n_ngrams * n_concepts];
+            // Build targets: each GT span → exact-match n-gram gets its concept label
             let mut type_targets_vec: Vec<(usize, usize)> = Vec::new(); // (ngram_idx, span_type)
 
-            for gt_span in &sample.spans {
-                // Find matching n-gram candidate (exact word span match)
-                let matched = spans.iter().position(|&(s, e)| {
-                    s == gt_span.start_word && e == gt_span.end_word
-                });
-
-                if let Some(ng_idx) = matched {
-                    // Positive: this n-gram should have high affinity to the correct concept
-                    affinity_targets[ng_idx * n_concepts + gt_span.concept_idx] = 1.0;
-                    type_targets_vec.push((ng_idx, gt_span.span_type));
-                }
-            }
-
-            // Affinity loss: cross-entropy over concepts (softmax, not BCE)
-            // For each GT n-gram: log_softmax(affinity[ng, :]) at the correct concept
-            // For overlapping n-grams: max-margin — push their best concept score below GT's
             let gt_ngram_indices: Vec<usize> = sample.spans.iter()
                 .filter_map(|gs| spans.iter().position(|&(s, e)| s == gs.start_word && e == gs.end_word))
                 .collect();
@@ -193,7 +178,15 @@ fn main() {
                 continue;
             }
 
-            // Cross-entropy loss on GT n-grams: softmax over 97 concepts
+            for gt_span in &sample.spans {
+                if let Some(ng_idx) = spans.iter().position(|&(s, e)| {
+                    s == gt_span.start_word && e == gt_span.end_word
+                }) {
+                    type_targets_vec.push((ng_idx, gt_span.span_type));
+                }
+            }
+
+            // Affinity loss: cross-entropy over concepts (softmax)
             let mut affinity_loss = Tensor::<B, 1>::zeros([1], device);
             let mut n_aff_terms = 0;
 
@@ -201,32 +194,14 @@ fn main() {
                 if gt_i >= gt_ngram_indices.len() { break; }
                 let ng_idx = gt_ngram_indices[gt_i];
 
-                // Extract affinity row for this n-gram [1, n_concepts]
                 let row = affinity.clone().slice([ng_idx..ng_idx + 1, 0..n_concepts]);
                 let log_probs = activation::log_softmax(row, 1);
                 let target_idx = Tensor::<B, 2, Int>::from_data(
                     TensorData::new(vec![gt_span.concept_idx as i32], [1, 1]), device,
                 );
-                let nll = log_probs.gather(1, target_idx).neg(); // [1, 1]
+                let nll = log_probs.gather(1, target_idx).neg();
                 affinity_loss = affinity_loss + nll.reshape([1]);
                 n_aff_terms += 1;
-
-                // Negative margin: for overlapping n-grams, push their max affinity
-                // below the GT n-gram's correct concept score by a margin
-                let (gs, ge) = spans[ng_idx];
-                for (i, &(s, e)) in spans.iter().enumerate() {
-                    if i == ng_idx { continue; }
-                    if s < ge && e > gs {
-                        // This n-gram overlaps with GT — it should NOT win
-                        let neg_row = affinity.clone().slice([i..i + 1, 0..n_concepts]);
-                        let neg_max = neg_row.max(); // scalar
-                        // Hinge: max(0, neg_max - margin)
-                        let margin = 1.0;
-                        let hinge = activation::relu(neg_max.sub_scalar(margin));
-                        affinity_loss = affinity_loss + hinge.reshape([1]).mul_scalar(0.5);
-                        n_aff_terms += 1;
-                    }
-                }
             }
 
             if n_aff_terms > 0 {
@@ -237,12 +212,12 @@ fn main() {
             let mut type_loss = Tensor::<B, 1>::zeros([1], device);
             let mut has_type_loss = false;
             for &(ng_idx, span_type) in &type_targets_vec {
-                let logit_row = type_logits.clone().slice([ng_idx..ng_idx + 1, 0..SpanType::COUNT]); // [1, 4]
+                let logit_row = type_logits.clone().slice([ng_idx..ng_idx + 1, 0..SpanType::COUNT]);
                 let log_probs = activation::log_softmax(logit_row, 1);
                 let target_idx = Tensor::<B, 2, Int>::from_data(
                     TensorData::new(vec![span_type as i32], [1, 1]), device,
                 );
-                let nll = log_probs.gather(1, target_idx).neg(); // [1, 1]
+                let nll = log_probs.gather(1, target_idx).neg();
                 type_loss = type_loss + nll.reshape([1]);
                 has_type_loss = true;
 
@@ -310,7 +285,7 @@ fn main() {
             let affinity_data: Vec<f32> = affinity.into_data().to_vec().unwrap();
             let _type_data: Vec<f32> = type_logits.into_data().to_vec().unwrap();
 
-            // Compute val loss: cross-entropy over concepts (same as train)
+            // Val loss: cross-entropy over concepts (same as train)
             let mut sample_loss = 0.0f32;
             let mut n_loss_terms = 0usize;
 
@@ -319,7 +294,6 @@ fn main() {
                     s == gt_span.start_word && e == gt_span.end_word
                 });
                 if let Some(ng_idx) = matched {
-                    // Cross-entropy: log_softmax over concepts
                     let base = ng_idx * n_concepts;
                     let row = &affinity_data[base..base + n_concepts];
                     let max_val = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
@@ -332,7 +306,7 @@ fn main() {
                     let pred_concept = row.iter().enumerate()
                         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
                         .unwrap().0;
-                    val_type_total += 1; // reuse counter for combined accuracy
+                    val_type_total += 1;
                     if pred_concept == gt_span.concept_idx { val_type_correct += 1; }
                 }
             }

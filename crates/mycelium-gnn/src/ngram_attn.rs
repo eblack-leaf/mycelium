@@ -5,7 +5,12 @@
 //   1. Mean-pool subwords per word → word-level embeddings
 //   2. Generate unigram/bigram/trigram candidates
 //   3. Project n-grams to 128-dim, cross-attend against learned concept embeddings
-//   4. Greedy non-overlapping selection → spans + candidates
+//   4. Concept-centric selection: for each concept, pick best n-gram (sigmoid)
+//      → spans can overlap, each span can map to multiple concepts
+//
+// Multi-label training: n-grams inherit ALL concept labels from GT spans they
+// contain. "age over 25" (trigram) inherits {field:age, op:gt} because it
+// contains both the "age" unigram and the "over" unigram.
 //
 // The concept embedding table (nn::Embedding) learns from training data that
 // natural language phrases map to SQL concepts. No MiniLM on the schema side.
@@ -13,7 +18,7 @@
 
 use burn::{
     module::Module,
-    nn::{Linear, LinearConfig, Embedding, EmbeddingConfig},
+    nn::{Linear, LinearConfig, Embedding, EmbeddingConfig, Dropout, DropoutConfig},
     tensor::{backend::Backend, Tensor, Int, TensorData},
 };
 
@@ -31,6 +36,8 @@ pub const MINILM_DIM: usize = 384;
 pub struct NgramCrossAttn<B: Backend> {
     /// Project 384-dim n-gram embeddings → 128-dim for affinity scoring
     pub ngram_proj: Linear<B>,
+    /// Dropout after projection (regularization)
+    pub dropout: Dropout,
     /// Learned concept embeddings: [n_concepts, 128]
     pub concept_embs: Embedding<B>,
     /// Classify n-gram span type: 384 → 4 (NP, Quant, Comp, Intent)
@@ -41,6 +48,7 @@ impl<B: Backend> NgramCrossAttn<B> {
     pub fn new(n_concepts: usize, device: &B::Device) -> Self {
         Self {
             ngram_proj: LinearConfig::new(MINILM_DIM, PROJ_DIM).init(device),
+            dropout: DropoutConfig::new(0.2).init(),
             concept_embs: EmbeddingConfig::new(n_concepts, PROJ_DIM).init(device),
             type_classifier: LinearConfig::new(MINILM_DIM, SpanType::COUNT).init(device),
         }
@@ -54,7 +62,7 @@ impl<B: Backend> NgramCrossAttn<B> {
         &self,
         ngram_embs: Tensor<B, 2>,
     ) -> (Tensor<B, 2>, Tensor<B, 2>) {
-        let projected = self.ngram_proj.forward(ngram_embs.clone()); // [N, 128]
+        let projected = self.dropout.forward(self.ngram_proj.forward(ngram_embs.clone())); // [N, 128]
 
         // Get all concept embeddings as a matrix [n_concepts, 128]
         let n_concepts = self.concept_embs.weight.val().dims()[0];
@@ -322,6 +330,122 @@ pub fn greedy_select(
     }
 
     // Sort by word position for consistent output order
+    selected.sort_by_key(|s| s.word_start);
+    selected
+}
+
+// =============================================================================
+// Concept-centric selection (multi-label, overlapping spans allowed)
+// =============================================================================
+
+fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+}
+
+/// Concept-centric selection: for each concept, find the n-gram with highest
+/// sigmoid score. Spans can overlap. Each span can map to multiple concepts.
+///
+/// This replaces greedy_select. Instead of "pick best n-gram, mask overlapping",
+/// we flip it: "for each concept, pick best n-gram". The result is a set of
+/// SelectedSpans where overlapping spans coexist and each span can carry
+/// multiple concept candidates.
+///
+/// `affinity`: flat [N * n_concepts] raw affinity scores (pre-sigmoid)
+/// `type_logits`: flat [N * 4] span type logits
+/// `ngram_embs`: flat [N * 384] original n-gram embeddings
+/// `spans`: [(start_word, end_word)] for each n-gram
+/// `words`: whitespace-split words of the original query
+/// `threshold`: minimum sigmoid score to activate a concept (e.g. 0.5)
+/// `concept_map`: for converting concept indices back to (type, id)
+pub fn concept_select(
+    affinity: &[f32],
+    type_logits: &[f32],
+    ngram_embs: &[f32],
+    spans: &[(usize, usize)],
+    words: &[&str],
+    threshold: f32,
+    concept_map: &ConceptMap,
+) -> Vec<SelectedSpan> {
+    let n = spans.len();
+    let n_concepts = concept_map.total();
+    if n == 0 || n_concepts == 0 { return vec![]; }
+
+    // For each concept, find the n-gram with the highest sigmoid score
+    // concept_winner[c] = (best_ngram_idx, best_sigmoid_score)
+    let mut concept_winner: Vec<(usize, f32)> = vec![(0, f32::NEG_INFINITY); n_concepts];
+
+    for c in 0..n_concepts {
+        for i in 0..n {
+            let raw = affinity[i * n_concepts + c];
+            let sig = sigmoid(raw);
+            if sig > concept_winner[c].1 {
+                concept_winner[c] = (i, sig);
+            }
+        }
+    }
+
+    // Group activated concepts by their winning n-gram
+    // ngram_concepts[ngram_idx] = vec of (concept_idx, sigmoid_score)
+    let mut ngram_concepts: std::collections::HashMap<usize, Vec<(usize, f32)>>
+        = std::collections::HashMap::new();
+
+    for (c, &(ng_idx, score)) in concept_winner.iter().enumerate() {
+        if score >= threshold {
+            ngram_concepts.entry(ng_idx).or_default().push((c, score));
+        }
+    }
+
+    // Build SelectedSpans from the grouped concepts
+    let mut selected: Vec<SelectedSpan> = ngram_concepts.into_iter()
+        .map(|(ng_idx, mut concepts)| {
+            let (start, end) = spans[ng_idx];
+
+            // Sort concepts by score descending
+            concepts.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            // Determine span type from type_logits argmax
+            let type_base = ng_idx * SpanType::COUNT;
+            let span_type_idx = (0..SpanType::COUNT)
+                .max_by(|&a, &b| {
+                    type_logits[type_base + a]
+                        .partial_cmp(&type_logits[type_base + b])
+                        .unwrap()
+                })
+                .unwrap_or(0);
+            let span_type = match span_type_idx {
+                0 => SpanType::NounPhrase,
+                1 => SpanType::Quantifier,
+                2 => SpanType::Comparator,
+                3 => SpanType::Intent,
+                _ => SpanType::NounPhrase,
+            };
+
+            // Extract 384-dim embedding
+            let emb_offset = ng_idx * MINILM_DIM;
+            let embedding = ngram_embs[emb_offset..emb_offset + MINILM_DIM].to_vec();
+
+            // Convert concept indices to (schema_type, schema_id, score)
+            let candidates: Vec<(String, usize, f32)> = concepts.iter()
+                .map(|&(c, score)| {
+                    let (schema_type, schema_id) = concept_map.from_idx(c);
+                    (schema_type.to_string(), schema_id, score)
+                })
+                .collect();
+
+            let text = words[start..end.min(words.len())].join(" ");
+
+            SelectedSpan {
+                word_start: start,
+                word_end: end,
+                text,
+                span_type,
+                embedding,
+                candidates,
+            }
+        })
+        .collect();
+
+    // Sort by word position
     selected.sort_by_key(|s| s.word_start);
     selected
 }

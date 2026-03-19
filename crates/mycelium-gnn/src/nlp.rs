@@ -22,7 +22,7 @@ use burn::tensor::TensorData;
 
 use crate::biaffine::{BiaffineHead, mean_pool_spans, HIDDEN_DIM};
 use crate::biaffine_data::{BioTag, build_subword_to_word, decode_bio_spans};
-use crate::ngram_attn::{NgramCrossAttn, words_from_subwords, generate_ngrams, greedy_select, MINILM_DIM};
+use crate::ngram_attn::{NgramCrossAttn, words_from_subwords, generate_ngrams, concept_select, MINILM_DIM};
 use crate::ngram_data::ConceptMap;
 use crate::candidate_matcher::{CandidateSet, CandidateEdge};
 use crate::graph::SchemaGraph;
@@ -472,12 +472,12 @@ impl NlpModel {
         let affinity: Vec<f32> = affinity_tensor.into_data().to_vec().unwrap();
         let type_logits: Vec<f32> = type_tensor.into_data().to_vec().unwrap();
 
-        // Greedy selection — use discriminability (peakiness) instead of absolute threshold
-        // min_peak = minimum (max - mean) across concepts for an n-gram to be considered
+        // Concept-centric selection: for each concept, find best n-gram (sigmoid).
+        // Spans can overlap, each span can carry multiple concept candidates.
         let words: Vec<&str> = query.split_whitespace().collect();
-        let selected = greedy_select(
+        let selected = concept_select(
             &affinity, &type_logits, &ngram_embs, &spans,
-            &words, 12.0, 5, concept_map,
+            &words, 0.5, concept_map,
         );
 
         if selected.is_empty() { return None; }
