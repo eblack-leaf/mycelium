@@ -8,22 +8,31 @@ pub struct Prompt {
     pub text: String,
 }
 
+/// GNN-resolved query structure ready for deterministic rendering.
 pub struct QueryIr {
     pub intent:      septa::Intent,
-    pub table:       String,
-    pub projections: Vec<String>,              // field names — empty = *
+    pub entities:    Vec<String>,             // resolved table names → FROM clause
+    pub projections: Vec<ResolvedField>,      // empty = SELECT *
     pub conditions:  Vec<ResolvedCondition>,
     pub assignments: Vec<ResolvedAssignment>,
     pub modifiers:   Vec<ResolvedModifier>,
 }
 
+/// A field resolved to a specific table by the GNN.
+pub struct ResolvedField {
+    pub table: String,
+    pub field: String,
+}
+
 pub struct ResolvedCondition {
+    pub table:      String,
     pub field:      String,
     pub comparator: hyphae::Comparator,
     pub value:      String,
 }
 
 pub struct ResolvedAssignment {
+    pub table: String,
     pub field: String,
     pub value: String,
 }

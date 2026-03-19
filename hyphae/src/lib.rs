@@ -257,26 +257,38 @@ impl GroundedGraph {
     }
 }
 
-/// Weighted activation over the query composition graph.
-/// The graph encodes all possible query compositions as nodes/edges (fixed per schema).
-/// SageConv weights them by query relevance — the active subgraph IS the query structure.
-/// TODO: node weights per NodeKind, edge weights per valid composition edge
+/// Bilinear head resolutions — for each span, which schema node it resolved to.
+/// Semantic content (comparator, value, modifier kind) flows from septa directly.
+/// Operation is deterministic from intent — not resolved by GNN.
 pub struct Predictions {
-    pub node_weights: Vec<NodeWeight>,
-    pub edge_weights: Vec<EdgeWeight>,
+    pub operation:   Operation,
+    pub entities:    Vec<EntityResolution>,
+    pub projections: Vec<FieldResolution>,
+    pub conditions:  Vec<FieldResolution>,   // comparator + value come from ConditionSpan
+    pub assignments: Vec<FieldResolution>,   // value comes from AssignmentSpan
+    pub modifiers:   Vec<ModifierResolution>,
 }
 
-/// A node in the query composition graph with its activation score.
-pub struct NodeWeight {
-    pub node: QueryNode,
-    pub score: f32,
+/// Span resolved to a table.
+pub struct EntityResolution {
+    pub span_index: usize,
+    pub table:      String,
+    pub score:      f32,
 }
 
-/// An edge between two query composition nodes with its activation score.
-pub struct EdgeWeight {
-    pub from: QueryNode,
-    pub to: QueryNode,
-    pub score: f32,
+/// Span resolved to a field on a table.
+pub struct FieldResolution {
+    pub span_index: usize,
+    pub table:      String,
+    pub field:      String,
+    pub score:      f32,
+}
+
+/// Span resolved to a modifier kind.
+pub struct ModifierResolution {
+    pub span_index: usize,
+    pub modifier:   Modifier,
+    pub score:      f32,
 }
 
 /// All node types in the query composition graph.
@@ -299,16 +311,7 @@ pub enum Operation {
     Delete,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Comparator {
-    Eq,
-    Neq,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-    Contains,
-}
+pub use septa::Comparator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Modifier {
