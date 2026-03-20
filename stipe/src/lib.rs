@@ -1,8 +1,10 @@
 // stipe — main interface, connects UI to the network
 
-use hyphae::{Query, Schema, SchemaGraph};
+use hyphae::query::Query;
 use septa::Semantics;
 use std::path::Path;
+use hyphae::graph::SchemaGraph;
+use hyphae::schema::Schema;
 
 pub struct Prompt {
     pub text: String,

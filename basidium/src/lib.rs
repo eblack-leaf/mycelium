@@ -3,7 +3,8 @@
 pub mod trainable;
 pub mod trainer;
 
-use hyphae::{QueryIr, QueryNode, Schema};
+use hyphae::query::{QueryIr, QueryNode};
+use hyphae::schema::Schema;
 use septa::Semantics;
 
 /// A single labelled training example.
