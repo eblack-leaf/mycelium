@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use septa::{Comparator, Intent, Semantics};
 use crate::query::{ModifierKind, QueryIr, QueryNode};
 use crate::sage::{Edge, EdgeType, TypedEdges};
 use crate::schema::{FieldType, Schema};
+use septa::{Comparator, Intent, Semantics};
+use std::collections::HashMap;
 
 pub struct SchemaGraph {
     schema: Schema,

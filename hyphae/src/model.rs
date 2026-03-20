@@ -1,9 +1,9 @@
 // model.rs — SageConv + bilinear heads GNN architecture
 
-use crate::sage::SageConv;
-use burn::{config::Config, module::Module, tensor::backend::Backend};
 use crate::graph::GroundedGraph;
 use crate::query::QueryIr;
+use crate::sage::SageConv;
+use burn::{config::Config, module::Module, tensor::backend::Backend};
 
 #[derive(Debug, Config)]
 pub struct HyphaeConfig {
