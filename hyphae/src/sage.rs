@@ -1,7 +1,7 @@
 // sage.rs — R-GCN style heterogeneous SageConv
 //
 // One Linear per edge type (HeteroConv pattern).
-// Covers: schema possibility graph edges + cross edges (slot→schema) + inter-span edges.
+// 13 edge types: schema structure, modifier routing, cross edges, inter-span.
 
 use crate::ops;
 use burn::{
@@ -15,30 +15,28 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EdgeType {
     // --- Schema structure (fixed per schema) ---
-    HasField,   // Table → Field
-    FieldOf,    // Field → Table
-    LinksTo,    // Table → Table (record link)
-    LinkedFrom, // Table → Table (reverse record link)
+    HasField,    // Table → Field
+    FieldOf,     // Field → Table
+    LinksTo,     // Field → Table  (record-link field → linked table)
+    LinkedFrom,  // Table → Field  (reverse of LinksTo)
 
-    // --- Possibility graph (valid ops/modifiers on schema nodes) ---
-    OperationToTable,    // Operation → Table (all ops valid on any table)
-    OperationToModifier, // Operation → Modifier (which modifiers each op supports)
-    FieldHasComparator,  // Field → Comparator (type-derived: int→>,<,=; string→=,CONTAINS)
-    ModifierToField,     // Modifier → Field (WHERE/ORDER BY apply to fields)
+    // --- Multi-hop routing (static, built in SchemaGraph::new) ---
+    // Modifier::Fetch  → record-link Field nodes only
+    // Modifier::OrderBy → all Field nodes
+    // Modifier::Limit  → nothing
+    ModifierToField,
 
-    // --- Cross edges: slot span nodes → schema possibility nodes ---
-    Intent,     // intent slot     → Operation node
-    Entity,     // entities slot   → Table or Field candidate
-    Projection, // projections slot → Field candidate
-    Condition,  // conditions slot → Field + Comparator candidates
-    Assignment, // assignments slot → Field candidate (write, no comparator)
-    Modifier,   // modifiers slot  → Modifier node
+    // --- Cross edges: span nodes → schema candidates (added in inject()) ---
+    IntentToOperation,     // IntentSpan     → all Operation nodes
+    EntityToTable,         // EntitySpan     → Table candidates
+    ProjectionToField,     // ProjectionSpan → Field candidates
+    ConditionToField,      // ConditionSpan  → Field candidates
+    ConditionToComparator, // ConditionSpan  → all Comparator nodes
+    AssignmentToField,     // AssignmentSpan → Field candidates
+    ModifierToType,        // ModifierSpan   → all Modifier nodes
 
-    // --- Inter-span edges: subordinate slots → governing entity ---
-    ConditionToEntity, // Condition span → Entity span (condition applies to this entity)
-    ProjectionToEntity, // Projection span → Entity span (fields are from this entity)
-    AssignmentToEntity, // Assignment span → Entity span (writes target this entity)
-    ModifierToEntity,  // Modifier span → Entity span (ordering/limit on this entity)
+    // --- Inter-span edges (added in inject()) ---
+    ProjectionToFetch, // ProjectionSpan → ModifierSpan  (when fetch_index is Some)
 }
 
 impl EdgeType {
@@ -48,20 +46,15 @@ impl EdgeType {
             EdgeType::FieldOf,
             EdgeType::LinksTo,
             EdgeType::LinkedFrom,
-            EdgeType::OperationToTable,
-            EdgeType::OperationToModifier,
-            EdgeType::FieldHasComparator,
             EdgeType::ModifierToField,
-            EdgeType::Intent,
-            EdgeType::Entity,
-            EdgeType::Projection,
-            EdgeType::Condition,
-            EdgeType::Assignment,
-            EdgeType::Modifier,
-            EdgeType::ConditionToEntity,
-            EdgeType::ProjectionToEntity,
-            EdgeType::AssignmentToEntity,
-            EdgeType::ModifierToEntity,
+            EdgeType::IntentToOperation,
+            EdgeType::EntityToTable,
+            EdgeType::ProjectionToField,
+            EdgeType::ConditionToField,
+            EdgeType::ConditionToComparator,
+            EdgeType::AssignmentToField,
+            EdgeType::ModifierToType,
+            EdgeType::ProjectionToFetch,
         ]
     }
 }
@@ -80,7 +73,7 @@ pub type TypedEdges = HashMap<EdgeType, Vec<Edge>>;
 /// Index into edge_projs matches index into EdgeType::all().
 #[derive(Module, Debug)]
 pub struct SageConvLayer<B: Backend> {
-    pub self_proj: Linear<B>,
+    pub self_proj:  Linear<B>,
     pub edge_projs: Vec<Linear<B>>,
 }
 
@@ -105,11 +98,8 @@ impl<B: Backend> SageConvLayer<B> {
         num_nodes: usize,
         device: &B::Device,
     ) -> Tensor<B, 2> {
-        // Self contribution: every node projects its own features.
-        let mut out = self.self_proj.forward(features.clone()); // [num_nodes, hidden_dim]
+        let mut out = self.self_proj.forward(features.clone());
 
-        // Neighbor contributions: one Linear per edge type.
-        // For each edge type, gather src features, project them, scatter-add into dst positions.
         for (edge_type, edge_list) in edges {
             if edge_list.is_empty() {
                 continue;
@@ -122,11 +112,8 @@ impl<B: Backend> SageConvLayer<B> {
             let src_idx: Vec<usize> = edge_list.iter().map(|e| e.src).collect();
             let dst_idx: Vec<usize> = edge_list.iter().map(|e| e.dst).collect();
 
-            // [n_edges, feat_dim]
-            let gathered = ops::gather(features.clone(), &src_idx, device);
-            // [n_edges, hidden_dim]
+            let gathered  = ops::gather(features.clone(), &src_idx, device);
             let projected = proj.forward(gathered);
-            // accumulate into dst nodes
             out = out + ops::scatter_add(projected, &dst_idx, num_nodes, device);
         }
 

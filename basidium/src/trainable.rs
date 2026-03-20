@@ -1,36 +1,36 @@
-// trainable.rs — Trainable impls for septa and hyphae models
+// trainable.rs — Trainable impls for Septa and Hyphae models
 
 use crate::{
     Datum,
     trainer::{Metrics, Trainable},
 };
-use hyphae::model::GnnModel;
-use septa::model::Model as SeptaModel;
+use hyphae::model::Hyphae;
+use septa::model::Septa;
 
-impl Trainable for SeptaModel {
-    fn step(&mut self, batch: &[Datum]) -> f32 {
+impl<B: burn::tensor::backend::Backend> Trainable for Septa<B> {
+    fn step(&mut self, _batch: &[Datum]) -> f32 {
         todo!()
     }
 
-    fn evaluate(&self, batch: &[Datum]) -> Metrics {
+    fn evaluate(&self, _batch: &[Datum]) -> Metrics {
         todo!()
     }
 
-    fn save(&self, path: &std::path::PathBuf) -> std::io::Result<()> {
+    fn save(&self, _path: &std::path::PathBuf) -> std::io::Result<()> {
         todo!()
     }
 }
 
-impl Trainable for GnnModel {
-    fn step(&mut self, batch: &[Datum]) -> f32 {
+impl<B: burn::tensor::backend::Backend> Trainable for Hyphae<B> {
+    fn step(&mut self, _batch: &[Datum]) -> f32 {
         todo!()
     }
 
-    fn evaluate(&self, batch: &[Datum]) -> Metrics {
+    fn evaluate(&self, _batch: &[Datum]) -> Metrics {
         todo!()
     }
 
-    fn save(&self, path: &std::path::PathBuf) -> std::io::Result<()> {
+    fn save(&self, _path: &std::path::PathBuf) -> std::io::Result<()> {
         todo!()
     }
 }

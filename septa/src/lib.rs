@@ -3,12 +3,12 @@
 pub mod model;
 
 pub struct Semantics {
-    pub intent: Intent,
-    pub entities: Vec<EntitySpan>,
+    pub intent:      IntentSpan,
+    pub entity:      EntitySpan,
     pub projections: Vec<ProjectionSpan>,
-    pub conditions: Vec<ConditionSpan>,
+    pub conditions:  Vec<ConditionSpan>,
     pub assignments: Vec<AssignmentSpan>,
-    pub modifiers: Vec<ModifierSpan>,
+    pub modifiers:   Vec<ModifierSpan>,
 }
 
 impl Semantics {
@@ -17,57 +17,90 @@ impl Semantics {
     }
 }
 
-/// Noun phrase referring to a table or record.
+/// Raw verb/phrase — GNN resolves to an Operation node.
+pub struct IntentSpan {
+    pub text:  String,
+    pub start: usize,
+    pub end:   usize,
+}
+
+/// Primary table reference (one per query). record_id holds the :id qualifier when present.
 pub struct EntitySpan {
-    pub text: String,
-    pub start: usize,
-    pub end: usize,
+    pub text:      String,
+    pub start:     usize,
+    pub end:       usize,
+    pub record_id: Option<ValueRef>,
 }
 
-/// Field name to return (empty projections = SELECT *).
+/// Field to project in SELECT.
+/// fetch_index indexes into Semantics.modifiers when this field lives on a linked table;
+/// the NLP learns this binding from NL co-reference. None = field on primary table.
 pub struct ProjectionSpan {
-    pub field_text: String,
-    pub start: usize,
-    pub end: usize,
-    pub entity_index: usize, // index into Slots.entities
+    pub field_text:  String,
+    pub start:       usize,
+    pub end:         usize,
+    pub fetch_index: Option<usize>,
 }
 
-/// Comparison predicate — decomposed for direct edge construction.
+/// Condition predicate. comparator_text is raw NL ("over", "less than", "equals") —
+/// GNN resolves it to a Comparator node.
 pub struct ConditionSpan {
-    pub field_text: String,
-    pub comparator: Comparator,
-    pub value: String,
-    pub start: usize,
-    pub end: usize,
-    pub entity_index: usize, // index into Slots.entities
+    pub field_text:      String,
+    pub comparator_text: String,
+    pub value:           ValueRef,
+    pub start:           usize,
+    pub end:             usize,
 }
 
-/// Field=value write — decomposed for direct edge construction.
+/// Field=value write. field_text is None when the slot value is an object to be
+/// expanded field-by-field at render time using schema types.
 pub struct AssignmentSpan {
-    pub field_text: String,
-    pub value: String,
-    pub start: usize,
-    pub end: usize,
-    pub entity_index: usize, // index into Slots.entities
+    pub field_text: Option<String>,
+    pub value:      ValueRef,
+    pub start:      usize,
+    pub end:        usize,
 }
 
-/// Ordering, limiting, or fetching modifier.
+/// Generic modifier span — GNN resolves the type (OrderBy/Limit/Fetch) via ModifierToType edges
+/// and the target field via multi-hop through ModifierToField schema edges.
 pub struct ModifierSpan {
-    pub text: String,
-    pub kind: ModifierKind,
-    pub start: usize,
-    pub end: usize,
-    pub entity_index: usize, // index into Slots.entities
+    pub text:     String,         // "order by", "fetch", "limit"
+    pub argument: Option<String>, // field text or raw limit value
+    pub start:    usize,
+    pub end:      usize,
 }
 
+/// Value on the right-hand side of a condition or assignment.
+/// Kept opaque through NLP and GNN; substituted or normalised at render time.
+#[derive(Debug, Clone)]
+pub enum ValueRef {
+    Literal(String),
+    Slot(usize),            // {1} → Slot(0),  {2} → Slot(1)  — deterministic pre-processing
+    Temporal(TemporalExpr),
+}
+
+/// Relative datetime expressions — normalised to SurrealQL at render time.
+/// e.g. LastWeek → time::now() - 7d,  Today → time::floor(time::now(), 1d)
+#[derive(Debug, Clone)]
+pub enum TemporalExpr {
+    Today,
+    Yesterday,
+    DaysAgo(u32),
+    WeeksAgo(u32),
+    MonthsAgo(u32),
+    Iso(String),
+}
+
+/// Resolved operation type — target for IntentSpan bilinear resolution.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Intent {
     Select,
-    Insert,
+    Create,
     Update,
     Delete,
 }
 
+/// Resolved comparator — target for ConditionSpan comparator bilinear resolution.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Comparator {
     Eq,
@@ -77,12 +110,4 @@ pub enum Comparator {
     Lt,
     Lte,
     Contains,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ModifierKind {
-    OrderBy { descending: bool },
-    Limit,
-    Fetch,
-    GroupBy,
 }

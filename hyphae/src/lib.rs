@@ -6,9 +6,10 @@ pub mod sage;
 
 use crate::sage::{Edge, EdgeType, TypedEdges};
 use regex::Regex;
-use septa::{Comparator, Semantics};
+use septa::{Comparator, Intent, Semantics, ValueRef};
 use std::collections::HashMap;
 use std::path::Path;
+
 // =============================================================================
 // Schema
 // =============================================================================
@@ -73,13 +74,13 @@ impl Schema {
 
 #[derive(Debug, Clone)]
 pub struct Table {
-    pub name: String,
+    pub name:   String,
     pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Field {
-    pub name: String,
+    pub name:       String,
     pub field_type: FieldType,
 }
 
@@ -97,63 +98,33 @@ pub enum FieldType {
     Bytes,
     Object,
     Regex,
-    Record {
-        tables: Vec<String>,
-    },
-    Array {
-        inner: Option<Box<FieldType>>,
-        max_len: Option<usize>,
-    },
-    Set {
-        inner: Option<Box<FieldType>>,
-        max_len: Option<usize>,
-    },
-    Option {
-        inner: Box<FieldType>,
-    },
-    Geometry {
-        variant: GeometryVariant,
-    },
-    Literal {
-        raw: String,
-    },
-    Range {
-        raw: String,
-    },
+    Record { tables: Vec<std::string::String> },
+    Array  { inner: Option<Box<FieldType>>, max_len: Option<usize> },
+    Set    { inner: Option<Box<FieldType>>, max_len: Option<usize> },
+    Option { inner: Box<FieldType> },
+    Geometry { variant: GeometryVariant },
+    Literal  { raw: std::string::String },
+    Range    { raw: std::string::String },
 }
 
 impl FieldType {
     fn parse(s: &str) -> Self {
         if let Some(inner) = wrap(s, "option") {
-            return Self::Option {
-                inner: Box::new(Self::parse(inner)),
-            };
+            return Self::Option { inner: Box::new(Self::parse(inner)) };
         }
         if s.to_lowercase() == "array" {
-            return Self::Array {
-                inner: None,
-                max_len: None,
-            };
+            return Self::Array { inner: None, max_len: None };
         }
         if let Some(inner) = wrap(s, "array") {
             let (t, n) = split_len(inner);
-            return Self::Array {
-                inner: Some(Box::new(Self::parse(t))),
-                max_len: n,
-            };
+            return Self::Array { inner: Some(Box::new(Self::parse(t))), max_len: n };
         }
         if s.to_lowercase() == "set" {
-            return Self::Set {
-                inner: None,
-                max_len: None,
-            };
+            return Self::Set { inner: None, max_len: None };
         }
         if let Some(inner) = wrap(s, "set") {
             let (t, n) = split_len(inner);
-            return Self::Set {
-                inner: Some(Box::new(Self::parse(t))),
-                max_len: n,
-            };
+            return Self::Set { inner: Some(Box::new(Self::parse(t))), max_len: n };
         }
         if s.to_lowercase() == "record" {
             return Self::Record { tables: Vec::new() };
@@ -164,37 +135,33 @@ impl FieldType {
         }
         if let Some(inner) = wrap(s, "geometry") {
             let variant = match inner.trim() {
-                "feature" => GeometryVariant::Feature,
-                "point" => GeometryVariant::Point,
-                "line" => GeometryVariant::Line,
-                "polygon" => GeometryVariant::Polygon,
-                "multipoint" => GeometryVariant::MultiPoint,
-                "multiline" => GeometryVariant::MultiLine,
+                "feature"      => GeometryVariant::Feature,
+                "point"        => GeometryVariant::Point,
+                "line"         => GeometryVariant::Line,
+                "polygon"      => GeometryVariant::Polygon,
+                "multipoint"   => GeometryVariant::MultiPoint,
+                "multiline"    => GeometryVariant::MultiLine,
                 "multipolygon" => GeometryVariant::MultiPolygon,
-                "collection" => GeometryVariant::Collection,
-                _ => GeometryVariant::Point,
+                "collection"   => GeometryVariant::Collection,
+                _              => GeometryVariant::Point,
             };
             return Self::Geometry { variant };
         }
         match s.to_lowercase().as_str() {
-            "any" => Self::Any,
-            "bool" => Self::Bool,
-            "string" => Self::String,
-            "int" => Self::Int,
-            "float" => Self::Float,
-            "decimal" => Self::Decimal,
-            "number" => Self::Number,
+            "any"      => Self::Any,
+            "bool"     => Self::Bool,
+            "string"   => Self::String,
+            "int"      => Self::Int,
+            "float"    => Self::Float,
+            "decimal"  => Self::Decimal,
+            "number"   => Self::Number,
             "datetime" => Self::Datetime,
             "duration" => Self::Duration,
-            "bytes" => Self::Bytes,
-            "object" => Self::Object,
-            "regex" => Self::Regex,
-            other if other.contains("..") => Self::Range {
-                raw: other.to_string(),
-            },
-            other if other.contains('|') => Self::Literal {
-                raw: other.to_string(),
-            },
+            "bytes"    => Self::Bytes,
+            "object"   => Self::Object,
+            "regex"    => Self::Regex,
+            other if other.contains("..") => Self::Range   { raw: other.to_string() },
+            other if other.contains('|')  => Self::Literal { raw: other.to_string() },
             _ => Self::Any,
         }
     }
@@ -202,14 +169,8 @@ impl FieldType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeometryVariant {
-    Feature,
-    Point,
-    Line,
-    Polygon,
-    MultiPoint,
-    MultiLine,
-    MultiPolygon,
-    Collection,
+    Feature, Point, Line, Polygon,
+    MultiPoint, MultiLine, MultiPolygon, Collection,
 }
 
 fn wrap<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
@@ -234,91 +195,196 @@ fn split_len(s: &str) -> (&str, Option<usize>) {
 }
 
 // =============================================================================
+// QueryNode
+// =============================================================================
+
+/// All node types in the grounded graph — each is a bilinear resolution target.
+#[derive(Debug, Clone, PartialEq)]
+pub enum QueryNode {
+    Table(std::string::String),
+    Field { table: std::string::String, name: std::string::String },
+    Operation(Intent),
+    Comparator(Comparator),
+    Modifier(ModifierKind),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ModifierKind {
+    OrderBy,
+    Limit,
+    Fetch,
+}
+
+// =============================================================================
+// QueryIr — GNN resolution output, moved here from stipe to avoid circular deps
+// =============================================================================
+
+pub struct QueryIr {
+    pub intent:      Intent,
+    pub table:       std::string::String,
+    pub record_id:   Option<ValueRef>,
+    pub projections: Vec<ResolvedField>,
+    pub conditions:  Vec<ResolvedCondition>,
+    pub assignments: Vec<ResolvedAssignment>,
+    pub modifiers:   Vec<ResolvedModifier>,
+}
+
+pub struct ResolvedField {
+    pub table: std::string::String,
+    pub field: std::string::String,
+}
+
+pub struct ResolvedCondition {
+    pub table:      std::string::String,
+    pub field:      std::string::String,
+    pub comparator: Comparator,
+    pub value:      ValueRef,
+}
+
+pub struct ResolvedAssignment {
+    pub table: std::string::String,
+    pub field: Option<std::string::String>, // None = expand slot object via schema types at render
+    pub value: ValueRef,
+}
+
+pub enum ResolvedModifier {
+    OrderBy { table: std::string::String, field: std::string::String, descending: bool },
+    Limit   { value: ValueRef },
+    Fetch   { field: std::string::String },
+}
+
+pub struct Query {
+    pub surql: String,
+}
+
+impl QueryIr {
+    /// Render to SurrealQL. values[n] is substituted for Slot(n) references.
+    pub fn render(&self, _values: &[String]) -> Query {
+        todo!()
+    }
+}
+
+// =============================================================================
 // SchemaGraph
 // =============================================================================
 
 pub struct SchemaGraph {
     schema: Schema,
-    nodes: Vec<QueryNode>,
-    edges: TypedEdges,
+    nodes:  Vec<QueryNode>,
+    edges:  TypedEdges,
 }
 
 impl SchemaGraph {
     pub fn new(schema: Schema) -> Self {
-        let mut nodes = Vec::new();
+        let mut nodes: Vec<QueryNode> = Vec::new();
         let mut edges = TypedEdges::new();
-        // core schema edges
-        edges.insert(EdgeType::HasField, vec![]);
-        edges.insert(EdgeType::FieldOf, vec![]);
-        edges.insert(EdgeType::LinksTo, vec![]);
-        edges.insert(EdgeType::LinkedFrom, vec![]);
-        // query structure edges
-        edges.insert(EdgeType::OperationToTable, vec![]);
-        edges.insert(EdgeType::OperationToModifier, vec![]);
-        edges.insert(EdgeType::FieldHasComparator, vec![]);
-        edges.insert(EdgeType::ModifierToField, vec![]);
-        // init vars
-        let mut node_idx = 0;
-        let mut node_map = HashMap::new();
-        // run all tables first for linkage targets
-        for table in schema.tables.iter() {
-            // add table
-            let table_idx = node_idx;
-            nodes.push(QueryNode::Table(table.name.clone()));
-            node_idx += 1;
-            node_map.insert(table.name.clone(), table_idx);
-            // map all operation possibilities
-            for op in [Operation::Select, Operation::Insert, Operation::Update, Operation::Delete] {
-                edges.get_mut(&EdgeType::OperationToTable).unwrap().push(Edge { src: 0, dst: 0 });
-            }
+
+        // Initialise all edge type buckets
+        for et in EdgeType::all() {
+            edges.insert(et.clone(), vec![]);
         }
+
+        // ── Fixed vocabulary nodes ──────────────────────────────────────────
+        // Indices are stable regardless of schema — span cross edges in inject()
+        // connect to these by iterating QueryNode::Operation/Comparator/Modifier.
+
+        // Operation nodes  [0..3]
+        let op_base = nodes.len();
+        for op in [Intent::Select, Intent::Create, Intent::Update, Intent::Delete] {
+            nodes.push(QueryNode::Operation(op));
+        }
+
+        // Comparator nodes  [4..10]
+        let cmp_base = nodes.len();
+        for cmp in [
+            Comparator::Eq, Comparator::Neq,
+            Comparator::Gt, Comparator::Gte,
+            Comparator::Lt, Comparator::Lte,
+            Comparator::Contains,
+        ] {
+            nodes.push(QueryNode::Comparator(cmp));
+        }
+
+        // Modifier nodes  [11..13]
+        let mod_base = nodes.len();
+        let fetch_mod_idx   = mod_base;
+        let orderby_mod_idx = mod_base + 1;
+        nodes.push(QueryNode::Modifier(ModifierKind::Fetch));
+        nodes.push(QueryNode::Modifier(ModifierKind::OrderBy));
+        nodes.push(QueryNode::Modifier(ModifierKind::Limit));
+
+        // ── Schema nodes ────────────────────────────────────────────────────
+
+        let schema_node_base = nodes.len();
+        let mut table_map: HashMap<std::string::String, usize> = HashMap::new();
+
+        // Pass 1: table nodes
         for table in schema.tables.iter() {
-            // retrieve table-idx
-            let table_idx = node_map.get(&table.name).copied().unwrap();
-            // for every field
+            let idx = nodes.len();
+            nodes.push(QueryNode::Table(table.name.clone()));
+            table_map.insert(table.name.clone(), idx);
+        }
+
+        // Pass 2: field nodes + structural edges
+        // Collect record-link field indices for ModifierToField after all fields are created.
+        let mut record_field_indices: Vec<usize> = Vec::new();
+        let mut all_field_indices:    Vec<usize> = Vec::new();
+
+        for table in schema.tables.iter() {
+            let table_idx = *table_map.get(&table.name).unwrap();
+
             for field in table.fields.iter() {
-                // store field
-                let field_idx = node_idx;
+                let field_idx = nodes.len();
                 nodes.push(QueryNode::Field {
                     table: table.name.clone(),
-                    name: field.name.clone(),
+                    name:  field.name.clone(),
                 });
-                node_idx += 1;
-                // edges for field + table
-                edges.get_mut(&EdgeType::HasField).unwrap().push(Edge {
-                    src: table_idx,
-                    dst: field_idx,
-                });
-                edges.get_mut(&EdgeType::FieldOf).unwrap().push(Edge {
-                    src: field_idx,
-                    dst: table_idx,
-                });
-                // record links (bidirectional)
-                match field.field_type {
-                    FieldType::Record { ref tables } => {
-                        for t in tables.iter() {
-                            // add links to target
-                            let ti = node_map.get(t).copied().unwrap();
+
+                // HasField / FieldOf
+                edges.get_mut(&EdgeType::HasField).unwrap().push(Edge { src: table_idx, dst: field_idx });
+                edges.get_mut(&EdgeType::FieldOf).unwrap().push(Edge  { src: field_idx, dst: table_idx });
+
+                // LinksTo / LinkedFrom  — Field → linked Table (fixes Table→Table bug)
+                if let FieldType::Record { ref tables } = field.field_type {
+                    for linked_name in tables {
+                        if let Some(&linked_idx) = table_map.get(linked_name) {
                             edges.get_mut(&EdgeType::LinksTo).unwrap().push(Edge {
-                                src: table_idx,
-                                dst: ti,
+                                src: field_idx,
+                                dst: linked_idx,
                             });
-                            // add links from other table
                             edges.get_mut(&EdgeType::LinkedFrom).unwrap().push(Edge {
-                                src: ti,
-                                dst: table_idx,
+                                src: linked_idx,
+                                dst: field_idx,
                             });
                         }
                     }
-                    _ => {}
+                    record_field_indices.push(field_idx);
                 }
+
+                all_field_indices.push(field_idx);
             }
         }
-        Self {
-            schema,
-            nodes,
-            edges,
+
+        // ModifierToField — multi-hop routing for modifier span resolution
+        // Fetch  → record-link fields only
+        for &f in &record_field_indices {
+            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge {
+                src: fetch_mod_idx,
+                dst: f,
+            });
         }
+        // OrderBy → all fields
+        for &f in &all_field_indices {
+            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge {
+                src: orderby_mod_idx,
+                dst: f,
+            });
+        }
+        // Limit → nothing
+
+        let _ = (op_base, cmp_base, schema_node_base); // suppress unused warnings
+
+        Self { schema, nodes, edges }
     }
 
     pub fn inject(&self, semantics: &Semantics) -> GroundedGraph {
@@ -326,90 +392,28 @@ impl SchemaGraph {
     }
 }
 
+// =============================================================================
+// GroundedGraph
+// =============================================================================
+
 pub struct GroundedGraph {
-    /// Every node in the flat index space, in order.
-    /// Index into this vec == node index used everywhere else.
+    /// Flat node index space: schema nodes followed by span nodes added by inject().
     pub nodes: Vec<QueryNode>,
 
     /// Typed edges over node indices.
     pub edges: TypedEdges,
 
-    /// Which node indices are span nodes (need resolution).
-    /// Parallel to the span order: entities first, then projections,
-    /// conditions, assignments, modifiers — matching Slots vec order.
+    /// Node indices of span nodes, in order:
+    /// [intent, entity, projections..., conditions..., assignments..., modifiers...]
     pub span_indices: Vec<usize>,
 
-    /// Which node indices are schema candidates for each span.
-    /// span_candidates[i] = node indices reachable via cross edges from span_indices[i].
-    /// Used by the bilinear head to restrict scoring to plausible targets.
+    /// For each span node, the schema node indices it can resolve to (candidates).
+    /// Used by the bilinear head to restrict scoring.
     pub span_candidates: Vec<Vec<usize>>,
 }
 
 impl GroundedGraph {
-    pub fn forward(&self) -> Predictions {
+    pub fn forward(&self) -> QueryIr {
         todo!()
     }
-}
-
-/// Bilinear head resolutions — for each span, which schema node it resolved to.
-/// Semantic content (comparator, value, modifier kind) flows from septa directly.
-/// Operation is deterministic from intent — not resolved by GNN.
-pub struct Predictions {
-    pub operation: Operation,
-    pub entities: Vec<EntityResolution>,
-    pub projections: Vec<FieldResolution>,
-    pub conditions: Vec<FieldResolution>, // comparator + value come from ConditionSpan
-    pub assignments: Vec<FieldResolution>, // value comes from AssignmentSpan
-    pub modifiers: Vec<ModifierResolution>,
-}
-
-/// Span resolved to a table.
-pub struct EntityResolution {
-    pub span_index: usize,
-    pub table: String,
-    pub score: f32,
-}
-
-/// Span resolved to a field on a table.
-pub struct FieldResolution {
-    pub span_index: usize,
-    pub table: String,
-    pub field: String,
-    pub score: f32,
-}
-
-/// Span resolved to a modifier kind.
-pub struct ModifierResolution {
-    pub span_index: usize,
-    pub modifier: Modifier,
-    pub score: f32,
-}
-
-/// All node types in the query composition graph.
-/// Operations and modifiers are universal; tables and fields are schema-specific.
-#[derive(Debug, Clone, PartialEq)]
-pub enum QueryNode {
-    Operation(Operation),
-    Table(String),
-    Field { table: String, name: String },
-    Comparator(Comparator), // field → comparator → value  (condition)
-    Assignment,             // field → value               (INSERT/UPDATE SET)
-    Modifier(Modifier),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Operation {
-    Select,
-    Insert,
-    Update,
-    Delete,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Modifier {
-    Where,
-    OrderBy,
-    Limit,
-    GroupBy,
-    Fetch,
 }

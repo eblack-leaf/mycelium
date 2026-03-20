@@ -1,25 +1,27 @@
 // basidium — synthetic training data generation for the mycelium domain
-//
-// Produces Datum: (nl, surql, slots) — the labelled training unit.
-// Slots are derived from surql against the schema, aligned back to NL spans.
 
 pub mod trainable;
 pub mod trainer;
 
-use hyphae::{QueryNode, Schema};
+use hyphae::{QueryIr, QueryNode, Schema};
 use septa::Semantics;
 
-/// A single training example.
+/// A single labelled training example.
 pub struct Datum {
-    pub nl: String,
-    pub surql: String,
+    pub nl:        String,
+    pub surql:     String,
     pub semantics: Semantics,
-    pub labels: Vec<SpanLabel>,
+    /// GNN supervision: for each span node, the correct QueryNode resolution target.
+    /// QueryNode now covers Table, Field, Operation, Comparator, and Modifier —
+    /// the variant tells the bilinear head which resolution head to score against.
+    pub labels:    Vec<SpanLabel>,
+    /// Ground truth QueryIr for end-to-end evaluation.
+    pub ir:        QueryIr,
 }
 
 pub struct SpanLabel {
-    pub span_index: usize, // index into the relevant Slots vec (entities, projections, etc.)
-    pub target: QueryNode, // the correct resolution — variant implies which vec
+    pub span_index: usize,     // index into the relevant span vec (projections, conditions, etc.)
+    pub target:     QueryNode, // correct resolution — variant implies which span type
 }
 
 impl Datum {
