@@ -3,12 +3,12 @@
 pub mod model;
 
 pub struct Semantics {
-    pub intent:      IntentSpan,
-    pub entity:      EntitySpan,
+    pub intent: IntentSpan,
+    pub entity: EntitySpan,
     pub projections: Vec<ProjectionSpan>,
-    pub conditions:  Vec<ConditionSpan>,
+    pub conditions: Vec<ConditionSpan>,
     pub assignments: Vec<AssignmentSpan>,
-    pub modifiers:   Vec<ModifierSpan>,
+    pub modifiers: Vec<ModifierSpan>,
 }
 
 impl Semantics {
@@ -19,16 +19,16 @@ impl Semantics {
 
 /// Raw verb/phrase — GNN resolves to an Operation node.
 pub struct IntentSpan {
-    pub text:  String,
+    pub text: String,
     pub start: usize,
-    pub end:   usize,
+    pub end: usize,
 }
 
 /// Primary table reference (one per query). record_id holds the :id qualifier when present.
 pub struct EntitySpan {
-    pub text:      String,
-    pub start:     usize,
-    pub end:       usize,
+    pub text: String,
+    pub start: usize,
+    pub end: usize,
     pub record_id: Option<ValueRef>,
 }
 
@@ -36,40 +36,40 @@ pub struct EntitySpan {
 /// fetch_index indexes into Semantics.modifiers when this field lives on a linked table;
 /// the NLP learns this binding from NL co-reference. None = field on primary table.
 pub struct ProjectionSpan {
-    pub field_text:  String,
-    pub start:       usize,
-    pub end:         usize,
+    pub field_text: String,
+    pub start: usize,
+    pub end: usize,
     pub fetch_index: Option<usize>,
 }
 
 /// Condition predicate. comparator_text is raw NL ("over", "less than", "equals") —
 /// GNN resolves it to a Comparator node.
 pub struct ConditionSpan {
-    pub field_text:      String,
+    pub field_text: String,
     pub comparator_text: String,
-    pub value:           ValueRef,
-    pub start:           usize,
-    pub end:             usize,
+    pub value: ValueRef,
+    pub start: usize,
+    pub end: usize,
 }
 
 /// Field=value write. field_text is None when the slot value is an object to be
 /// expanded field-by-field at render time using schema types.
 pub struct AssignmentSpan {
     pub field_text: Option<String>,
-    pub value:      ValueRef,
-    pub start:      usize,
-    pub end:        usize,
+    pub value: ValueRef,
+    pub start: usize,
+    pub end: usize,
 }
 
 /// Generic modifier span — GNN resolves the type (OrderBy/Limit/Fetch) via ModifierToType edges
 /// and the target field via multi-hop through ModifierToField schema edges.
 pub struct ModifierSpan {
-    pub text:           String,           // "order by", "fetch", "limit"
-    pub argument:       Option<String>,   // field text (for OrderBy/Fetch) or raw limit text
+    pub text: String,                     // "order by", "fetch", "limit"
+    pub argument: Option<String>,         // field text (for OrderBy/Fetch) or raw limit text
     pub argument_value: Option<ValueRef>, // value form (for Limit with slots/temporals/literals)
-    pub descending:     Option<bool>,     // NLP detects "desc"/"asc" keywords; None if unknown
-    pub start:          usize,
-    pub end:            usize,
+    pub descending: Option<bool>,         // NLP detects "desc"/"asc" keywords; None if unknown
+    pub start: usize,
+    pub end: usize,
 }
 
 /// Value on the right-hand side of a condition or assignment.
@@ -77,7 +77,7 @@ pub struct ModifierSpan {
 #[derive(Debug, Clone)]
 pub enum ValueRef {
     Literal(String),
-    Slot(usize),            // {1} → Slot(0),  {2} → Slot(1)  — deterministic pre-processing
+    Slot(usize), // {1} → Slot(0),  {2} → Slot(1)  — deterministic pre-processing
     Temporal(TemporalExpr),
 }
 

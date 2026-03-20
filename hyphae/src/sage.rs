@@ -15,10 +15,10 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EdgeType {
     // --- Schema structure (fixed per schema) ---
-    HasField,    // Table → Field
-    FieldOf,     // Field → Table
-    LinksTo,     // Field → Table  (record-link field → linked table)
-    LinkedFrom,  // Table → Field  (reverse of LinksTo)
+    HasField,   // Table → Field
+    FieldOf,    // Field → Table
+    LinksTo,    // Field → Table  (record-link field → linked table)
+    LinkedFrom, // Table → Field  (reverse of LinksTo)
 
     // --- Multi-hop routing (static, built in SchemaGraph::new) ---
     // Modifier::Fetch  → record-link Field nodes only
@@ -73,7 +73,7 @@ pub type TypedEdges = HashMap<EdgeType, Vec<Edge>>;
 /// Index into edge_projs matches index into EdgeType::all().
 #[derive(Module, Debug)]
 pub struct SageConvLayer<B: Backend> {
-    pub self_proj:  Linear<B>,
+    pub self_proj: Linear<B>,
     pub edge_projs: Vec<Linear<B>>,
 }
 
@@ -112,7 +112,7 @@ impl<B: Backend> SageConvLayer<B> {
             let src_idx: Vec<usize> = edge_list.iter().map(|e| e.src).collect();
             let dst_idx: Vec<usize> = edge_list.iter().map(|e| e.dst).collect();
 
-            let gathered  = ops::gather(features.clone(), &src_idx, device);
+            let gathered = ops::gather(features.clone(), &src_idx, device);
             let projected = proj.forward(gathered);
             out = out + ops::scatter_add(projected, &dst_idx, num_nodes, device);
         }

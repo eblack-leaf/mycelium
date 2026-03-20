@@ -28,7 +28,12 @@ pub struct Hyphae<B: Backend> {
 impl<B: Backend> Hyphae<B> {
     pub fn new(config: &HyphaeConfig, device: &B::Device) -> Self {
         Self {
-            sage: SageConv::new(config.node_feat_dim, config.hidden_dim, config.num_layers, device),
+            sage: SageConv::new(
+                config.node_feat_dim,
+                config.hidden_dim,
+                config.num_layers,
+                device,
+            ),
         }
     }
 

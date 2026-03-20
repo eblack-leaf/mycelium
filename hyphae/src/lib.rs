@@ -74,13 +74,13 @@ impl Schema {
 
 #[derive(Debug, Clone)]
 pub struct Table {
-    pub name:   String,
+    pub name: String,
     pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Field {
-    pub name:       String,
+    pub name: String,
     pub field_type: FieldType,
 }
 
@@ -98,33 +98,63 @@ pub enum FieldType {
     Bytes,
     Object,
     Regex,
-    Record { tables: Vec<std::string::String> },
-    Array  { inner: Option<Box<FieldType>>, max_len: Option<usize> },
-    Set    { inner: Option<Box<FieldType>>, max_len: Option<usize> },
-    Option { inner: Box<FieldType> },
-    Geometry { variant: GeometryVariant },
-    Literal  { raw: std::string::String },
-    Range    { raw: std::string::String },
+    Record {
+        tables: Vec<String>,
+    },
+    Array {
+        inner: Option<Box<FieldType>>,
+        max_len: Option<usize>,
+    },
+    Set {
+        inner: Option<Box<FieldType>>,
+        max_len: Option<usize>,
+    },
+    Option {
+        inner: Box<FieldType>,
+    },
+    Geometry {
+        variant: GeometryVariant,
+    },
+    Literal {
+        raw: String,
+    },
+    Range {
+        raw: String,
+    },
 }
 
 impl FieldType {
     fn parse(s: &str) -> Self {
         if let Some(inner) = wrap(s, "option") {
-            return Self::Option { inner: Box::new(Self::parse(inner)) };
+            return Self::Option {
+                inner: Box::new(Self::parse(inner)),
+            };
         }
         if s.to_lowercase() == "array" {
-            return Self::Array { inner: None, max_len: None };
+            return Self::Array {
+                inner: None,
+                max_len: None,
+            };
         }
         if let Some(inner) = wrap(s, "array") {
             let (t, n) = split_len(inner);
-            return Self::Array { inner: Some(Box::new(Self::parse(t))), max_len: n };
+            return Self::Array {
+                inner: Some(Box::new(Self::parse(t))),
+                max_len: n,
+            };
         }
         if s.to_lowercase() == "set" {
-            return Self::Set { inner: None, max_len: None };
+            return Self::Set {
+                inner: None,
+                max_len: None,
+            };
         }
         if let Some(inner) = wrap(s, "set") {
             let (t, n) = split_len(inner);
-            return Self::Set { inner: Some(Box::new(Self::parse(t))), max_len: n };
+            return Self::Set {
+                inner: Some(Box::new(Self::parse(t))),
+                max_len: n,
+            };
         }
         if s.to_lowercase() == "record" {
             return Self::Record { tables: Vec::new() };
@@ -135,33 +165,37 @@ impl FieldType {
         }
         if let Some(inner) = wrap(s, "geometry") {
             let variant = match inner.trim() {
-                "feature"      => GeometryVariant::Feature,
-                "point"        => GeometryVariant::Point,
-                "line"         => GeometryVariant::Line,
-                "polygon"      => GeometryVariant::Polygon,
-                "multipoint"   => GeometryVariant::MultiPoint,
-                "multiline"    => GeometryVariant::MultiLine,
+                "feature" => GeometryVariant::Feature,
+                "point" => GeometryVariant::Point,
+                "line" => GeometryVariant::Line,
+                "polygon" => GeometryVariant::Polygon,
+                "multipoint" => GeometryVariant::MultiPoint,
+                "multiline" => GeometryVariant::MultiLine,
                 "multipolygon" => GeometryVariant::MultiPolygon,
-                "collection"   => GeometryVariant::Collection,
-                _              => GeometryVariant::Point,
+                "collection" => GeometryVariant::Collection,
+                _ => GeometryVariant::Point,
             };
             return Self::Geometry { variant };
         }
         match s.to_lowercase().as_str() {
-            "any"      => Self::Any,
-            "bool"     => Self::Bool,
-            "string"   => Self::String,
-            "int"      => Self::Int,
-            "float"    => Self::Float,
-            "decimal"  => Self::Decimal,
-            "number"   => Self::Number,
+            "any" => Self::Any,
+            "bool" => Self::Bool,
+            "string" => Self::String,
+            "int" => Self::Int,
+            "float" => Self::Float,
+            "decimal" => Self::Decimal,
+            "number" => Self::Number,
             "datetime" => Self::Datetime,
             "duration" => Self::Duration,
-            "bytes"    => Self::Bytes,
-            "object"   => Self::Object,
-            "regex"    => Self::Regex,
-            other if other.contains("..") => Self::Range   { raw: other.to_string() },
-            other if other.contains('|')  => Self::Literal { raw: other.to_string() },
+            "bytes" => Self::Bytes,
+            "object" => Self::Object,
+            "regex" => Self::Regex,
+            other if other.contains("..") => Self::Range {
+                raw: other.to_string(),
+            },
+            other if other.contains('|') => Self::Literal {
+                raw: other.to_string(),
+            },
             _ => Self::Any,
         }
     }
@@ -169,8 +203,14 @@ impl FieldType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeometryVariant {
-    Feature, Point, Line, Polygon,
-    MultiPoint, MultiLine, MultiPolygon, Collection,
+    Feature,
+    Point,
+    Line,
+    Polygon,
+    MultiPoint,
+    MultiLine,
+    MultiPolygon,
+    Collection,
 }
 
 fn wrap<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
@@ -201,8 +241,8 @@ fn split_len(s: &str) -> (&str, Option<usize>) {
 /// All node types in the grounded graph — each is a bilinear resolution target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum QueryNode {
-    Table(std::string::String),
-    Field { table: std::string::String, name: std::string::String },
+    Table(String),
+    Field { table: String, name: String },
     Operation(Intent),
     Comparator(Comparator),
     Modifier(ModifierKind),
@@ -220,37 +260,45 @@ pub enum ModifierKind {
 // =============================================================================
 
 pub struct QueryIr {
-    pub intent:      Intent,
-    pub table:       std::string::String,
-    pub record_id:   Option<ValueRef>,
+    pub intent: Intent,
+    pub table: String,
+    pub record_id: Option<ValueRef>,
     pub projections: Vec<ResolvedField>,
-    pub conditions:  Vec<ResolvedCondition>,
+    pub conditions: Vec<ResolvedCondition>,
     pub assignments: Vec<ResolvedAssignment>,
-    pub modifiers:   Vec<ResolvedModifier>,
+    pub modifiers: Vec<ResolvedModifier>,
 }
 
 pub struct ResolvedField {
-    pub table: std::string::String,
-    pub field: std::string::String,
+    pub table: String,
+    pub field: String,
 }
 
 pub struct ResolvedCondition {
-    pub table:      std::string::String,
-    pub field:      std::string::String,
+    pub table: String,
+    pub field: String,
     pub comparator: Comparator,
-    pub value:      ValueRef,
+    pub value: ValueRef,
 }
 
 pub struct ResolvedAssignment {
-    pub table: std::string::String,
-    pub field: Option<std::string::String>, // None = expand slot object via schema types at render
+    pub table: String,
+    pub field: Option<String>, // None = expand slot object via schema types at render
     pub value: ValueRef,
 }
 
 pub enum ResolvedModifier {
-    OrderBy { table: std::string::String, field: std::string::String, descending: bool },
-    Limit   { value: ValueRef },
-    Fetch   { field: std::string::String },
+    OrderBy {
+        table: String,
+        field: String,
+        descending: bool,
+    },
+    Limit {
+        value: ValueRef,
+    },
+    Fetch {
+        field: String,
+    },
 }
 
 pub struct Query {
@@ -270,8 +318,8 @@ impl QueryIr {
 
 pub struct SchemaGraph {
     schema: Schema,
-    nodes:  Vec<QueryNode>,
-    edges:  TypedEdges,
+    nodes: Vec<QueryNode>,
+    edges: TypedEdges,
 }
 
 impl SchemaGraph {
@@ -290,16 +338,24 @@ impl SchemaGraph {
 
         // Operation nodes  [0..3]
         let op_base = nodes.len();
-        for op in [Intent::Select, Intent::Create, Intent::Update, Intent::Delete] {
+        for op in [
+            Intent::Select,
+            Intent::Create,
+            Intent::Update,
+            Intent::Delete,
+        ] {
             nodes.push(QueryNode::Operation(op));
         }
 
         // Comparator nodes  [4..10]
         let cmp_base = nodes.len();
         for cmp in [
-            Comparator::Eq, Comparator::Neq,
-            Comparator::Gt, Comparator::Gte,
-            Comparator::Lt, Comparator::Lte,
+            Comparator::Eq,
+            Comparator::Neq,
+            Comparator::Gt,
+            Comparator::Gte,
+            Comparator::Lt,
+            Comparator::Lte,
             Comparator::Contains,
         ] {
             nodes.push(QueryNode::Comparator(cmp));
@@ -307,7 +363,7 @@ impl SchemaGraph {
 
         // Modifier nodes  [11..13]
         let mod_base = nodes.len();
-        let fetch_mod_idx   = mod_base;
+        let fetch_mod_idx = mod_base;
         let orderby_mod_idx = mod_base + 1;
         nodes.push(QueryNode::Modifier(ModifierKind::Fetch));
         nodes.push(QueryNode::Modifier(ModifierKind::OrderBy));
@@ -316,7 +372,7 @@ impl SchemaGraph {
         // ── Schema nodes ────────────────────────────────────────────────────
 
         let schema_node_base = nodes.len();
-        let mut table_map: HashMap<std::string::String, usize> = HashMap::new();
+        let mut table_map: HashMap<String, usize> = HashMap::new();
 
         // Pass 1: table nodes
         for table in schema.tables.iter() {
@@ -328,7 +384,7 @@ impl SchemaGraph {
         // Pass 2: field nodes + structural edges
         // Collect record-link field indices for ModifierToField after all fields are created.
         let mut record_field_indices: Vec<usize> = Vec::new();
-        let mut all_field_indices:    Vec<usize> = Vec::new();
+        let mut all_field_indices: Vec<usize> = Vec::new();
 
         for table in schema.tables.iter() {
             let table_idx = *table_map.get(&table.name).unwrap();
@@ -337,12 +393,18 @@ impl SchemaGraph {
                 let field_idx = nodes.len();
                 nodes.push(QueryNode::Field {
                     table: table.name.clone(),
-                    name:  field.name.clone(),
+                    name: field.name.clone(),
                 });
 
                 // HasField / FieldOf
-                edges.get_mut(&EdgeType::HasField).unwrap().push(Edge { src: table_idx, dst: field_idx });
-                edges.get_mut(&EdgeType::FieldOf).unwrap().push(Edge  { src: field_idx, dst: table_idx });
+                edges.get_mut(&EdgeType::HasField).unwrap().push(Edge {
+                    src: table_idx,
+                    dst: field_idx,
+                });
+                edges.get_mut(&EdgeType::FieldOf).unwrap().push(Edge {
+                    src: field_idx,
+                    dst: table_idx,
+                });
 
                 // LinksTo / LinkedFrom  — Field → linked Table (fixes Table→Table bug)
                 if let FieldType::Record { ref tables } = field.field_type {
@@ -368,23 +430,33 @@ impl SchemaGraph {
         // ModifierToField — multi-hop routing for modifier span resolution
         // Fetch  → record-link fields only
         for &f in &record_field_indices {
-            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge {
-                src: fetch_mod_idx,
-                dst: f,
-            });
+            edges
+                .get_mut(&EdgeType::ModifierToField)
+                .unwrap()
+                .push(Edge {
+                    src: fetch_mod_idx,
+                    dst: f,
+                });
         }
         // OrderBy → all fields
         for &f in &all_field_indices {
-            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge {
-                src: orderby_mod_idx,
-                dst: f,
-            });
+            edges
+                .get_mut(&EdgeType::ModifierToField)
+                .unwrap()
+                .push(Edge {
+                    src: orderby_mod_idx,
+                    dst: f,
+                });
         }
         // Limit → nothing
 
         let _ = (op_base, cmp_base, schema_node_base); // suppress unused warnings
 
-        Self { schema, nodes, edges }
+        Self {
+            schema,
+            nodes,
+            edges,
+        }
     }
 
     pub fn inject(&self, semantics: &Semantics) -> GroundedGraph {
@@ -392,19 +464,34 @@ impl SchemaGraph {
         let mut edges = self.edges.clone();
 
         // ── Collect schema node indices by type ───────────────────────────
-        let op_indices: Vec<usize> = self.nodes.iter().enumerate()
+        let op_indices: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
             .filter_map(|(i, n)| matches!(n, QueryNode::Operation(_)).then_some(i))
             .collect();
-        let cmp_indices: Vec<usize> = self.nodes.iter().enumerate()
+        let cmp_indices: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
             .filter_map(|(i, n)| matches!(n, QueryNode::Comparator(_)).then_some(i))
             .collect();
-        let mod_indices: Vec<usize> = self.nodes.iter().enumerate()
+        let mod_indices: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
             .filter_map(|(i, n)| matches!(n, QueryNode::Modifier(_)).then_some(i))
             .collect();
-        let table_indices: Vec<usize> = self.nodes.iter().enumerate()
+        let table_indices: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
             .filter_map(|(i, n)| matches!(n, QueryNode::Table(_)).then_some(i))
             .collect();
-        let field_indices: Vec<usize> = self.nodes.iter().enumerate()
+        let field_indices: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
             .filter_map(|(i, n)| matches!(n, QueryNode::Field { .. }).then_some(i))
             .collect();
 
@@ -419,7 +506,12 @@ impl SchemaGraph {
         // ── Intent span node ──────────────────────────────────────────────
         let intent_idx = nodes.len();
         nodes.push(QueryNode::Operation(Intent::Select)); // placeholder — resolved by head
-        fan_out(&mut edges, &EdgeType::IntentToOperation, intent_idx, &op_indices);
+        fan_out(
+            &mut edges,
+            &EdgeType::IntentToOperation,
+            intent_idx,
+            &op_indices,
+        );
 
         let intent_resolution = Resolution {
             span_index: intent_idx,
@@ -429,7 +521,12 @@ impl SchemaGraph {
         // ── Entity span node ──────────────────────────────────────────────
         let entity_idx = nodes.len();
         nodes.push(QueryNode::Table(String::new())); // placeholder
-        fan_out(&mut edges, &EdgeType::EntityToTable, entity_idx, &table_indices);
+        fan_out(
+            &mut edges,
+            &EdgeType::EntityToTable,
+            entity_idx,
+            &table_indices,
+        );
 
         let entity_resolution = Resolution {
             span_index: entity_idx,
@@ -442,8 +539,16 @@ impl SchemaGraph {
 
         for _proj in &semantics.projections {
             let idx = nodes.len();
-            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
-            fan_out(&mut edges, &EdgeType::ProjectionToField, idx, &field_indices);
+            nodes.push(QueryNode::Field {
+                table: String::new(),
+                name: String::new(),
+            });
+            fan_out(
+                &mut edges,
+                &EdgeType::ProjectionToField,
+                idx,
+                &field_indices,
+            );
             proj_span_indices.push(idx);
             projection_resolutions.push(Resolution {
                 span_index: idx,
@@ -481,10 +586,13 @@ impl SchemaGraph {
         for (pi, proj) in semantics.projections.iter().enumerate() {
             if let Some(fi) = proj.fetch_index {
                 if fi < mod_span_indices.len() {
-                    edges.get_mut(&EdgeType::ProjectionToFetch).unwrap().push(Edge {
-                        src: proj_span_indices[pi],
-                        dst: mod_span_indices[fi],
-                    });
+                    edges
+                        .get_mut(&EdgeType::ProjectionToFetch)
+                        .unwrap()
+                        .push(Edge {
+                            src: proj_span_indices[pi],
+                            dst: mod_span_indices[fi],
+                        });
                 }
             }
         }
@@ -495,10 +603,18 @@ impl SchemaGraph {
 
         for _cond in &semantics.conditions {
             let idx = nodes.len();
-            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
+            nodes.push(QueryNode::Field {
+                table: String::new(),
+                name: String::new(),
+            });
 
             fan_out(&mut edges, &EdgeType::ConditionToField, idx, &field_indices);
-            fan_out(&mut edges, &EdgeType::ConditionToComparator, idx, &cmp_indices);
+            fan_out(
+                &mut edges,
+                &EdgeType::ConditionToComparator,
+                idx,
+                &cmp_indices,
+            );
 
             condition_field_resolutions.push(Resolution {
                 span_index: idx,
@@ -515,12 +631,20 @@ impl SchemaGraph {
 
         for assign in &semantics.assignments {
             let idx = nodes.len();
-            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
+            nodes.push(QueryNode::Field {
+                table: String::new(),
+                name: String::new(),
+            });
 
             // Only wire field resolution when field_text is present.
             // Object-expansion assignments (field_text: None) have no field to resolve.
             if assign.field_text.is_some() {
-                fan_out(&mut edges, &EdgeType::AssignmentToField, idx, &field_indices);
+                fan_out(
+                    &mut edges,
+                    &EdgeType::AssignmentToField,
+                    idx,
+                    &field_indices,
+                );
                 assignment_resolutions.push(Resolution {
                     span_index: idx,
                     candidates: field_indices.clone(),
@@ -549,7 +673,7 @@ impl SchemaGraph {
 
 /// A single resolution task: one span node scored against a set of candidate schema nodes.
 pub struct Resolution {
-    pub span_index: usize,    // index into GroundedGraph.nodes
+    pub span_index: usize,      // index into GroundedGraph.nodes
     pub candidates: Vec<usize>, // schema node indices the bilinear head scores against
 }
 
@@ -563,14 +687,14 @@ pub struct GroundedGraph {
     /// Each resolution task targets one bilinear head.
     /// A single span node can appear in multiple resolution lists
     /// (e.g. ConditionSpan resolves both a Field and a Comparator).
-    pub intent_resolution:           Resolution,
-    pub entity_resolution:           Resolution,
-    pub projection_resolutions:      Vec<Resolution>, // ProjectionSpan → Field
-    pub condition_field_resolutions: Vec<Resolution>,  // ConditionSpan → Field
-    pub condition_cmp_resolutions:   Vec<Resolution>,  // ConditionSpan → Comparator
-    pub assignment_resolutions:      Vec<Resolution>,  // AssignmentSpan → Field
-    pub modifier_type_resolutions:   Vec<Resolution>,  // ModifierSpan → Modifier
-    pub modifier_field_resolutions:  Vec<Resolution>,  // ModifierSpan → Field (OrderBy/Fetch only)
+    pub intent_resolution: Resolution,
+    pub entity_resolution: Resolution,
+    pub projection_resolutions: Vec<Resolution>, // ProjectionSpan → Field
+    pub condition_field_resolutions: Vec<Resolution>, // ConditionSpan → Field
+    pub condition_cmp_resolutions: Vec<Resolution>, // ConditionSpan → Comparator
+    pub assignment_resolutions: Vec<Resolution>, // AssignmentSpan → Field
+    pub modifier_type_resolutions: Vec<Resolution>, // ModifierSpan → Modifier
+    pub modifier_field_resolutions: Vec<Resolution>, // ModifierSpan → Field (OrderBy/Fetch only)
 }
 
 impl GroundedGraph {

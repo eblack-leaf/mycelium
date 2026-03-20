@@ -27,7 +27,9 @@ pub struct Septa<B: Backend> {
 
 impl<B: Backend> Septa<B> {
     pub fn new(_config: &SeptaConfig, _device: &B::Device) -> Self {
-        Self { _phantom: core::marker::PhantomData }
+        Self {
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     /// tokens: preprocessed token strings (slots and temporals already marked).
