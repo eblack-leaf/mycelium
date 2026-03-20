@@ -396,6 +396,12 @@ impl SchemaGraph {
 // GroundedGraph
 // =============================================================================
 
+/// A single resolution task: one span node scored against a set of candidate schema nodes.
+pub struct Resolution {
+    pub span_index: usize,    // index into GroundedGraph.nodes
+    pub candidates: Vec<usize>, // schema node indices the bilinear head scores against
+}
+
 pub struct GroundedGraph {
     /// Flat node index space: schema nodes followed by span nodes added by inject().
     pub nodes: Vec<QueryNode>,
@@ -403,13 +409,17 @@ pub struct GroundedGraph {
     /// Typed edges over node indices.
     pub edges: TypedEdges,
 
-    /// Node indices of span nodes, in order:
-    /// [intent, entity, projections..., conditions..., assignments..., modifiers...]
-    pub span_indices: Vec<usize>,
-
-    /// For each span node, the schema node indices it can resolve to (candidates).
-    /// Used by the bilinear head to restrict scoring.
-    pub span_candidates: Vec<Vec<usize>>,
+    /// Each resolution task targets one bilinear head.
+    /// A single span node can appear in multiple resolution lists
+    /// (e.g. ConditionSpan resolves both a Field and a Comparator).
+    pub intent_resolution:           Resolution,
+    pub entity_resolution:           Resolution,
+    pub projection_resolutions:      Vec<Resolution>, // ProjectionSpan → Field
+    pub condition_field_resolutions: Vec<Resolution>,  // ConditionSpan → Field
+    pub condition_cmp_resolutions:   Vec<Resolution>,  // ConditionSpan → Comparator
+    pub assignment_resolutions:      Vec<Resolution>,  // AssignmentSpan → Field
+    pub modifier_type_resolutions:   Vec<Resolution>,  // ModifierSpan → Modifier
+    pub modifier_field_resolutions:  Vec<Resolution>,  // ModifierSpan → Field (OrderBy/Fetch only)
 }
 
 impl GroundedGraph {

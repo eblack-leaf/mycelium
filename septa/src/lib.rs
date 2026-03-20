@@ -64,10 +64,12 @@ pub struct AssignmentSpan {
 /// Generic modifier span — GNN resolves the type (OrderBy/Limit/Fetch) via ModifierToType edges
 /// and the target field via multi-hop through ModifierToField schema edges.
 pub struct ModifierSpan {
-    pub text:     String,         // "order by", "fetch", "limit"
-    pub argument: Option<String>, // field text or raw limit value
-    pub start:    usize,
-    pub end:      usize,
+    pub text:           String,           // "order by", "fetch", "limit"
+    pub argument:       Option<String>,   // field text (for OrderBy/Fetch) or raw limit text
+    pub argument_value: Option<ValueRef>, // value form (for Limit with slots/temporals/literals)
+    pub descending:     Option<bool>,     // NLP detects "desc"/"asc" keywords; None if unknown
+    pub start:          usize,
+    pub end:            usize,
 }
 
 /// Value on the right-hand side of a condition or assignment.

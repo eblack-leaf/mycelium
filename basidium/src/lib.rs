@@ -12,16 +12,28 @@ pub struct Datum {
     pub surql:     String,
     pub semantics: Semantics,
     /// GNN supervision: for each span node, the correct QueryNode resolution target.
-    /// QueryNode now covers Table, Field, Operation, Comparator, and Modifier —
-    /// the variant tells the bilinear head which resolution head to score against.
+    /// A single span can have multiple labels when it resolves more than one thing
+    /// (e.g. a ConditionSpan has a Field label AND a Comparator label).
     pub labels:    Vec<SpanLabel>,
     /// Ground truth QueryIr for end-to-end evaluation.
     pub ir:        QueryIr,
 }
 
+/// Which span vec in Semantics a label refers to.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpanType {
+    Intent,
+    Entity,
+    Projection,
+    Condition,
+    Assignment,
+    Modifier,
+}
+
 pub struct SpanLabel {
-    pub span_index: usize,     // index into the relevant span vec (projections, conditions, etc.)
-    pub target:     QueryNode, // correct resolution — variant implies which span type
+    pub span_type:  SpanType,  // which span vec this indexes into
+    pub span_index: usize,     // index within that vec (0 for Intent/Entity since they're singular)
+    pub target:     QueryNode, // correct resolution — variant tells the bilinear head which head to score
 }
 
 impl Datum {
