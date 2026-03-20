@@ -1,51 +1,41 @@
 # TODO
 
-## hyphae
+## hyphae — GNN
 
-- [ ] Register `sage.rs` in `lib.rs` (`pub mod sage`)
-- [ ] `SchemaGraph::new` — build full possibility graph:
-      OperationToTable (all ops × all tables)
-      OperationToModifier (SELECT→[Where,OrderBy,Limit,Fetch,GroupBy], UPDATE/DELETE→[Where])
-      FieldHasComparator (int→[Gt,Lt,Eq,Gte,Lte], string→[Eq,Contains], bool→[Eq], datetime→[Gt,Lt,Eq])
-      ModifierToField (Where/OrderBy→all fields, Fetch→record link fields only)
-- [ ] `SchemaGraph::inject(semantics)` — add span nodes + typed cross edges + inter-span edges from entity_index
-- [ ] Bilinear head — stub `BilinearHead` struct in `hyphae/src/head.rs`:
-      `forward(span_embs, schema_embs) -> Predictions`
-      one projection per span type (entity, projection, condition, assignment, modifier)
-- [ ] `GnnModel` — wire `SageConv` from `sage.rs` + `BilinearHead`
-- [ ] `SageConvLayer::forward` — R-GCN aggregation:
-      for each edge type: gather src features, apply W_r, mean-pool per dst node
-      sum across edge types + self projection, apply ReLU
+- [ ] `GroundedGraph::forward` — resolve all bilinear heads → `QueryIr`:
+      for each Resolution, score span embedding against candidate embeddings,
+      argmax to pick winning QueryNode, assemble QueryIr fields
+- [ ] `Hyphae::forward` — wire SageConv message passing + bilinear heads:
+      init node features → SageConv layers → per-head bilinear scoring → QueryIr
+- [ ] `QueryIr::render` — deterministic SurrealQL string from resolved IR:
+      SELECT [fields|*] FROM table[:id] [WHERE conds] [ORDER BY field [DESC]] [LIMIT n] [FETCH field]
+      CREATE table[:id] SET field = val, ...
+      UPDATE table[:id] SET field = val, ... [WHERE conds]
+      DELETE table[:id] [WHERE conds]
+      Substitute Slot(n) → values[n], normalise TemporalExpr at render time
+- [ ] Node feature initialisation — embed QueryNode variants into fixed-dim vectors:
+      schema nodes (table/field name embeddings), vocab nodes (learned embeddings for
+      Operation/Comparator/Modifier), span nodes (from Septa hidden states or text embeddings)
+- [ ] Bilinear heads — one per resolution type (intent, entity, projection, condition_field,
+      condition_cmp, assignment, modifier_type, modifier_field)
 
-## septa
+## septa — BiLSTM-CRF
 
-- [ ] `Model::forward` — BiLSTM-CRF inference:
-      tokenize at word level → BiLSTM → emission scores → CRF Viterbi decode → spans
-- [ ] `Semantics::parse` — call `Model::forward`, extract typed spans into `Slots`
-- [ ] Word vocabulary + embeddings
+- [ ] `Septa::forward` — BiLSTM-CRF inference:
+      word embeddings → BiLSTM → emission scores → CRF Viterbi decode → BIO tags
+- [ ] `Semantics::parse` — call Septa::forward, convert BIO tags to typed spans
+- [ ] Word vocabulary + pretrained embeddings
 
-## basidium
+## basidium — training
 
-- [ ] `Datum::generate(schema)` — for each schema:
-      enumerate query patterns (SELECT/INSERT/UPDATE/DELETE × tables × fields)
-      generate NL surface forms per pattern
-      derive Slots from SurrealQL automatically
-- [ ] `Trainer::train` — implement epoch loop, early stopping on val_loss, scheduler step
-- [ ] `SeptaModel::step` / `GnnModel::step` — forward + loss + backward
+- [ ] `Datum::generate(schema)` — synthetic data generation:
+      enumerate query patterns (SELECT/CREATE/UPDATE/DELETE × tables × fields × modifiers)
+      generate NL surface forms per pattern, derive Semantics + SpanLabels + QueryIr ground truth
+- [ ] `Trainer::train` — epoch loop, train/val split, early stopping, scheduler step
+- [ ] `Septa::step` / `Septa::evaluate` / `Septa::save` — forward + CRF loss + backward
+- [ ] `Hyphae::step` / `Hyphae::evaluate` / `Hyphae::save` — forward + cross-entropy loss + backward
 
-## stipe — query history
+## stipe — pipeline
 
-- [ ] `QueryLog` — persistent store of past (Slots, SurrealQL) pairs, saved to disk between sessions
-- [ ] Retrieval — structural match over Slots: intent exact, entity/field text fuzzy, top-k by slot overlap score
-- [ ] Template selection — if overlap above threshold, borrow SurrealQL structure from past entry, substitute new resolved values
-- [ ] Re-ranking — use history co-occurrence to resolve ambiguous Predictions (which table/field appeared together before)
-
-## stipe
-
-- [ ] `QueryIr::new(predictions, semantics)` — thread septa values (comparator, value, modifier kind)
-      back through Predictions resolutions into ResolvedCondition/Assignment/Modifier
-- [ ] `QueryIr::render()` — deterministic SurrealQL:
-      SELECT [fields|*] FROM [tables] WHERE [conditions] ORDER BY/LIMIT/FETCH [modifiers]
-      INSERT INTO [table] SET [assignments]
-      UPDATE [table] SET [assignments] WHERE [conditions]
-      DELETE FROM [table] WHERE [conditions]
+- [ ] Query history — persistent store of past (Semantics, QueryIr, SurrealQL) triples
+- [ ] History retrieval — structural match for template reuse and ambiguity resolution
