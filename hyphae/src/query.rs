@@ -8,6 +8,9 @@ pub enum QueryNode {
     Operation(Intent),
     Comparator(Comparator),
     Modifier(ModifierKind),
+    /// Placeholder for span nodes added by inject().
+    /// Features come from SpanHiddens (BiLSTM output), not from this variant.
+    Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
