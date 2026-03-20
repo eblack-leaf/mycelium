@@ -388,7 +388,158 @@ impl SchemaGraph {
     }
 
     pub fn inject(&self, semantics: &Semantics) -> GroundedGraph {
-        todo!()
+        let mut nodes = self.nodes.clone();
+        let mut edges = self.edges.clone();
+
+        // ── Collect schema node indices by type ───────────────────────────
+        let op_indices: Vec<usize> = self.nodes.iter().enumerate()
+            .filter_map(|(i, n)| matches!(n, QueryNode::Operation(_)).then_some(i))
+            .collect();
+        let cmp_indices: Vec<usize> = self.nodes.iter().enumerate()
+            .filter_map(|(i, n)| matches!(n, QueryNode::Comparator(_)).then_some(i))
+            .collect();
+        let mod_indices: Vec<usize> = self.nodes.iter().enumerate()
+            .filter_map(|(i, n)| matches!(n, QueryNode::Modifier(_)).then_some(i))
+            .collect();
+        let table_indices: Vec<usize> = self.nodes.iter().enumerate()
+            .filter_map(|(i, n)| matches!(n, QueryNode::Table(_)).then_some(i))
+            .collect();
+        let field_indices: Vec<usize> = self.nodes.iter().enumerate()
+            .filter_map(|(i, n)| matches!(n, QueryNode::Field { .. }).then_some(i))
+            .collect();
+
+        // Helper: push fan-out edges into a bucket
+        fn fan_out(edges: &mut TypedEdges, et: &EdgeType, src: usize, dsts: &[usize]) {
+            let bucket = edges.get_mut(et).unwrap();
+            for &dst in dsts {
+                bucket.push(Edge { src, dst });
+            }
+        }
+
+        // ── Intent span node ──────────────────────────────────────────────
+        let intent_idx = nodes.len();
+        nodes.push(QueryNode::Operation(Intent::Select)); // placeholder — resolved by head
+        fan_out(&mut edges, &EdgeType::IntentToOperation, intent_idx, &op_indices);
+
+        let intent_resolution = Resolution {
+            span_index: intent_idx,
+            candidates: op_indices.clone(),
+        };
+
+        // ── Entity span node ──────────────────────────────────────────────
+        let entity_idx = nodes.len();
+        nodes.push(QueryNode::Table(String::new())); // placeholder
+        fan_out(&mut edges, &EdgeType::EntityToTable, entity_idx, &table_indices);
+
+        let entity_resolution = Resolution {
+            span_index: entity_idx,
+            candidates: table_indices.clone(),
+        };
+
+        // ── Projection span nodes ─────────────────────────────────────────
+        let mut projection_resolutions = Vec::new();
+        let mut proj_span_indices: Vec<usize> = Vec::new();
+
+        for _proj in &semantics.projections {
+            let idx = nodes.len();
+            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
+            fan_out(&mut edges, &EdgeType::ProjectionToField, idx, &field_indices);
+            proj_span_indices.push(idx);
+            projection_resolutions.push(Resolution {
+                span_index: idx,
+                candidates: field_indices.clone(),
+            });
+        }
+
+        // ── Modifier span nodes (before ProjectionToFetch so indices exist) ──
+        let mut modifier_type_resolutions = Vec::new();
+        let mut modifier_field_resolutions = Vec::new();
+        let mut mod_span_indices: Vec<usize> = Vec::new();
+
+        for modifier in &semantics.modifiers {
+            let idx = nodes.len();
+            nodes.push(QueryNode::Modifier(ModifierKind::Fetch)); // placeholder
+            fan_out(&mut edges, &EdgeType::ModifierToType, idx, &mod_indices);
+            mod_span_indices.push(idx);
+
+            modifier_type_resolutions.push(Resolution {
+                span_index: idx,
+                candidates: mod_indices.clone(),
+            });
+
+            // Field resolution only when the modifier has an argument (OrderBy/Fetch).
+            // Limit has no field target — skip.
+            if modifier.argument.is_some() {
+                modifier_field_resolutions.push(Resolution {
+                    span_index: idx,
+                    candidates: field_indices.clone(),
+                });
+            }
+        }
+
+        // ── ProjectionToFetch inter-span edges ───────────────────────────
+        for (pi, proj) in semantics.projections.iter().enumerate() {
+            if let Some(fi) = proj.fetch_index {
+                if fi < mod_span_indices.len() {
+                    edges.get_mut(&EdgeType::ProjectionToFetch).unwrap().push(Edge {
+                        src: proj_span_indices[pi],
+                        dst: mod_span_indices[fi],
+                    });
+                }
+            }
+        }
+
+        // ── Condition span nodes ──────────────────────────────────────────
+        let mut condition_field_resolutions = Vec::new();
+        let mut condition_cmp_resolutions = Vec::new();
+
+        for _cond in &semantics.conditions {
+            let idx = nodes.len();
+            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
+
+            fan_out(&mut edges, &EdgeType::ConditionToField, idx, &field_indices);
+            fan_out(&mut edges, &EdgeType::ConditionToComparator, idx, &cmp_indices);
+
+            condition_field_resolutions.push(Resolution {
+                span_index: idx,
+                candidates: field_indices.clone(),
+            });
+            condition_cmp_resolutions.push(Resolution {
+                span_index: idx,
+                candidates: cmp_indices.clone(),
+            });
+        }
+
+        // ── Assignment span nodes ─────────────────────────────────────────
+        let mut assignment_resolutions = Vec::new();
+
+        for assign in &semantics.assignments {
+            let idx = nodes.len();
+            nodes.push(QueryNode::Field { table: String::new(), name: String::new() });
+
+            // Only wire field resolution when field_text is present.
+            // Object-expansion assignments (field_text: None) have no field to resolve.
+            if assign.field_text.is_some() {
+                fan_out(&mut edges, &EdgeType::AssignmentToField, idx, &field_indices);
+                assignment_resolutions.push(Resolution {
+                    span_index: idx,
+                    candidates: field_indices.clone(),
+                });
+            }
+        }
+
+        GroundedGraph {
+            nodes,
+            edges,
+            intent_resolution,
+            entity_resolution,
+            projection_resolutions,
+            condition_field_resolutions,
+            condition_cmp_resolutions,
+            assignment_resolutions,
+            modifier_type_resolutions,
+            modifier_field_resolutions,
+        }
     }
 }
 
