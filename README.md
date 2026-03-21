@@ -69,18 +69,21 @@ the entity head. This eliminates cross-table ambiguity (e.g. "name" appearing on
 
 ### Graph topology
 
-The grounded graph has three zones of nodes connected by 10 directed edge types:
+The grounded graph has three zones of nodes connected by 7 directed edge types:
 
 **Schema structure** (static per schema):
 - `HasField` / `FieldOf` -- table-field ownership and its reverse
 - `LinksTo` / `LinkedFrom` -- record-type field references between tables
 
-**Cross edges** (span → vocab candidates, added per query via `inject()`):
-- `IntentToOperation`, `EntityToTable`, `ConditionToComparator`, `ModifierToType`
-
-**Inter-span edges** (added per query):
-- `EntityToSpan` -- entity span broadcasts table context to all field-resolving spans
+**Span routing** (added per query via `inject()`):
+- `EntityToSpan` -- entity span broadcasts table context to field-resolving spans
+- `SpanToTable` -- field-resolving spans send to all table nodes (bridge to field subgraph)
 - `ProjectionToFetch` -- links projection spans to their fetch modifier when co-referenced
+
+Trivially-solved heads (intent, entity, comparator, modifier type) have no graph edges --
+BiGRU text embeddings + bilinear scoring is sufficient. The graph focuses entirely on
+field resolution, where table context from EntityToSpan and the SpanToTable relay path
+provide the disambiguation signal that text alone cannot.
 
 Message passing uses per-edge-type linear projections with scatter-add aggregation,
 ReLU activation, and L2 row normalization at each layer.

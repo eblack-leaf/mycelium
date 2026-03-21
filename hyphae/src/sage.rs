@@ -20,15 +20,10 @@ pub enum EdgeType {
     LinksTo,    // Record-link Field → linked Table
     LinkedFrom, // Linked Table → record-link Field (reverse)
 
-    // --- Cross edges: span nodes → schema/vocab candidates (added in inject()) ---
-    IntentToOperation,     // IntentSpan     → all Operation nodes
-    EntityToTable,         // EntitySpan     → all Table nodes
-    ConditionToComparator, // ConditionSpan  → all Comparator nodes
-    ModifierToType,        // ModifierSpan   → all Modifier nodes
-
-    // --- Inter-span edges (added in inject()) ---
+    // --- Span routing (added per query in inject()) ---
     EntityToSpan,      // entity span → field-resolving spans (table context broadcast)
-    ProjectionToFetch, // ProjectionSpan → ModifierSpan  (when fetch_index is Some)
+    SpanToTable,       // field-resolving spans → all table nodes (bridge to field subgraph)
+    ProjectionToFetch, // ProjectionSpan → ModifierSpan (co-reference)
 }
 
 impl EdgeType {
@@ -38,11 +33,8 @@ impl EdgeType {
             EdgeType::FieldOf,
             EdgeType::LinksTo,
             EdgeType::LinkedFrom,
-            EdgeType::IntentToOperation,
-            EdgeType::EntityToTable,
-            EdgeType::ConditionToComparator,
-            EdgeType::ModifierToType,
             EdgeType::EntityToSpan,
+            EdgeType::SpanToTable,
             EdgeType::ProjectionToFetch,
         ]
     }
