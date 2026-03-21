@@ -1,3 +1,5 @@
 mycelium-gnn
 .idea
 target
+weights/
+data/
