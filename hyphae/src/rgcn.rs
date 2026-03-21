@@ -1,6 +1,6 @@
 // rgcn.rs — R-GCN: per-relation-type linear projections with scatter-add aggregation.
 //
-// One Linear per edge type (HeteroConv pattern). 10 edge types.
+// One Linear per edge type (HeteroConv pattern). 11 edge types.
 
 use crate::ops;
 use burn::{
@@ -25,6 +25,7 @@ pub enum EdgeType {
     CondToCmp,         // condition span → comparator vocab nodes
     AsgnToTable,       // assignment span → all tables
     ModToTable,        // modifier span → all tables (if has field arg)
+    ModToModifier,     // modifier span → modifier vocab nodes (Fetch/OrderBy/Limit)
     ProjectionToFetch, // projection span → modifier span (co-reference)
 }
 
@@ -40,6 +41,7 @@ impl EdgeType {
             EdgeType::CondToCmp,
             EdgeType::AsgnToTable,
             EdgeType::ModToTable,
+            EdgeType::ModToModifier,
             EdgeType::ProjectionToFetch,
         ]
     }

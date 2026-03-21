@@ -201,6 +201,10 @@ impl SchemaGraph {
             nodes.push(QueryNode::ModSpan);
             mod_span_indices.push(idx);
             modifier_type_resolutions.push(Resolution { span_index: idx, candidates: mod_indices.clone() });
+            // Connect to modifier vocab nodes (Fetch/OrderBy/Limit) — analogous to CondToCmp
+            for &m in &mod_indices {
+                edges.get_mut(&EdgeType::ModToModifier).unwrap().push(Edge { src: idx, dst: m });
+            }
             if modifier.argument.is_some() {
                 for &t in &table_indices {
                     edges.get_mut(&EdgeType::ModToTable).unwrap().push(Edge { src: idx, dst: t });
