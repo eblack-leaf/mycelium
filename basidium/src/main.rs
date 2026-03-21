@@ -91,10 +91,14 @@ fn cmd_train() {
     let septa_config = SeptaConfig::new(12); // 12 BIO tags: B-/I- × 6 span types
     let schema_graph = SchemaGraph::new(schema, hyphae_config.ngram_buckets);
 
-    let ctx: PipelineTrainCtx<B> = PipelineTrainCtx::new(
-        hyphae_config, septa_config, schema_graph, 3e-3, &device,
-    );
     let trainer_config = TrainerConfig::new();
+    let bs = trainer_config.batch_size;
+    let batches_per_epoch = (train_data.len() + bs - 1) / bs;
+    let num_iters = trainer_config.epochs * batches_per_epoch;
+
+    let ctx: PipelineTrainCtx<B> = PipelineTrainCtx::new(
+        hyphae_config, septa_config, schema_graph, 1e-3, num_iters, &device,
+    );
     let mut trainer = Trainer::new(trainer_config, ctx, "weights/pipeline");
 
     let result = trainer.train(&train_data, &val_data);

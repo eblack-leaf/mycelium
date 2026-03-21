@@ -5,6 +5,7 @@ use crate::{
     trainer::{HeadAcc, Metrics, Trainable},
 };
 use burn::{
+    lr_scheduler::{cosine::{CosineAnnealingLrScheduler, CosineAnnealingLrSchedulerConfig}, LrScheduler},
     module::{AutodiffModule, Module},
     optim::{AdamW, AdamWConfig, GradientsParams, Optimizer},
     tensor::{activation, backend::AutodiffBackend, backend::Backend, ElementConversion, Tensor},
@@ -36,7 +37,7 @@ pub struct PipelineTrainCtx<B: AutodiffBackend> {
     pub hyphae_config: HyphaeConfig,
     pub septa_config: SeptaConfig,
     pub optimizer: OptimizerAdaptor<B>,
-    pub lr: f64,
+    pub lr_scheduler: CosineAnnealingLrScheduler,
     pub device: B::Device,
 }
 
@@ -48,13 +49,18 @@ impl<B: AutodiffBackend> PipelineTrainCtx<B> {
         septa_config: SeptaConfig,
         schema_graph: SchemaGraph,
         lr: f64,
+        num_iters: usize,
         device: &B::Device,
     ) -> Self {
         let hyphae = Hyphae::new(&hyphae_config, device);
         let septa = Septa::new(&septa_config, device);
         let model = Pipeline { septa, hyphae };
         let optimizer = AdamWConfig::new().init();
-        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr, device: device.clone() }
+        let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(lr, num_iters)
+            .with_min_lr(lr * 0.01)
+            .init()
+            .unwrap();
+        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr_scheduler, device: device.clone() }
     }
 }
 
@@ -283,7 +289,8 @@ impl<B: AutodiffBackend> Trainable for PipelineTrainCtx<B> {
 
         let grads = loss.backward();
         let grads = GradientsParams::from_grads(grads, &self.model);
-        self.model = self.optimizer.step(self.lr, self.model.clone(), grads);
+        let lr = self.lr_scheduler.step();
+        self.model = self.optimizer.step(lr, self.model.clone(), grads);
 
         loss_val
     }
