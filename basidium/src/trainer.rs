@@ -16,6 +16,8 @@ pub struct TrainerConfig {
     pub patience: usize,
     #[config(default = 64)]
     pub batch_size: usize,
+    #[config(default = 8)]
+    pub micro_batch_size: usize,
 }
 
 pub struct Metrics {

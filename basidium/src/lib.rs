@@ -305,7 +305,7 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
                     t.sp();
                     let fr = t.push(&field.name);
                     t.sp();
-                    let cr = t.push(cmp_text);
+                    let _cr = t.push(cmp_text);
                     t.sp();
                     t.lit(val_text);
                     let cond_start = fr.0;
@@ -343,7 +343,7 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
     }
 }
 
-fn gen_select_with_modifiers(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
     let rec_fields = record_fields(table);
@@ -776,7 +776,7 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
     }
 }
 
-fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+fn gen_update(table: &Table, out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
     if fields.len() < 2 { return; }
@@ -1084,7 +1084,7 @@ fn gen_record_id(table: &Table, out: &mut Vec<Datum>) {
 // =============================================================================
 
 /// "get the {f1} and {f2} from {table}s where {cf} {cmp} {val}"
-fn gen_select_proj_cond(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
     if fields.len() < 2 { return; }
@@ -1514,7 +1514,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
 }
 
 /// UPDATE with more phrasing variety and multi-field updates
-fn gen_update_expanded(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
     if fields.len() < 2 { return; }
@@ -1632,13 +1632,13 @@ impl Datum {
             gen_select_all(table, &mut data);
             gen_select_projections(table, &mut data);
             gen_select_conditions(table, &cmp_pool, &mut data);
-            gen_select_with_modifiers(table, &cmp_pool, &mut data);
-            gen_select_proj_cond(table, &cmp_pool, &mut data);
+            gen_select_with_modifiers(table, &mut data);
+            gen_select_proj_cond(table, &mut data);
             gen_select_proj_modifier(table, &mut data);
             gen_create(table, &mut data);
             gen_create_multi(table, &mut data);
-            gen_update(table, &cmp_pool, &mut data);
-            gen_update_expanded(table, &cmp_pool, &mut data);
+            gen_update(table, &mut data);
+            gen_update_expanded(table, &mut data);
             gen_delete(table, &cmp_pool, &mut data);
             gen_record_id(table, &mut data);
             gen_more_modifiers(table, &mut data);

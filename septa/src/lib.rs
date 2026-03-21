@@ -15,7 +15,7 @@ pub struct Semantics {
 }
 
 impl Semantics {
-    pub fn parse(text: &str) -> Self {
+    pub fn parse(_text: &str) -> Self {
         todo!()
     }
 }

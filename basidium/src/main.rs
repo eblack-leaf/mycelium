@@ -1,4 +1,4 @@
-use basidium::{trainable::PipelineTrainCtx, trainer::{Trainer, TrainerConfig}, Datum};
+use basidium::{trainable::BasidiumTrainCtx, trainer::{Trainer, TrainerConfig}, Datum};
 use burn::backend::{Autodiff, wgpu::{Wgpu, WgpuDevice}};
 use hyphae::{graph::SchemaGraph, model::HyphaeConfig, schema::Schema};
 use septa::model::SeptaConfig;
@@ -42,7 +42,7 @@ fn load_json(path: &str) -> Vec<Datum> {
 
 fn cmd_generate() {
     let schema = Schema::from_dir(Path::new(SCHEMA_DIR)).unwrap();
-    let mut data = Datum::generate(&schema);
+    let data = Datum::generate(&schema);
     println!("Generated {} datums", data.len());
 
     // Shuffle deterministically then split 90/10
@@ -96,8 +96,9 @@ fn cmd_train() {
     let batches_per_epoch = (train_data.len() + bs - 1) / bs;
     let num_iters = trainer_config.epochs * batches_per_epoch;
 
-    let ctx: PipelineTrainCtx<B> = PipelineTrainCtx::new(
-        hyphae_config, septa_config, schema_graph, 1e-3, num_iters, &device,
+    let ctx: BasidiumTrainCtx<B> = BasidiumTrainCtx::new(
+        hyphae_config, septa_config, schema_graph, 1e-3, num_iters,
+        trainer_config.micro_batch_size, &device,
     );
     let mut trainer = Trainer::new(trainer_config, ctx, "weights/pipeline");
 

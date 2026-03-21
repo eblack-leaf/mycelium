@@ -54,9 +54,11 @@ pub(crate) fn char_ngram_buckets(name: &str, num_buckets: usize) -> Vec<usize> {
 // =============================================================================
 
 pub struct SchemaGraph {
+    #[allow(dead_code)]
     schema: Schema,
     nodes: Vec<QueryNode>,
     edges: TypedEdges,
+    #[allow(dead_code)]
     ngram_buckets: usize,
     /// Precomputed n-gram bucket indices for nodes[VOCAB_NODE_COUNT..].
     /// Computed once in new() and copied into every GroundedGraph by inject().

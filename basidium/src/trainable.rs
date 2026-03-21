@@ -7,7 +7,7 @@ use crate::{
 use burn::{
     lr_scheduler::{cosine::{CosineAnnealingLrScheduler, CosineAnnealingLrSchedulerConfig}, LrScheduler},
     module::{AutodiffModule, Module},
-    optim::{AdamW, AdamWConfig, GradientsParams, Optimizer},
+    optim::{AdamW, AdamWConfig, GradientsAccumulator, GradientsParams, Optimizer},
     tensor::{activation, backend::AutodiffBackend, backend::Backend, ElementConversion, Tensor},
 };
 use hyphae::{
@@ -18,49 +18,51 @@ use hyphae::{
 use septa::model::{Septa, SeptaConfig};
 
 // =============================================================================
-// Pipeline — combined Septa + Hyphae for end-to-end gradient flow
+// Basidium — combined Septa + Hyphae for end-to-end gradient flow
 // =============================================================================
 
 #[derive(Module, Debug)]
-pub struct Pipeline<B: Backend> {
+pub struct Basidium<B: Backend> {
     pub septa: Septa<B>,
     pub hyphae: Hyphae<B>,
 }
 
 // =============================================================================
-// PipelineTrainCtx — wraps Pipeline + SchemaGraph + optimizer for training
+// BasidiumTrainCtx — wraps Basidium + SchemaGraph + optimizer for training
 // =============================================================================
 
-pub struct PipelineTrainCtx<B: AutodiffBackend> {
-    pub model: Pipeline<B>,
+pub struct BasidiumTrainCtx<B: AutodiffBackend> {
+    pub model: Basidium<B>,
     pub schema_graph: SchemaGraph,
     pub hyphae_config: HyphaeConfig,
     pub septa_config: SeptaConfig,
     pub optimizer: OptimizerAdaptor<B>,
     pub lr_scheduler: CosineAnnealingLrScheduler,
+    pub micro_batch_size: usize,
     pub device: B::Device,
 }
 
-type OptimizerAdaptor<B> = burn::optim::adaptor::OptimizerAdaptor<AdamW, Pipeline<B>, B>;
+type OptimizerAdaptor<B> = burn::optim::adaptor::OptimizerAdaptor<AdamW, Basidium<B>, B>;
 
-impl<B: AutodiffBackend> PipelineTrainCtx<B> {
+impl<B: AutodiffBackend> BasidiumTrainCtx<B> {
     pub fn new(
         hyphae_config: HyphaeConfig,
         septa_config: SeptaConfig,
         schema_graph: SchemaGraph,
         lr: f64,
         num_iters: usize,
+        micro_batch_size: usize,
         device: &B::Device,
     ) -> Self {
         let hyphae = Hyphae::new(&hyphae_config, device);
         let septa = Septa::new(&septa_config, device);
-        let model = Pipeline { septa, hyphae };
+        let model = Basidium { septa, hyphae };
         let optimizer = AdamWConfig::new().init();
         let lr_scheduler = CosineAnnealingLrSchedulerConfig::new(lr, num_iters)
             .with_min_lr(lr * 0.01)
             .init()
             .unwrap();
-        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr_scheduler, device: device.clone() }
+        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr_scheduler, micro_batch_size, device: device.clone() }
     }
 }
 
@@ -254,10 +256,10 @@ fn build_ragged_map<T, F: Fn(&T) -> bool>(items: &[T], pred: F) -> Vec<Option<us
 }
 
 // =============================================================================
-// Trainable for PipelineTrainCtx
+// Trainable for BasidiumTrainCtx
 // =============================================================================
 
-impl<B: AutodiffBackend> Trainable for PipelineTrainCtx<B> {
+impl<B: AutodiffBackend> Trainable for BasidiumTrainCtx<B> {
     fn step_batch(&mut self, batch: &[&Datum]) -> f32 {
         let texts: Vec<&str> = batch.iter().map(|d| d.nl.as_str()).collect();
         let sems: Vec<&septa::Semantics> = batch.iter().map(|d| &d.semantics).collect();
@@ -265,34 +267,51 @@ impl<B: AutodiffBackend> Trainable for PipelineTrainCtx<B> {
             &texts, &sems, self.septa_config.vocab_size, &self.device,
         );
 
-        let mut total_loss: Option<Tensor<B, 1>> = None;
+        // Micro-batch backward with gradient accumulation: backward every micro_bs
+        // datums to keep autodiff graph small, accumulate grads, one optimizer step.
+        let micro_bs = self.micro_batch_size;
+        let mut accumulator: GradientsAccumulator<Basidium<B>> = GradientsAccumulator::new();
+        let mut total_loss_val = 0.0f32;
         let mut n_total = 0usize;
 
-        for (datum, hiddens) in batch.iter().zip(all_hiddens.iter()) {
-            let graph = self.schema_graph.inject(&datum.semantics);
-            let logits = self.model.hyphae.forward_train(&graph, hiddens, &self.device);
-            let (loss, n) = resolution_loss(
-                &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,
-            );
-            if n > 0 {
-                total_loss = Some(match total_loss {
-                    Some(t) => t + loss,
-                    None => loss,
-                });
-                n_total += n;
+        for micro in (0..batch.len()).step_by(micro_bs) {
+            let end = (micro + micro_bs).min(batch.len());
+            let mut micro_loss: Option<Tensor<B, 1>> = None;
+            let mut micro_n = 0usize;
+
+            for i in micro..end {
+                let datum = batch[i];
+                let hiddens = &all_hiddens[i];
+                let graph = self.schema_graph.inject(&datum.semantics);
+                let logits = self.model.hyphae.forward_train(&graph, hiddens, &self.device);
+                let (loss, n) = resolution_loss(
+                    &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,
+                );
+                if n > 0 {
+                    micro_loss = Some(match micro_loss {
+                        Some(t) => t + loss,
+                        None => loss,
+                    });
+                    micro_n += n;
+                }
             }
+
+            if micro_n == 0 { continue; }
+            let loss = micro_loss.unwrap() / (micro_n as f32);
+            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>() * micro_n as f32;
+            n_total += micro_n;
+
+            let grads = loss.backward();
+            let grads = GradientsParams::from_grads(grads, &self.model);
+            accumulator.accumulate(&self.model, grads);
         }
 
         if n_total == 0 { return 0.0; }
-        let loss = total_loss.unwrap() / (n_total as f32);
-        let loss_val: f32 = loss.clone().inner().into_scalar().elem();
 
-        let grads = loss.backward();
-        let grads = GradientsParams::from_grads(grads, &self.model);
         let lr = self.lr_scheduler.step();
-        self.model = self.optimizer.step(lr, self.model.clone(), grads);
+        self.model = self.optimizer.step(lr, self.model.clone(), accumulator.grads());
 
-        loss_val
+        total_loss_val / n_total as f32
     }
 
     fn evaluate(&self, batch: &[&Datum], bar: &indicatif::ProgressBar) -> Metrics {
@@ -355,7 +374,7 @@ impl<B: AutodiffBackend> Trainable for PipelineTrainCtx<B> {
     }
 }
 
-impl<B: AutodiffBackend> PipelineTrainCtx<B> {
+impl<B: AutodiffBackend> BasidiumTrainCtx<B> {
     pub fn load(&mut self, path: &std::path::PathBuf) -> std::io::Result<()> {
         use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
         let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
