@@ -25,7 +25,7 @@ Mycelium is a two-stage model trained jointly end-to-end:
               Semantics + SpanHiddens
                          |
              +-----------+-----------+
-             |        Hyphae         |   Heterogeneous GNN
+             |        Hyphae         |   R-GCN + bilinear heads
              |  SchemaGraph.inject() |   with bilinear heads
              +-----------+-----------+
                          |
@@ -41,8 +41,8 @@ projection fields, conditions, assignments, and modifiers. A stacked BiGRU encod
 sequence, then mean-pools hidden states over each span's token range to produce fixed-size
 span embeddings.
 
-**Stage 2 -- Hyphae** grounds those spans against the database schema. A heterogeneous GraphSAGE
-GNN runs message passing over a graph containing schema nodes (tables, fields), fixed vocabulary
+**Stage 2 -- Hyphae** grounds those spans against the database schema. A heterogeneous R-GCN
+runs message passing over a graph containing schema nodes (tables, fields), fixed vocabulary
 nodes (operations, comparators, modifier types), and the span nodes from Septa. Eight bilinear
 resolution heads each score a span embedding against its candidate set to resolve the span to a
 concrete schema element.
@@ -106,7 +106,7 @@ Stacked bidirectional GRU layers encode the sequence. Given known span boundarie
 
 **hyphae** -- Parses `.surql` schema files into `Schema`. Builds a `SchemaGraph` with
 precomputed n-gram bucket indices for table/field names. `inject()` creates a per-query
-`GroundedGraph` by adding span nodes and cross edges. The `Hyphae` model runs GraphSAGE
+`GroundedGraph` by adding span nodes and cross edges. The `Hyphae` model runs R-GCN
 message passing then scores each resolution head via bilinear dot products. `resolve()`
 argmaxes the logits into a `QueryIr`. `render()` produces SurrealQL.
 

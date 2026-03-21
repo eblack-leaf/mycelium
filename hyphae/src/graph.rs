@@ -1,5 +1,5 @@
 use crate::query::{ModifierKind, QueryNode};
-use crate::sage::{Edge, EdgeType, TypedEdges};
+use crate::rgcn::{Edge, EdgeType, TypedEdges};
 use crate::schema::{FieldType, Schema};
 use septa::{Comparator, Intent, Semantics};
 use std::collections::HashMap;

@@ -1,9 +1,9 @@
-// model.rs — SageConv + bilinear heads GNN architecture
+// model.rs — R-GCN + bilinear heads GNN architecture
 
 use crate::graph::{GroundedGraph, Resolution, VOCAB_NODE_COUNT};
 use crate::ops;
 use crate::query::{ModifierKind, QueryIr, QueryNode, ResolvedAssignment, ResolvedCondition, ResolvedField, ResolvedModifier};
-use crate::sage::SageConv;
+use crate::rgcn::Rgcn;
 use burn::{
     config::Config,
     module::Module,
@@ -17,7 +17,7 @@ use septa::Semantics;
 pub struct HyphaeConfig {
     #[config(default = 256)]
     pub hidden_dim: usize,
-    #[config(default = 3)]
+    #[config(default = 2)]
     pub num_layers: usize,
     #[config(default = 0.1)]
     pub dropout: f64,
@@ -47,7 +47,7 @@ pub struct HyphaeLogits<B: Backend> {
 /// R-GCN / GraphSAGE GNN with bilinear resolution heads.
 #[derive(Module, Debug)]
 pub struct Hyphae<B: Backend> {
-    pub sage: SageConv<B>,
+    pub rgcn: Rgcn<B>,
 
     /// Learned embeddings for the 14 fixed vocab nodes (ops, comparators, modifiers).
     /// Shape [14, node_feat_dim]. Looked up by enum variant index — same index every
@@ -81,7 +81,7 @@ impl<B: Backend> Hyphae<B> {
                 .init(device)
         };
         Self {
-            sage: SageConv::new(config.node_feat_dim, config.hidden_dim, config.num_layers, device),
+            rgcn: Rgcn::new(config.node_feat_dim, config.hidden_dim, config.num_layers, device),
             vocab_emb:   EmbeddingConfig::new(14, config.node_feat_dim).init(device),
             ngram_table: EmbeddingConfig::new(config.ngram_buckets, config.node_feat_dim).init(device),
             span_proj:   LinearConfig::new(2 * config.septa_hidden_dim, config.node_feat_dim).init(device),
@@ -168,7 +168,7 @@ impl<B: Backend> Hyphae<B> {
         device: &B::Device,
     ) -> HyphaeLogits<B> {
         let features = self.init_node_features(graph, hiddens, device);
-        let h = self.sage.forward(features, &graph.edges, graph.nodes.len(), device);
+        let h = self.rgcn.forward(features, &graph.edges, graph.nodes.len(), device);
 
         let score = |bilinear: &Linear<B>, res: &Resolution| {
             Self::score_resolution(bilinear, &h, res, device)
