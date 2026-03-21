@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 septa   = { path = "../septa" }
 hyphae  = { path = "../hyphae" }
-burn = { workspace = true }
+burn      = { workspace = true }
+indicatif = "0.17"

@@ -22,22 +22,29 @@ pub fn gather<B: Backend>(
 
 /// Scatter-add `values` into a zero tensor of shape [n_dst, dim] at `dst_indices`.
 /// values: [n_edges, dim], dst_indices: one per edge → output: [n_dst, dim]
+///
+/// Implemented as indicator matrix matmul: builds a [n_dst, n_edges] sparse indicator
+/// from raw floats (CPU), then a single matmul on whatever backend. No per-element
+/// tensor ops, so this works on wgpu without fusion issues.
 pub fn scatter_add<B: Backend>(
     values: Tensor<B, 2>,
     dst_indices: &[usize],
     n_dst: usize,
     device: &B::Device,
 ) -> Tensor<B, 2> {
-    let dim = values.dims()[1];
-    let mut out = Tensor::<B, 2>::zeros([n_dst, dim], device);
-
-    for (i, &dst) in dst_indices.iter().enumerate() {
-        let row = values.clone().slice([i..i + 1, 0..dim]);
-        let cur = out.clone().slice([dst..dst + 1, 0..dim]);
-        out = out.slice_assign([dst..dst + 1, 0..dim], cur + row);
+    let n_edges = dst_indices.len();
+    if n_edges == 0 {
+        let dim = values.dims()[1];
+        return Tensor::zeros([n_dst, dim], device);
     }
 
-    out
+    let mut data = vec![0.0f32; n_dst * n_edges];
+    for (i, &dst) in dst_indices.iter().enumerate() {
+        data[dst * n_edges + i] = 1.0;
+    }
+    let indicator = Tensor::<B, 1>::from_floats(data.as_slice(), device)
+        .reshape([n_dst, n_edges]);
+    indicator.matmul(values) // [n_dst, dim]
 }
 
 /// Row-wise L2 normalization. Adds epsilon to denominator to avoid div-by-zero.

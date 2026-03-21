@@ -3,4 +3,4 @@ members = ["ui/src-tauri", "stipe", "septa", "hyphae", "basidium"]
 resolver = "2"
 
 [workspace.dependencies]
-burn = { version = "0.20.1", features = ["ndarray", "autodiff"]}
+burn = { version = "0.20.1", default-features = false, features = ["ndarray", "autodiff", "wgpu", "std"] }

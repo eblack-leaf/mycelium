@@ -12,7 +12,7 @@ pub(crate) const VOCAB_NODE_COUNT: usize = 14;
 // =============================================================================
 
 /// FNV-1a 64-bit hash — deterministic, no std dependency.
-fn fnv1a(s: &str) -> u64 {
+pub fn fnv1a(s: &str) -> u64 {
     const PRIME: u64 = 1_099_511_628_211;
     const OFFSET: u64 = 14_695_981_039_346_656_037;
     let mut h = OFFSET;
