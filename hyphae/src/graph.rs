@@ -1,4 +1,4 @@
-use crate::query::{ModifierKind, QueryIr, QueryNode};
+use crate::query::{ModifierKind, QueryNode};
 use crate::sage::{Edge, EdgeType, TypedEdges};
 use crate::schema::{FieldType, Schema};
 use septa::{Comparator, Intent, Semantics};
@@ -87,8 +87,6 @@ impl SchemaGraph {
         ] {
             nodes.push(QueryNode::Comparator(cmp));
         }
-        let fetch_mod_idx   = nodes.len();
-        let orderby_mod_idx = nodes.len() + 1;
         nodes.push(QueryNode::Modifier(ModifierKind::Fetch));
         nodes.push(QueryNode::Modifier(ModifierKind::OrderBy));
         nodes.push(QueryNode::Modifier(ModifierKind::Limit));
@@ -104,9 +102,6 @@ impl SchemaGraph {
             nodes.push(QueryNode::Table(table.name.clone()));
             table_map.insert(table.name.clone(), idx);
         }
-
-        let mut record_field_indices: Vec<usize> = Vec::new();
-        let mut all_field_indices:    Vec<usize> = Vec::new();
 
         for table in schema.tables.iter() {
             let table_idx = *table_map.get(&table.name).unwrap();
@@ -125,18 +120,8 @@ impl SchemaGraph {
                             edges.get_mut(&EdgeType::LinkedFrom).unwrap().push(Edge { src: linked_idx, dst: field_idx });
                         }
                     }
-                    record_field_indices.push(field_idx);
                 }
-
-                all_field_indices.push(field_idx);
             }
-        }
-
-        for &f in &record_field_indices {
-            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge { src: fetch_mod_idx,   dst: f });
-        }
-        for &f in &all_field_indices {
-            edges.get_mut(&EdgeType::ModifierToField).unwrap().push(Edge { src: orderby_mod_idx, dst: f });
         }
 
         // ── Precompute n-gram indices for schema nodes ──────────────────────
@@ -180,12 +165,9 @@ impl SchemaGraph {
             for &dst in dsts { bucket.push(Edge { src, dst }); }
         }
 
-        // All nodes before this point are schema/vocab nodes.
-        // Span nodes begin here — identified by index >= schema_node_count in Hyphae::forward.
         let schema_node_count = nodes.len();
 
-        // ── Span nodes (QueryNode::Span — features come from SpanHiddens) ──
-        // Order must match init_node_features in Hyphae:
+        // ── Span nodes (order must match init_node_features in Hyphae) ──
         //   intent, entity, projections, modifiers, conditions, assignments.
 
         let intent_idx = nodes.len();
@@ -203,7 +185,7 @@ impl SchemaGraph {
         for _proj in &semantics.projections {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
-            fan_out(&mut edges, &EdgeType::ProjectionToField, idx, &field_indices);
+            edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
             proj_span_indices.push(idx);
             projection_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
         }
@@ -218,6 +200,7 @@ impl SchemaGraph {
             mod_span_indices.push(idx);
             modifier_type_resolutions.push(Resolution { span_index: idx, candidates: mod_indices.clone() });
             if modifier.argument.is_some() {
+                edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
                 modifier_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
@@ -225,10 +208,7 @@ impl SchemaGraph {
         for (pi, proj) in semantics.projections.iter().enumerate() {
             if let Some(fi) = proj.fetch_index {
                 if fi < mod_span_indices.len() {
-                    edges.get_mut(&EdgeType::ProjectionToFetch).unwrap().push(Edge {
-                        src: proj_span_indices[pi],
-                        dst: mod_span_indices[fi],
-                    });
+                    fan_out(&mut edges, &EdgeType::ProjectionToFetch, proj_span_indices[pi], &[mod_span_indices[fi]]);
                 }
             }
         }
@@ -238,7 +218,7 @@ impl SchemaGraph {
         for _cond in &semantics.conditions {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
-            fan_out(&mut edges, &EdgeType::ConditionToField,      idx, &field_indices);
+            edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
             fan_out(&mut edges, &EdgeType::ConditionToComparator, idx, &cmp_indices);
             condition_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             condition_cmp_resolutions.push(Resolution   { span_index: idx, candidates: cmp_indices.clone() });
@@ -249,7 +229,7 @@ impl SchemaGraph {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
             if assign.field_text.is_some() {
-                fan_out(&mut edges, &EdgeType::AssignmentToField, idx, &field_indices);
+                edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
                 assignment_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
@@ -306,8 +286,3 @@ pub struct GroundedGraph {
     pub modifier_field_resolutions:  Vec<Resolution>,
 }
 
-impl GroundedGraph {
-    pub fn forward(&self) -> QueryIr {
-        todo!()
-    }
-}

@@ -283,7 +283,7 @@ impl<B: AutodiffBackend> Trainable for BasidiumTrainCtx<B> {
                 let datum = batch[i];
                 let hiddens = &all_hiddens[i];
                 let graph = self.schema_graph.inject(&datum.semantics);
-                let logits = self.model.hyphae.forward_train(&graph, hiddens, &self.device);
+                let logits = self.model.hyphae.forward(&graph, hiddens, &self.device);
                 let (loss, n) = resolution_loss(
                     &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,
                 );
@@ -329,7 +329,7 @@ impl<B: AutodiffBackend> Trainable for BasidiumTrainCtx<B> {
 
             for (datum, hiddens) in chunk.iter().zip(all_hiddens.iter()) {
                 let graph = self.schema_graph.inject(&datum.semantics);
-                let logits = inner.hyphae.forward_train(&graph, hiddens, &self.device);
+                let logits = inner.hyphae.forward(&graph, hiddens, &self.device);
 
                 let (loss, n) = resolution_loss(
                     &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,

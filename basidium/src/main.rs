@@ -1,10 +1,12 @@
-use basidium::{trainable::BasidiumTrainCtx, trainer::{Trainer, TrainerConfig}, Datum};
+use basidium::{trainable::{Basidium, BasidiumTrainCtx}, trainer::{Trainer, TrainerConfig}, Datum};
 use burn::backend::{Autodiff, wgpu::{Wgpu, WgpuDevice}};
+use burn::module::Module;
 use hyphae::{graph::SchemaGraph, model::HyphaeConfig, schema::Schema};
 use septa::model::SeptaConfig;
 use std::path::Path;
 
 type B = Autodiff<Wgpu>;
+type InferB = Wgpu;
 
 const SCHEMA_DIR: &str = "stipe/fixtures/schema/";
 const DATA_DIR: &str = "data";
@@ -19,9 +21,10 @@ fn main() {
         "generate" | "gen" => cmd_generate(),
         "stats" => cmd_stats(),
         "train" => cmd_train(),
+        "infer" => cmd_infer(),
         other => {
             eprintln!("unknown command: {other}");
-            eprintln!("usage: basidium <generate|stats|train>");
+            eprintln!("usage: basidium <generate|stats|train|infer>");
             std::process::exit(1);
         }
     }
@@ -108,6 +111,161 @@ fn cmd_train() {
         result.best_epoch, result.best_metrics.val_loss, result.best_metrics.val_acc
     );
     println!("  {}", result.best_metrics.head_acc.display());
+}
+
+fn cmd_infer() {
+    let dir = data_dir();
+    let val_data = load_json(&format!("{dir}/val.json"));
+    println!("Loaded {} val datums", val_data.len());
+
+    let device = WgpuDevice::default();
+    let schema = Schema::from_dir(Path::new(SCHEMA_DIR)).unwrap();
+    let hyphae_config = HyphaeConfig::new();
+    let septa_config = SeptaConfig::new(12);
+    let schema_graph = SchemaGraph::new(schema, hyphae_config.ngram_buckets);
+
+    // Build model and load pretrained weights
+    let hyphae = hyphae::model::Hyphae::<InferB>::new(&hyphae_config, &device);
+    let septa = septa::model::Septa::<InferB>::new(&septa_config, &device);
+    let mut model = Basidium { septa, hyphae };
+
+    let weights_path = Path::new("weights/basidium/best.bin");
+    if !weights_path.exists() {
+        eprintln!("No weights found at {}", weights_path.display());
+        eprintln!("Run `basidium train` first");
+        std::process::exit(1);
+    }
+
+    {
+        use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
+        let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
+        let record = recorder.load(weights_path.to_path_buf(), &device).unwrap();
+        model = model.load_record(record);
+    }
+    println!("Loaded weights from {}", weights_path.display());
+
+    // Pick a sample of datums to test (first N, or all if small)
+    let n = std::env::args().nth(3).and_then(|s| s.parse().ok()).unwrap_or(20);
+    let sample = &val_data[..n.min(val_data.len())];
+
+    let mut correct = 0usize;
+    let mut total = 0usize;
+
+    for datum in sample {
+        let hiddens = model.septa.forward_with_spans(
+            &datum.nl, &datum.semantics, septa_config.vocab_size, &device,
+        );
+        let grounded = schema_graph.inject(&datum.semantics);
+        let logits = model.hyphae.forward(&grounded, &hiddens, &device);
+        let ir = hyphae::model::Hyphae::<InferB>::resolve(&logits, &grounded, &datum.semantics);
+        let query = ir.render(&[]);
+
+        // Compare predicted vs ground truth labels
+        let matches = check_predictions(&ir, &datum.labels, &grounded.nodes);
+
+        println!("---");
+        println!("  NL:    {}", datum.nl);
+        println!("  SurQL: {}", query.surql);
+        if matches {
+            println!("  ✓ all heads correct");
+            correct += 1;
+        } else {
+            println!("  ✗ mismatch (see labels)");
+            print_mismatches(&ir, &datum.labels, &grounded.nodes);
+        }
+        total += 1;
+    }
+
+    println!("\n=== Inference Results ===");
+    println!("{correct}/{total} datums fully correct ({:.1}%)", correct as f32 / total as f32 * 100.0);
+}
+
+/// Check if all label predictions match ground truth.
+fn check_predictions(
+    ir: &hyphae::query::QueryIr,
+    labels: &[basidium::SpanLabel],
+    _nodes: &[hyphae::query::QueryNode],
+) -> bool {
+    use basidium::SpanType;
+    use hyphae::query::QueryNode;
+
+    for label in labels {
+        let ok = match (&label.span_type, &label.target) {
+            (SpanType::Intent, QueryNode::Operation(expected)) => ir.intent == *expected,
+            (SpanType::Entity, QueryNode::Table(expected)) => ir.table == *expected,
+            (SpanType::Projection, QueryNode::Field { table, name }) => {
+                ir.projections.iter().any(|p| &p.table == table && &p.field == name)
+            }
+            (SpanType::Condition, QueryNode::Field { table, name }) => {
+                ir.conditions.iter().any(|c| &c.table == table && &c.field == name)
+            }
+            (SpanType::Condition, QueryNode::Comparator(expected)) => {
+                ir.conditions.iter().any(|c| &c.comparator == expected)
+            }
+            (SpanType::Assignment, QueryNode::Field { table, name }) => {
+                ir.assignments.iter().any(|a| a.field.as_ref() == Some(name) && &a.table == table)
+            }
+            (SpanType::Modifier, QueryNode::Modifier(expected)) => {
+                use hyphae::query::ModifierKind;
+                ir.modifiers.iter().any(|m| match (expected, m) {
+                    (ModifierKind::OrderBy, hyphae::query::ResolvedModifier::OrderBy { .. }) => true,
+                    (ModifierKind::Limit, hyphae::query::ResolvedModifier::Limit { .. }) => true,
+                    (ModifierKind::Fetch, hyphae::query::ResolvedModifier::Fetch { .. }) => true,
+                    _ => false,
+                })
+            }
+            (SpanType::Modifier, QueryNode::Field { name, .. }) => {
+                ir.modifiers.iter().any(|m| match m {
+                    hyphae::query::ResolvedModifier::OrderBy { field, .. } => field == name,
+                    hyphae::query::ResolvedModifier::Fetch { field } => field == name,
+                    _ => false,
+                })
+            }
+            _ => true, // unknown combos — skip
+        };
+        if !ok { return false; }
+    }
+    true
+}
+
+fn print_mismatches(
+    ir: &hyphae::query::QueryIr,
+    labels: &[basidium::SpanLabel],
+    _nodes: &[hyphae::query::QueryNode],
+) {
+    use basidium::SpanType;
+    use hyphae::query::QueryNode;
+
+    for label in labels {
+        let (head, expected, got) = match (&label.span_type, &label.target) {
+            (SpanType::Intent, QueryNode::Operation(e)) => {
+                if ir.intent != *e { ("intent", format!("{e:?}"), format!("{:?}", ir.intent)) } else { continue }
+            }
+            (SpanType::Entity, QueryNode::Table(e)) => {
+                if ir.table != *e { ("entity", e.clone(), ir.table.clone()) } else { continue }
+            }
+            (SpanType::Projection, QueryNode::Field { table, name }) => {
+                if !ir.projections.iter().any(|p| &p.table == table && &p.field == name) {
+                    let got_fields: Vec<String> = ir.projections.iter().map(|p| format!("{}.{}", p.table, p.field)).collect();
+                    ("proj", format!("{table}.{name}"), got_fields.join(", "))
+                } else { continue }
+            }
+            (SpanType::Condition, QueryNode::Field { table, name }) => {
+                if !ir.conditions.iter().any(|c| &c.table == table && &c.field == name) {
+                    let got: Vec<String> = ir.conditions.iter().map(|c| format!("{}.{}", c.table, c.field)).collect();
+                    ("cond_field", format!("{table}.{name}"), got.join(", "))
+                } else { continue }
+            }
+            (SpanType::Condition, QueryNode::Comparator(e)) => {
+                if !ir.conditions.iter().any(|c| &c.comparator == e) {
+                    let got: Vec<String> = ir.conditions.iter().map(|c| format!("{:?}", c.comparator)).collect();
+                    ("cond_cmp", format!("{e:?}"), got.join(", "))
+                } else { continue }
+            }
+            _ => continue,
+        };
+        println!("    {head}: expected={expected}  got={got}");
+    }
 }
 
 /// Fisher-Yates shuffle with LCG PRNG (same as trainer)

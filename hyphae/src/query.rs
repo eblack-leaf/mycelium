@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use septa::{Comparator, Intent, ValueRef};
+use septa::{Comparator, Intent, TemporalExpr, ValueRef};
 
 /// All node types in the grounded graph — each is a bilinear resolution target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,7 +74,131 @@ pub struct Query {
 
 impl QueryIr {
     /// Render to SurrealQL. values[n] is substituted for Slot(n) references.
-    pub fn render(&self, _values: &[String]) -> Query {
-        todo!()
+    pub fn render(&self, values: &[String]) -> Query {
+        let resolve_value = |v: &ValueRef| -> String {
+            match v {
+                ValueRef::Literal(s) => {
+                    // Numeric / bool literals pass through, strings get quoted
+                    if s.parse::<f64>().is_ok() || s == "true" || s == "false" {
+                        s.clone()
+                    } else {
+                        format!("'{}'", s.replace('\'', "\\'"))
+                    }
+                }
+                ValueRef::Slot(n) => {
+                    if *n < values.len() { values[*n].clone() }
+                    else { format!("${}", n) }
+                }
+                ValueRef::Temporal(t) => render_temporal(t),
+            }
+        };
+
+        let table = &self.table;
+        let surql = match &self.intent {
+            Intent::Select => {
+                let proj = if self.projections.is_empty() {
+                    "*".to_string()
+                } else {
+                    self.projections.iter().map(|p| p.field.clone()).collect::<Vec<_>>().join(", ")
+                };
+                let mut q = format!("SELECT {proj} FROM {table}");
+                if let Some(ref rid) = self.record_id {
+                    q = format!("SELECT {proj} FROM {table}:{}", resolve_value(rid));
+                }
+                if !self.conditions.is_empty() {
+                    q.push_str(" WHERE ");
+                    let conds: Vec<String> = self.conditions.iter().map(|c| {
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                    }).collect();
+                    q.push_str(&conds.join(" AND "));
+                }
+                for m in &self.modifiers {
+                    match m {
+                        ResolvedModifier::OrderBy { field, descending, .. } => {
+                            q.push_str(&format!(" ORDER BY {field}"));
+                            if *descending { q.push_str(" DESC"); }
+                        }
+                        ResolvedModifier::Limit { value } => {
+                            q.push_str(&format!(" LIMIT {}", resolve_value(value)));
+                        }
+                        ResolvedModifier::Fetch { field } => {
+                            q.push_str(&format!(" FETCH {field}"));
+                        }
+                    }
+                }
+                q
+            }
+            Intent::Create => {
+                let mut q = format!("CREATE {table}");
+                if !self.assignments.is_empty() {
+                    q.push_str(" SET ");
+                    let sets: Vec<String> = self.assignments.iter().map(|a| {
+                        match &a.field {
+                            Some(f) => format!("{f} = {}", resolve_value(&a.value)),
+                            None => format!("/* expand {} */", resolve_value(&a.value)),
+                        }
+                    }).collect();
+                    q.push_str(&sets.join(", "));
+                }
+                q
+            }
+            Intent::Update => {
+                let mut q = format!("UPDATE {table}");
+                if !self.assignments.is_empty() {
+                    q.push_str(" SET ");
+                    let sets: Vec<String> = self.assignments.iter().map(|a| {
+                        match &a.field {
+                            Some(f) => format!("{f} = {}", resolve_value(&a.value)),
+                            None => format!("/* expand {} */", resolve_value(&a.value)),
+                        }
+                    }).collect();
+                    q.push_str(&sets.join(", "));
+                }
+                if !self.conditions.is_empty() {
+                    q.push_str(" WHERE ");
+                    let conds: Vec<String> = self.conditions.iter().map(|c| {
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                    }).collect();
+                    q.push_str(&conds.join(" AND "));
+                }
+                q
+            }
+            Intent::Delete => {
+                let mut q = format!("DELETE {table}");
+                if !self.conditions.is_empty() {
+                    q.push_str(" WHERE ");
+                    let conds: Vec<String> = self.conditions.iter().map(|c| {
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                    }).collect();
+                    q.push_str(&conds.join(" AND "));
+                }
+                q
+            }
+        };
+
+        Query { surql }
+    }
+}
+
+fn render_comparator(c: &Comparator) -> &'static str {
+    match c {
+        Comparator::Eq => "=",
+        Comparator::Neq => "!=",
+        Comparator::Gt => ">",
+        Comparator::Gte => ">=",
+        Comparator::Lt => "<",
+        Comparator::Lte => "<=",
+        Comparator::Contains => "CONTAINS",
+    }
+}
+
+fn render_temporal(t: &TemporalExpr) -> String {
+    match t {
+        TemporalExpr::Today => "time::floor(time::now(), 1d)".into(),
+        TemporalExpr::Yesterday => "(time::floor(time::now(), 1d) - 1d)".into(),
+        TemporalExpr::DaysAgo(n) => format!("(time::now() - {n}d)"),
+        TemporalExpr::WeeksAgo(n) => format!("(time::now() - {w}w)", w = n),
+        TemporalExpr::MonthsAgo(n) => format!("(time::now() - {n}mo)"),
+        TemporalExpr::Iso(s) => format!("'{s}'"),
     }
 }

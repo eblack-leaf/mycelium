@@ -17,25 +17,17 @@ pub enum EdgeType {
     // --- Schema structure (fixed per schema) ---
     HasField,   // Table → Field
     FieldOf,    // Field → Table
-    LinksTo,    // Field → Table  (record-link field → linked table)
-    LinkedFrom, // Table → Field  (reverse of LinksTo)
+    LinksTo,    // Record-link Field → linked Table
+    LinkedFrom, // Linked Table → record-link Field (reverse)
 
-    // --- Multi-hop routing (static, built in SchemaGraph::new) ---
-    // Modifier::Fetch  → record-link Field nodes only
-    // Modifier::OrderBy → all Field nodes
-    // Modifier::Limit  → nothing
-    ModifierToField,
-
-    // --- Cross edges: span nodes → schema candidates (added in inject()) ---
+    // --- Cross edges: span nodes → schema/vocab candidates (added in inject()) ---
     IntentToOperation,     // IntentSpan     → all Operation nodes
-    EntityToTable,         // EntitySpan     → Table candidates
-    ProjectionToField,     // ProjectionSpan → Field candidates
-    ConditionToField,      // ConditionSpan  → Field candidates
+    EntityToTable,         // EntitySpan     → all Table nodes
     ConditionToComparator, // ConditionSpan  → all Comparator nodes
-    AssignmentToField,     // AssignmentSpan → Field candidates
     ModifierToType,        // ModifierSpan   → all Modifier nodes
 
     // --- Inter-span edges (added in inject()) ---
+    EntityToSpan,      // entity span → field-resolving spans (table context broadcast)
     ProjectionToFetch, // ProjectionSpan → ModifierSpan  (when fetch_index is Some)
 }
 
@@ -46,14 +38,11 @@ impl EdgeType {
             EdgeType::FieldOf,
             EdgeType::LinksTo,
             EdgeType::LinkedFrom,
-            EdgeType::ModifierToField,
             EdgeType::IntentToOperation,
             EdgeType::EntityToTable,
-            EdgeType::ProjectionToField,
-            EdgeType::ConditionToField,
             EdgeType::ConditionToComparator,
-            EdgeType::AssignmentToField,
             EdgeType::ModifierToType,
+            EdgeType::EntityToSpan,
             EdgeType::ProjectionToFetch,
         ]
     }

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-burn   = { workspace = true }
-septa  = { path = "../septa" }
-hyphae = { path = "../hyphae" }
+burn     = { workspace = true }
+septa    = { path = "../septa" }
+hyphae   = { path = "../hyphae" }
+basidium = { path = "../basidium" }
