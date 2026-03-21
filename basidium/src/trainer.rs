@@ -14,10 +14,8 @@ pub struct TrainerConfig {
     pub learning_rate: LearningRate,
     #[config(default = 10)]
     pub patience: usize,
-    #[config(default = 128)]
+    #[config(default = 64)]
     pub batch_size: usize,
-    #[config(default = 16)]
-    pub micro_batch_size: usize,
 }
 
 pub struct Metrics {

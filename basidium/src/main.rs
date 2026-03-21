@@ -101,8 +101,7 @@ fn cmd_train() {
     let num_iters = trainer_config.epochs * batches_per_epoch;
 
     let ctx: BasidiumTrainCtx<B> = BasidiumTrainCtx::new(
-        hyphae_config, septa_config, schema_graph, 1e-3, num_iters,
-        trainer_config.micro_batch_size, &device,
+        hyphae_config, septa_config, schema_graph, 1e-3, num_iters, &device,
     );
     let mut trainer = Trainer::new(trainer_config, ctx, "weights/basidium");
 

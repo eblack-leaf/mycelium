@@ -137,7 +137,7 @@ cargo run --release -p basidium -- train
 ```
 
 Trains Basidium (Septa + Hyphae jointly) with:
-- Batch size 64, micro-batch size 8 (gradient accumulation)
+- Batch size 64, per-datum backward with gradient accumulation
 - AdamW optimizer, cosine annealing from 1e-3 to 1e-5
 - Early stopping with patience 10
 - Best model saved to `weights/basidium/best.bin`

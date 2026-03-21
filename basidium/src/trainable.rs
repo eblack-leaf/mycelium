@@ -38,7 +38,6 @@ pub struct BasidiumTrainCtx<B: AutodiffBackend> {
     pub septa_config: SeptaConfig,
     pub optimizer: OptimizerAdaptor<B>,
     pub lr_scheduler: CosineAnnealingLrScheduler,
-    pub micro_batch_size: usize,
     pub device: B::Device,
 }
 
@@ -51,7 +50,6 @@ impl<B: AutodiffBackend> BasidiumTrainCtx<B> {
         schema_graph: SchemaGraph,
         lr: f64,
         num_iters: usize,
-        micro_batch_size: usize,
         device: &B::Device,
     ) -> Self {
         let hyphae = Hyphae::new(&hyphae_config, device);
@@ -62,7 +60,7 @@ impl<B: AutodiffBackend> BasidiumTrainCtx<B> {
             .with_min_lr(lr * 0.01)
             .init()
             .unwrap();
-        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr_scheduler, micro_batch_size, device: device.clone() }
+        Self { model, schema_graph, hyphae_config, septa_config, optimizer, lr_scheduler, device: device.clone() }
     }
 }
 
@@ -267,39 +265,24 @@ impl<B: AutodiffBackend> Trainable for BasidiumTrainCtx<B> {
             &texts, &sems, self.septa_config.vocab_size, &self.device,
         );
 
-        // Micro-batch backward with gradient accumulation: backward every micro_bs
-        // datums to keep autodiff graph small, accumulate grads, one optimizer step.
-        let micro_bs = self.micro_batch_size;
+        // Per-datum backward with gradient accumulation, single optimizer step per batch.
         let mut accumulator: GradientsAccumulator<Basidium<B>> = GradientsAccumulator::new();
         let mut total_loss_val = 0.0f32;
         let mut n_total = 0usize;
 
-        for micro in (0..batch.len()).step_by(micro_bs) {
-            let end = (micro + micro_bs).min(batch.len());
-            let mut micro_loss: Option<Tensor<B, 1>> = None;
-            let mut micro_n = 0usize;
+        for i in 0..batch.len() {
+            let datum = batch[i];
+            let hiddens = &all_hiddens[i];
+            let graph = self.schema_graph.inject(&datum.semantics);
+            let logits = self.model.hyphae.forward(&graph, hiddens, &self.device);
+            let (loss, n) = resolution_loss(
+                &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,
+            );
+            if n == 0 { continue; }
 
-            for i in micro..end {
-                let datum = batch[i];
-                let hiddens = &all_hiddens[i];
-                let graph = self.schema_graph.inject(&datum.semantics);
-                let logits = self.model.hyphae.forward(&graph, hiddens, &self.device);
-                let (loss, n) = resolution_loss(
-                    &logits, &datum.labels, &graph.nodes, &graph, &datum.semantics, &self.device,
-                );
-                if n > 0 {
-                    micro_loss = Some(match micro_loss {
-                        Some(t) => t + loss,
-                        None => loss,
-                    });
-                    micro_n += n;
-                }
-            }
-
-            if micro_n == 0 { continue; }
-            let loss = micro_loss.unwrap() / (micro_n as f32);
-            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>() * micro_n as f32;
-            n_total += micro_n;
+            let loss = loss / (n as f32);
+            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>() * n as f32;
+            n_total += n;
 
             let grads = loss.backward();
             let grads = GradientsParams::from_grads(grads, &self.model);
