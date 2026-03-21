@@ -171,7 +171,8 @@ impl SchemaGraph {
         //   ProjSpan:  ProjToTable → all tables
         //   CondSpan:  CondToTable → all tables, CondToCmp → comparator vocab
         //   AsgnSpan:  AsgnToTable → all tables
-        //   ModSpan:   ModToTable → all tables (if has field arg)
+        //   ModTypeSpan: ModToModifier → modifier vocab
+        //   ModFieldSpan: ModToTable → all tables (if has field arg)
 
         let intent_idx = nodes.len();
         nodes.push(QueryNode::IntentSpan);
@@ -197,19 +198,23 @@ impl SchemaGraph {
         let mut modifier_field_resolutions = Vec::new();
         let mut mod_span_indices: Vec<usize> = Vec::new();
         for modifier in &semantics.modifiers {
-            let idx = nodes.len();
-            nodes.push(QueryNode::ModSpan);
-            mod_span_indices.push(idx);
-            modifier_type_resolutions.push(Resolution { span_index: idx, candidates: mod_indices.clone() });
-            // Connect to modifier vocab nodes (Fetch/OrderBy/Limit) — analogous to CondToCmp
+            // ModTypeSpan — routes to modifier vocab nodes for type resolution
+            let type_idx = nodes.len();
+            nodes.push(QueryNode::ModTypeSpan);
+            mod_span_indices.push(type_idx);
+            modifier_type_resolutions.push(Resolution { span_index: type_idx, candidates: mod_indices.clone() });
             for &m in &mod_indices {
-                edges.get_mut(&EdgeType::ModToModifier).unwrap().push(Edge { src: idx, dst: m });
+                edges.get_mut(&EdgeType::ModToModifier).unwrap().push(Edge { src: type_idx, dst: m });
             }
+
             if modifier.argument.is_some() {
+                // ModFieldSpan — routes to tables for field resolution
+                let field_idx = nodes.len();
+                nodes.push(QueryNode::ModFieldSpan);
                 for &t in &table_indices {
-                    edges.get_mut(&EdgeType::ModToTable).unwrap().push(Edge { src: idx, dst: t });
+                    edges.get_mut(&EdgeType::ModToTable).unwrap().push(Edge { src: field_idx, dst: t });
                 }
-                modifier_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
+                modifier_field_resolutions.push(Resolution { span_index: field_idx, candidates: field_indices.clone() });
             }
         }
 
@@ -224,26 +229,35 @@ impl SchemaGraph {
             }
         }
 
+        // Conditions: separate CondFieldNode and CondCmpNode per condition.
+        // Each gets its own sub-span hidden from Septa, different role embedding,
+        // and dedicated edge routing.
         let mut condition_field_resolutions = Vec::new();
         let mut condition_cmp_resolutions   = Vec::new();
         for _cond in &semantics.conditions {
-            let idx = nodes.len();
-            nodes.push(QueryNode::CondSpan);
+            // CondFieldNode — routes to tables for field resolution
+            let field_idx = nodes.len();
+            nodes.push(QueryNode::CondFieldSpan);
             for &t in &table_indices {
-                edges.get_mut(&EdgeType::CondToTable).unwrap().push(Edge { src: idx, dst: t });
+                edges.get_mut(&EdgeType::CondToTable).unwrap().push(Edge { src: field_idx, dst: t });
             }
+            condition_field_resolutions.push(Resolution { span_index: field_idx, candidates: field_indices.clone() });
+
+            // CondCmpNode — routes to comparators for cmp resolution
+            let cmp_idx = nodes.len();
+            nodes.push(QueryNode::CondCmpSpan);
             for &c in &cmp_indices {
-                edges.get_mut(&EdgeType::CondToCmp).unwrap().push(Edge { src: idx, dst: c });
+                edges.get_mut(&EdgeType::CondToCmp).unwrap().push(Edge { src: cmp_idx, dst: c });
             }
-            condition_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
-            condition_cmp_resolutions.push(Resolution   { span_index: idx, candidates: cmp_indices.clone() });
+            condition_cmp_resolutions.push(Resolution { span_index: cmp_idx, candidates: cmp_indices.clone() });
         }
 
+        // Assignments: separate AsgnFieldNode per assignment (when has field_text).
         let mut assignment_resolutions = Vec::new();
         for assign in &semantics.assignments {
-            let idx = nodes.len();
-            nodes.push(QueryNode::AsgnSpan);
             if assign.field_text.is_some() {
+                let idx = nodes.len();
+                nodes.push(QueryNode::AsgnSpan);
                 for &t in &table_indices {
                     edges.get_mut(&EdgeType::AsgnToTable).unwrap().push(Edge { src: idx, dst: t });
                 }

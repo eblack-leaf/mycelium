@@ -14,9 +14,11 @@ pub enum QueryNode {
     IntentSpan,
     EntitySpan,
     ProjSpan,
-    CondSpan,
+    CondFieldSpan,
+    CondCmpSpan,
     AsgnSpan,
-    ModSpan,
+    ModTypeSpan,
+    ModFieldSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

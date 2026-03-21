@@ -62,8 +62,8 @@ pub struct Hyphae<B: Backend> {
     /// Projects BiLSTM span hiddens [2 * septa_hidden_dim] → [node_feat_dim].
     pub span_proj: Linear<B>,
 
-    /// Learned role embeddings for 6 typed span roles:
-    /// 0=IntentSpan, 1=EntitySpan, 2=ProjSpan, 3=CondSpan, 4=AsgnSpan, 5=ModSpan.
+    /// Learned role embeddings for 8 typed span roles:
+    /// 0=Intent, 1=Entity, 2=Proj, 3=CondField, 4=CondCmp, 5=AsgnField, 6=ModType, 7=ModField.
     /// Added to projected BiLSTM hidden to give each span role a distinct initial feature.
     pub role_emb: Embedding<B>,
 
@@ -90,7 +90,7 @@ impl<B: Backend> Hyphae<B> {
             vocab_emb:   EmbeddingConfig::new(14, config.node_feat_dim).init(device),
             ngram_table: EmbeddingConfig::new(config.ngram_buckets, config.node_feat_dim).init(device),
             span_proj:   LinearConfig::new(2 * config.septa_hidden_dim, config.node_feat_dim).init(device),
-            role_emb:    EmbeddingConfig::new(6, config.node_feat_dim).init(device),
+            role_emb:    EmbeddingConfig::new(8, config.node_feat_dim).init(device),
             bilinear_intent:    bilinear(device),
             bilinear_entity:    bilinear(device),
             bilinear_proj:      bilinear(device),
@@ -141,8 +141,12 @@ impl<B: Backend> Hyphae<B> {
 
         // ── Typed span nodes: project BiLSTM hidden + add role embedding ─
         // Must match the order inject() pushes spans:
-        //   intent, entity, projections, modifiers, conditions, assignments.
-        // Role indices: 0=Intent, 1=Entity, 2=Proj, 3=Cond, 4=Asgn, 5=Mod
+        //   intent, entity, projections,
+        //   modifiers (ModTypeSpan + optional ModFieldSpan interleaved per mod),
+        //   conditions (CondFieldSpan + CondCmpSpan interleaved per cond),
+        //   assignments (AsgnSpan only for those with field_text).
+        // Role indices: 0=Intent, 1=Entity, 2=Proj, 3=CondField, 4=CondCmp,
+        //               5=AsgnField, 6=ModType, 7=ModField
         let role = |role_idx: usize| -> Tensor<B, 1> {
             let idx = Tensor::<B, 1, Int>::from_data([role_idx as i32], device)
                 .unsqueeze::<2>();
@@ -155,9 +159,23 @@ impl<B: Backend> Hyphae<B> {
         feats.push(span_with_role(hiddens.intent.clone(), 0));
         feats.push(span_with_role(hiddens.entity.clone(), 1));
         for h in &hiddens.projections  { feats.push(span_with_role(h.clone(), 2)); }
-        for h in &hiddens.modifiers    { feats.push(span_with_role(h.clone(), 5)); }
-        for h in &hiddens.conditions   { feats.push(span_with_role(h.clone(), 3)); }
-        for h in &hiddens.assignments  { feats.push(span_with_role(h.clone(), 4)); }
+        // Modifiers: ModTypeSpan then optional ModFieldSpan per modifier
+        {
+            let mut mf_idx = 0usize;
+            for (i, h) in hiddens.mod_types.iter().enumerate() {
+                feats.push(span_with_role(h.clone(), 6));
+                if hiddens.mod_has_field[i] {
+                    feats.push(span_with_role(hiddens.mod_fields[mf_idx].clone(), 7));
+                    mf_idx += 1;
+                }
+            }
+        }
+        // Conditions: CondFieldSpan then CondCmpSpan per condition
+        for (hf, hc) in hiddens.cond_fields.iter().zip(hiddens.cond_cmps.iter()) {
+            feats.push(span_with_role(hf.clone(), 3));
+            feats.push(span_with_role(hc.clone(), 4));
+        }
+        for h in &hiddens.asgn_fields  { feats.push(span_with_role(h.clone(), 5)); }
 
         Tensor::stack(feats, 0)
     }

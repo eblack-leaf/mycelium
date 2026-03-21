@@ -30,9 +30,20 @@ pub struct SpanHiddens<B: Backend> {
     pub intent:      Tensor<B, 1>,
     pub entity:      Tensor<B, 1>,
     pub projections: Vec<Tensor<B, 1>>,
-    pub conditions:  Vec<Tensor<B, 1>>,
-    pub assignments: Vec<Tensor<B, 1>>,
-    pub modifiers:   Vec<Tensor<B, 1>>,
+    /// Per-condition field sub-span hiddens (pooled over field_start..field_end).
+    pub cond_fields: Vec<Tensor<B, 1>>,
+    /// Per-condition comparator sub-span hiddens (pooled over cmp_start..cmp_end).
+    pub cond_cmps:   Vec<Tensor<B, 1>>,
+    /// Per-assignment field sub-span hiddens (pooled over field_start..field_end).
+    pub asgn_fields: Vec<Tensor<B, 1>>,
+    /// Per-modifier type sub-span hiddens (pooled over start..end, the keyword text).
+    pub mod_types:   Vec<Tensor<B, 1>>,
+    /// Per-modifier field sub-span hiddens (pooled over arg_start..arg_end).
+    /// Only present for modifiers with argument (OrderBy field, Fetch field).
+    pub mod_fields:  Vec<Tensor<B, 1>>,
+    /// Which modifiers have a field argument (true = has ModFieldSpan node).
+    /// Needed by init_node_features to interleave type/field spans correctly.
+    pub mod_has_field: Vec<bool>,
 }
 
 /// Manual BiGRU layer: forward Gru + reverse Gru, outputs concatenated.
@@ -163,9 +174,18 @@ impl<B: Backend> Septa<B> {
                 intent: pool(sem.intent.start, sem.intent.end),
                 entity: pool(sem.entity.start, sem.entity.end),
                 projections: sem.projections.iter().map(|s| pool(s.start, s.end)).collect(),
-                conditions: sem.conditions.iter().map(|s| pool(s.start, s.end)).collect(),
-                assignments: sem.assignments.iter().map(|s| pool(s.start, s.end)).collect(),
-                modifiers: sem.modifiers.iter().map(|s| pool(s.start, s.end)).collect(),
+                cond_fields: sem.conditions.iter().map(|s| pool(s.field_start, s.field_end)).collect(),
+                cond_cmps: sem.conditions.iter().map(|s| pool(s.cmp_start, s.cmp_end)).collect(),
+                asgn_fields: sem.assignments.iter()
+                    .filter(|s| s.field_text.is_some())
+                    .map(|s| pool(s.field_start, s.field_end))
+                    .collect(),
+                mod_types: sem.modifiers.iter().map(|s| pool(s.start, s.end)).collect(),
+                mod_fields: sem.modifiers.iter()
+                    .filter(|s| s.argument.is_some())
+                    .map(|s| pool(s.arg_start, s.arg_end))
+                    .collect(),
+                mod_has_field: sem.modifiers.iter().map(|s| s.argument.is_some()).collect(),
             }
         }).collect()
     }

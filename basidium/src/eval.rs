@@ -78,6 +78,8 @@ fn sel_cond(parts: &[Part], cmp: Comparator, val: ValueRef) -> Datum {
             conditions: vec![ConditionSpan {
                 field_text: cf.0.clone(), comparator_text: ct.0.clone(),
                 value: val, start: cf.1, end: cv.2,
+                field_start: cf.1, field_end: cf.2,
+                cmp_start: ct.1, cmp_end: ct.2,
             }],
             assignments: vec![], modifiers: vec![],
         },
@@ -119,6 +121,8 @@ fn sel_proj_cond(parts: &[Part], cmp: Comparator, val: ValueRef) -> Datum {
             conditions: vec![ConditionSpan {
                 field_text: cf.0.clone(), comparator_text: ct.0.clone(),
                 value: val, start: cf.1, end: cv.2,
+                field_start: cf.1, field_end: cf.2,
+                cmp_start: ct.1, cmp_end: ct.2,
             }],
             assignments: vec![], modifiers: vec![],
         },
@@ -142,6 +146,7 @@ fn sel_order(parts: &[Part], desc: bool) -> Datum {
             modifiers: vec![ModifierSpan {
                 text: mt.0.clone(), argument: Some(mf.0.clone()),
                 argument_value: None, descending: Some(desc), start: mt.1, end: mf.2,
+                arg_start: mf.1, arg_end: mf.2,
             }],
         },
         labels: vec![
@@ -189,6 +194,7 @@ fn create(parts: &[Part], assigns: &[(&str, ValueRef)]) -> Datum {
         assignment_spans.push(AssignmentSpan {
             field_text: Some(af.0.clone()), value: assigns[i].1.clone(),
             start: af.1, end: av.2,
+            field_start: af.1, field_end: af.2,
         });
         labels.push(SpanLabel { span_type: SpanType::Assignment, span_index: i, target: QueryNode::Field { table: table.0.clone(), name: af.0.clone() } });
     }
@@ -222,10 +228,13 @@ fn update(parts: &[Part], asgn_val: ValueRef, cmp: Comparator, cond_val: ValueRe
             conditions: vec![ConditionSpan {
                 field_text: cf.0.clone(), comparator_text: ct.0.clone(),
                 value: cond_val, start: cf.1, end: cv.2,
+                field_start: cf.1, field_end: cf.2,
+                cmp_start: ct.1, cmp_end: ct.2,
             }],
             assignments: vec![AssignmentSpan {
                 field_text: Some(af.0.clone()), value: asgn_val,
                 start: af.1, end: av.2,
+                field_start: af.1, field_end: af.2,
             }],
             modifiers: vec![],
         },
@@ -257,6 +266,8 @@ fn delete(parts: &[Part], cmp: Comparator, val: ValueRef) -> Datum {
             conditions: vec![ConditionSpan {
                 field_text: cf.0.clone(), comparator_text: ct.0.clone(),
                 value: val, start: cf.1, end: cv.2,
+                field_start: cf.1, field_end: cf.2,
+                cmp_start: ct.1, cmp_end: ct.2,
             }],
             modifiers: vec![],
         },

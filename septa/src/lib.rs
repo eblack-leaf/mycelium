@@ -50,6 +50,7 @@ pub struct ProjectionSpan {
 
 /// Condition predicate. comparator_text is raw NL ("over", "less than", "equals") —
 /// GNN resolves it to a Comparator node.
+/// Sub-span ranges allow separate BiGRU pooling for field vs comparator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConditionSpan {
     pub field_text: String,
@@ -57,6 +58,12 @@ pub struct ConditionSpan {
     pub value: ValueRef,
     pub start: usize,
     pub end: usize,
+    /// Character range of the field name sub-span (e.g. "status" in "status equals done").
+    pub field_start: usize,
+    pub field_end: usize,
+    /// Character range of the comparator sub-span (e.g. "equals" in "status equals done").
+    pub cmp_start: usize,
+    pub cmp_end: usize,
 }
 
 /// Field=value write. field_text is None when the slot value is an object to be
@@ -67,10 +74,14 @@ pub struct AssignmentSpan {
     pub value: ValueRef,
     pub start: usize,
     pub end: usize,
+    /// Character range of the field name sub-span, when field_text is Some.
+    pub field_start: usize,
+    pub field_end: usize,
 }
 
 /// Generic modifier span — GNN resolves the type (OrderBy/Limit/Fetch) via ModifierToType edges
 /// and the target field via multi-hop through ModifierToField schema edges.
+/// Sub-span ranges allow separate BiGRU pooling for type keyword vs field argument.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifierSpan {
     pub text: String,                     // "order by", "fetch", "limit"
@@ -79,6 +90,10 @@ pub struct ModifierSpan {
     pub descending: Option<bool>,         // NLP detects "desc"/"asc" keywords; None if unknown
     pub start: usize,
     pub end: usize,
+    /// Character range of the field argument sub-span (e.g. "created_at" in "order by created_at").
+    /// Only meaningful when argument is Some.
+    pub arg_start: usize,
+    pub arg_end: usize,
 }
 
 /// Value on the right-hand side of a condition or assignment.

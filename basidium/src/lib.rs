@@ -331,7 +331,7 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
                     t.sp();
                     let fr = t.push(&field.name);
                     t.sp();
-                    let _cr = t.push(cmp_text);
+                    let cr = t.push(cmp_text);
                     t.sp();
                     t.lit(val_text);
                     let cond_start = fr.0;
@@ -351,6 +351,8 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
                                     value: val_ref.clone(),
                                     start: cond_start,
                                     end: cond_end,
+                                    field_start: fr.0, field_end: fr.1,
+                                    cmp_start: cr.0, cmp_end: cr.1,
                                 },
                             ],
                             assignments: vec![], modifiers: vec![],
@@ -398,7 +400,7 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
             t.sp();
             let mr = t.push(order_phrase);
             t.sp();
-            let _fr = t.push(&field.name);
+            let fr = t.push(&field.name);
             if desc == Some(true) {
                 t.lit(" desc");
             }
@@ -420,6 +422,8 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                             descending: desc,
                             start: mr.0,
                             end: mr.1,
+                            arg_start: fr.0,
+                            arg_end: fr.1,
                         },
                     ],
                 },
@@ -466,6 +470,8 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                         descending: None,
                         start: mr.0,
                         end: mr.1,
+                        arg_start: 0,
+                        arg_end: 0,
                     },
                 ],
             },
@@ -495,6 +501,7 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
             t.sp();
             let mr = t.push(fetch_phrase);
             t.sp();
+            let afr = (t.0.len(), t.0.len() + field.name.len());
             t.lit(&field.name);
 
             out.push(Datum {
@@ -512,6 +519,8 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                             descending: None,
                             start: mr.0,
                             end: mr.1,
+                            arg_start: afr.0,
+                            arg_end: afr.1,
                         },
                     ],
                 },
@@ -544,15 +553,18 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                 let ee = es + name.len();
                 t.sp();
                 let cond_start = t.0.len();
-                let _fr = t.push(&field.name);
+                let fr = t.push(&field.name);
                 t.sp();
+                let crs = t.0.len();
                 t.lit(cmp_text);
+                let cre = t.0.len();
                 t.sp();
                 t.lit(val_text);
                 let cond_end = t.0.len();
                 t.sp();
                 let mr = t.push("order by");
                 t.sp();
+                let ofr = (t.0.len(), t.0.len() + order_field.name.len());
                 t.lit(&order_field.name);
 
                 out.push(Datum {
@@ -568,6 +580,8 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                                 comparator_text: cmp_text.into(),
                                 value: val_ref.clone(),
                                 start: cond_start, end: cond_end,
+                                field_start: fr.0, field_end: fr.1,
+                                cmp_start: crs, cmp_end: cre,
                             },
                         ],
                         assignments: vec![],
@@ -578,6 +592,7 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                                 argument_value: None,
                                 descending: None,
                                 start: mr.0, end: mr.1,
+                                arg_start: ofr.0, arg_end: ofr.1,
                             },
                         ],
                     },
@@ -605,12 +620,17 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                 t.sp();
                 let mr = t.push("order by");
                 t.sp();
+                let ofr = (t.0.len(), t.0.len() + order_field.name.len());
                 t.lit(&order_field.name);
                 t.lit(" where ");
                 let cond_start = t.0.len();
+                let frs = t.0.len();
                 t.lit(&field.name);
+                let fre = t.0.len();
                 t.sp();
+                let crs = t.0.len();
                 t.lit(cmp_text);
+                let cre = t.0.len();
                 t.sp();
                 t.lit(val_text);
                 let cond_end = t.0.len();
@@ -628,6 +648,8 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                                 comparator_text: cmp_text.into(),
                                 value: val_ref.clone(),
                                 start: cond_start, end: cond_end,
+                                field_start: frs, field_end: fre,
+                                cmp_start: crs, cmp_end: cre,
                             },
                         ],
                         assignments: vec![],
@@ -638,6 +660,7 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
                                 argument_value: None,
                                 descending: None,
                                 start: mr.0, end: mr.1,
+                                arg_start: ofr.0, arg_end: ofr.1,
                             },
                         ],
                     },
@@ -688,7 +711,9 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
             t.lit(connector);
             t.sp();
             let assign_start = t.0.len();
+            let afs = t.0.len();
             t.lit(&field.name);
+            let afe = t.0.len();
             if !setter.is_empty() {
                 t.sp();
                 t.lit(setter);
@@ -709,6 +734,7 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
                             field_text: Some(field.name.clone()),
                             value: val_ref.clone(),
                             start: assign_start, end: assign_end,
+                            field_start: afs, field_end: afe,
                         },
                     ],
                     modifiers: vec![],
@@ -739,13 +765,17 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
             let ee = t.0.len();
             t.lit(" with ");
             let a1s = t.0.len();
+            let a1fs = t.0.len();
             t.lit(&f1.name);
+            let a1fe = t.0.len();
             t.lit(" set to ");
             t.lit(v1_text);
             let a1e = t.0.len();
             t.lit(" and ");
             let a2s = t.0.len();
+            let a2fs = t.0.len();
             t.lit(&f2.name);
+            let a2fe = t.0.len();
             t.lit(" set to ");
             t.lit(v2_text);
             let a2e = t.0.len();
@@ -758,8 +788,8 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![], conditions: vec![],
                     assignments: vec![
-                        AssignmentSpan { field_text: Some(f1.name.clone()), value: v1_ref.clone(), start: a1s, end: a1e },
-                        AssignmentSpan { field_text: Some(f2.name.clone()), value: v2_ref.clone(), start: a2s, end: a2e },
+                        AssignmentSpan { field_text: Some(f1.name.clone()), value: v1_ref.clone(), start: a1s, end: a1e, field_start: a1fs, field_end: a1fe },
+                        AssignmentSpan { field_text: Some(f2.name.clone()), value: v2_ref.clone(), start: a2s, end: a2e, field_start: a2fs, field_end: a2fe },
                     ],
                     modifiers: vec![],
                 },
@@ -799,7 +829,7 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
                 entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                 projections: vec![], conditions: vec![],
                 assignments: vec![
-                    AssignmentSpan { field_text: None, value: ValueRef::Slot(0), start: as_, end: ae },
+                    AssignmentSpan { field_text: None, value: ValueRef::Slot(0), start: as_, end: ae, field_start: 0, field_end: 0 },
                 ],
                 modifiers: vec![],
             },
@@ -843,15 +873,21 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                         let ee = es + name.len();
                         t.lit(" set ");
                         let as_ = t.0.len();
+                        let afls = t.0.len();
                         t.lit(&assign_field.name);
+                        let afle = t.0.len();
                         t.lit(" to ");
                         t.lit(a_val_text);
                         let ae = t.0.len();
                         t.lit(" where ");
                         let cs = t.0.len();
+                        let cfls = t.0.len();
                         t.lit(&cond_field.name);
+                        let cfle = t.0.len();
                         t.sp();
+                        let cmps = t.0.len();
                         t.lit(cmp_text);
+                        let cmpe = t.0.len();
                         t.sp();
                         t.lit(c_val_text);
                         let ce = t.0.len();
@@ -869,6 +905,8 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                                         comparator_text: cmp_text.into(),
                                         value: c_val_ref.clone(),
                                         start: cs, end: ce,
+                                        field_start: cfls, field_end: cfle,
+                                        cmp_start: cmps, cmp_end: cmpe,
                                     },
                                 ],
                                 assignments: vec![
@@ -876,6 +914,7 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                                         field_text: Some(assign_field.name.clone()),
                                         value: a_val_ref.clone(),
                                         start: as_, end: ae,
+                                        field_start: afls, field_end: afle,
                                     },
                                 ],
                                 modifiers: vec![],
@@ -930,9 +969,13 @@ fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                 let ee = es + name.len();
                 t.sp();
                 let cs = t.0.len();
+                let fls = t.0.len();
                 t.lit(&field.name);
+                let fle = t.0.len();
                 t.sp();
+                let cls = t.0.len();
                 t.lit(cmp_text);
+                let cle = t.0.len();
                 t.sp();
                 t.lit(val_text);
                 let ce = t.0.len();
@@ -950,6 +993,8 @@ fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                                 comparator_text: cmp_text.into(),
                                 value: val_ref.clone(),
                                 start: cs, end: ce,
+                                field_start: fls, field_end: fle,
+                                cmp_start: cls, cmp_end: cle,
                             },
                         ],
                     },
@@ -1073,7 +1118,9 @@ fn gen_record_id(table: &Table, out: &mut Vec<Datum>) {
                 t.lit(id_text);
                 t.lit(" set ");
                 let as_ = t.0.len();
+                let afs = t.0.len();
                 t.lit(&field.name);
+                let afe = t.0.len();
                 t.lit(" to ");
                 t.lit(val_text);
                 let ae = t.0.len();
@@ -1085,7 +1132,7 @@ fn gen_record_id(table: &Table, out: &mut Vec<Datum>) {
                         entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: Some(id_ref.clone()) },
                         projections: vec![], conditions: vec![],
                         assignments: vec![
-                            AssignmentSpan { field_text: Some(field.name.clone()), value: val_ref.clone(), start: as_, end: ae },
+                            AssignmentSpan { field_text: Some(field.name.clone()), value: val_ref.clone(), start: as_, end: ae, field_start: afs, field_end: afe },
                         ],
                         modifiers: vec![],
                     },
@@ -1157,9 +1204,13 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
                 let es = t.0.find(name).unwrap();
                 let ee = es + name.len();
                 let cs = t.0.len();
+                let cfls = t.0.len();
                 t.lit(&cf.name);
+                let cfle = t.0.len();
                 t.sp();
+                let cmls = t.0.len();
                 t.lit(cmp_text);
+                let cmle = t.0.len();
                 t.sp();
                 t.lit(val_text);
                 let ce = t.0.len();
@@ -1173,7 +1224,7 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
                             ProjectionSpan { field_text: pf.name.clone(), start: pr.0, end: pr.1, fetch_index: None },
                         ],
                         conditions: vec![
-                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce },
+                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce, field_start: cfls, field_end: cfle, cmp_start: cmls, cmp_end: cmle },
                         ],
                         assignments: vec![], modifiers: vec![],
                     },
@@ -1209,9 +1260,13 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
                 let es = t.0.find(name).unwrap();
                 let ee = es + name.len();
                 let cs = t.0.len();
+                let cfls = t.0.len();
                 t.lit(&cf.name);
+                let cfle = t.0.len();
                 t.sp();
+                let cmls = t.0.len();
                 t.lit(cmp_text);
+                let cmle = t.0.len();
                 t.sp();
                 t.lit(val_text);
                 let ce = t.0.len();
@@ -1226,7 +1281,7 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
                             ProjectionSpan { field_text: fields[j].name.clone(), start: p2r.0, end: p2r.1, fetch_index: None },
                         ],
                         conditions: vec![
-                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce },
+                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce, field_start: cfls, field_end: cfle, cmp_start: cmls, cmp_end: cmle },
                         ],
                         assignments: vec![], modifiers: vec![],
                     },
@@ -1272,6 +1327,7 @@ fn gen_select_proj_modifier(table: &Table, out: &mut Vec<Datum>) {
                 let ee = es + name.len();
                 let mr = t.push(order_phrase);
                 t.sp();
+                let ofr = (t.0.len(), t.0.len() + of.name.len());
                 t.lit(&of.name);
 
                 out.push(Datum {
@@ -1284,7 +1340,7 @@ fn gen_select_proj_modifier(table: &Table, out: &mut Vec<Datum>) {
                         ],
                         conditions: vec![], assignments: vec![],
                         modifiers: vec![
-                            ModifierSpan { text: order_phrase.into(), argument: Some(of.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1 },
+                            ModifierSpan { text: order_phrase.into(), argument: Some(of.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1, arg_start: ofr.0, arg_end: ofr.1 },
                         ],
                     },
                     labels: vec![
@@ -1330,7 +1386,9 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                 let ee = t.0.len();
                 t.lit(" with ");
                 let a1s = t.0.len();
+                let a1fs = t.0.len();
                 t.lit(&f1.name);
+                let a1fe = t.0.len();
                 t.sp();
                 t.lit(setter);
                 t.sp();
@@ -1338,7 +1396,9 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                 let a1e = t.0.len();
                 t.lit(" and ");
                 let a2s = t.0.len();
+                let a2fs = t.0.len();
                 t.lit(&f2.name);
+                let a2fe = t.0.len();
                 t.sp();
                 t.lit(setter);
                 t.sp();
@@ -1352,8 +1412,8 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                         entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                         projections: vec![], conditions: vec![],
                         assignments: vec![
-                            AssignmentSpan { field_text: Some(f1.name.clone()), value: v1_ref.clone(), start: a1s, end: a1e },
-                            AssignmentSpan { field_text: Some(f2.name.clone()), value: v2_ref.clone(), start: a2s, end: a2e },
+                            AssignmentSpan { field_text: Some(f1.name.clone()), value: v1_ref.clone(), start: a1s, end: a1e, field_start: a1fs, field_end: a1fe },
+                            AssignmentSpan { field_text: Some(f2.name.clone()), value: v2_ref.clone(), start: a2s, end: a2e, field_start: a2fs, field_end: a2fe },
                         ],
                         modifiers: vec![],
                     },
@@ -1385,15 +1445,18 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                 let ee = t.0.len();
                 t.lit(" with ");
                 let a0s = t.0.len();
-                t.lit(&w[0].name); t.lit(" set to "); t.lit(v0_text);
+                let a0fs = t.0.len();
+                t.lit(&w[0].name); let a0fe = t.0.len(); t.lit(" set to "); t.lit(v0_text);
                 let a0e = t.0.len();
                 t.lit(", ");
                 let a1s = t.0.len();
-                t.lit(&w[1].name); t.lit(" set to "); t.lit(v1_text);
+                let a1fs = t.0.len();
+                t.lit(&w[1].name); let a1fe = t.0.len(); t.lit(" set to "); t.lit(v1_text);
                 let a1e = t.0.len();
                 t.lit(" and ");
                 let a2s = t.0.len();
-                t.lit(&w[2].name); t.lit(" set to "); t.lit(v2_text);
+                let a2fs = t.0.len();
+                t.lit(&w[2].name); let a2fe = t.0.len(); t.lit(" set to "); t.lit(v2_text);
                 let a2e = t.0.len();
 
                 out.push(Datum {
@@ -1403,9 +1466,9 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                         entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                         projections: vec![], conditions: vec![],
                         assignments: vec![
-                            AssignmentSpan { field_text: Some(w[0].name.clone()), value: v0_ref.clone(), start: a0s, end: a0e },
-                            AssignmentSpan { field_text: Some(w[1].name.clone()), value: v1_ref.clone(), start: a1s, end: a1e },
-                            AssignmentSpan { field_text: Some(w[2].name.clone()), value: v2_ref.clone(), start: a2s, end: a2e },
+                            AssignmentSpan { field_text: Some(w[0].name.clone()), value: v0_ref.clone(), start: a0s, end: a0e, field_start: a0fs, field_end: a0fe },
+                            AssignmentSpan { field_text: Some(w[1].name.clone()), value: v1_ref.clone(), start: a1s, end: a1e, field_start: a1fs, field_end: a1fe },
+                            AssignmentSpan { field_text: Some(w[2].name.clone()), value: v2_ref.clone(), start: a2s, end: a2e, field_start: a2fs, field_end: a2fe },
                         ],
                         modifiers: vec![],
                     },
@@ -1451,6 +1514,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
             t.sp();
             let mr = t.push(order_phrase);
             t.sp();
+            let afr = (t.0.len(), t.0.len() + field.name.len());
             t.lit(&field.name);
             if desc == Some(true) { t.lit(" desc"); }
             if desc == Some(false) { t.lit(" asc"); }
@@ -1462,7 +1526,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![], conditions: vec![], assignments: vec![],
                     modifiers: vec![
-                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: desc, start: mr.0, end: mr.1 },
+                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: desc, start: mr.0, end: mr.1, arg_start: afr.0, arg_end: afr.1 },
                     ],
                 },
                 labels: vec![
@@ -1491,6 +1555,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
             let ee = es + name.len();
             let mr1 = t.push(order_phrase);
             t.sp();
+            let afr = (t.0.len(), t.0.len() + field.name.len());
             t.lit(&field.name);
             t.sp();
             let mr2 = t.push(limit_text);
@@ -1502,8 +1567,8 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![], conditions: vec![], assignments: vec![],
                     modifiers: vec![
-                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr1.0, end: mr1.1 },
-                        ModifierSpan { text: limit_text.into(), argument: None, argument_value: Some(ValueRef::Literal("10".into())), descending: None, start: mr2.0, end: mr2.1 },
+                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr1.0, end: mr1.1, arg_start: afr.0, arg_end: afr.1 },
+                        ModifierSpan { text: limit_text.into(), argument: None, argument_value: Some(ValueRef::Literal("10".into())), descending: None, start: mr2.0, end: mr2.1, arg_start: 0, arg_end: 0 },
                     ],
                 },
                 labels: vec![
@@ -1537,6 +1602,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
             let ee = es + name.len();
             let mr = t.push(fetch_phrase);
             t.sp();
+            let afr = (t.0.len(), t.0.len() + field.name.len());
             t.lit(&field.name);
 
             out.push(Datum {
@@ -1546,7 +1612,7 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![], conditions: vec![], assignments: vec![],
                     modifiers: vec![
-                        ModifierSpan { text: fetch_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1 },
+                        ModifierSpan { text: fetch_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1, arg_start: afr.0, arg_end: afr.1 },
                     ],
                 },
                 labels: vec![
@@ -1580,7 +1646,8 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
             let ir = t.push("change");
             t.sp();
             let as_ = t.0.len();
-            t.lit(&af.name); t.lit(" to "); t.lit(a_val);
+            let afls = t.0.len();
+            t.lit(&af.name); let afle = t.0.len(); t.lit(" to "); t.lit(a_val);
             let ae = t.0.len();
             t.lit(" on ");
             let es = t.0.len();
@@ -1588,7 +1655,8 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
             let ee = es + name.len();
             t.lit(" where ");
             let cs = t.0.len();
-            t.lit(&cf.name); t.sp(); t.lit(cmp_text); t.sp(); t.lit(c_val);
+            let cfls = t.0.len();
+            t.lit(&cf.name); let cfle = t.0.len(); t.sp(); let cmps = t.0.len(); t.lit(cmp_text); let cmpe = t.0.len(); t.sp(); t.lit(c_val);
             let ce = t.0.len();
 
             out.push(Datum {
@@ -1598,10 +1666,10 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![],
                     conditions: vec![
-                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce },
+                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce, field_start: cfls, field_end: cfle, cmp_start: cmps, cmp_end: cmpe },
                     ],
                     assignments: vec![
-                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae },
+                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae, field_start: afls, field_end: afle },
                     ],
                     modifiers: vec![],
                 },
@@ -1633,11 +1701,13 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
             let ee = es + name.len();
             t.lit(" with ");
             let cs = t.0.len();
-            t.lit(&cf.name); t.sp(); t.lit(cmp_text); t.sp(); t.lit(c_val);
+            let cfls = t.0.len();
+            t.lit(&cf.name); let cfle = t.0.len(); t.sp(); let cmps = t.0.len(); t.lit(cmp_text); let cmpe = t.0.len(); t.sp(); t.lit(c_val);
             let ce = t.0.len();
             t.lit(", set ");
             let as_ = t.0.len();
-            t.lit(&af.name); t.lit(" to "); t.lit(a_val);
+            let afls = t.0.len();
+            t.lit(&af.name); let afle = t.0.len(); t.lit(" to "); t.lit(a_val);
             let ae = t.0.len();
 
             out.push(Datum {
@@ -1647,10 +1717,10 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
                     entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
                     projections: vec![],
                     conditions: vec![
-                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce },
+                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce, field_start: cfls, field_end: cfle, cmp_start: cmps, cmp_end: cmpe },
                     ],
                     assignments: vec![
-                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae },
+                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae, field_start: afls, field_end: afle },
                     ],
                     modifiers: vec![],
                 },
