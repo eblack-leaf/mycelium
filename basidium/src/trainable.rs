@@ -346,8 +346,22 @@ impl<B: AutodiffBackend> Trainable for PipelineTrainCtx<B> {
         }
     }
 
-    fn save(&self, _path: &std::path::PathBuf) -> std::io::Result<()> {
-        // TODO: Burn record serialization
+    fn save(&self, path: &std::path::PathBuf) -> std::io::Result<()> {
+        use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
+        let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
+        recorder.record(self.model.clone().into_record(), path.clone())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
+        Ok(())
+    }
+}
+
+impl<B: AutodiffBackend> PipelineTrainCtx<B> {
+    pub fn load(&mut self, path: &std::path::PathBuf) -> std::io::Result<()> {
+        use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
+        let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
+        let record = recorder.load(path.clone(), &self.device)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e}")))?;
+        self.model = self.model.clone().load_record(record);
         Ok(())
     }
 }
