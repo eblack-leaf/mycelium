@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use septa::{Comparator, Intent, ValueRef};
 
 /// All node types in the grounded graph — each is a bilinear resolution target.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum QueryNode {
     Table(String),
     Field { table: String, name: String },
@@ -13,13 +14,14 @@ pub enum QueryNode {
     Span,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ModifierKind {
     OrderBy,
     Limit,
     Fetch,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryIr {
     pub intent: Intent,
     pub table: String,
@@ -30,11 +32,13 @@ pub struct QueryIr {
     pub modifiers: Vec<ResolvedModifier>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedField {
     pub table: String,
     pub field: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedCondition {
     pub table: String,
     pub field: String,
@@ -42,12 +46,14 @@ pub struct ResolvedCondition {
     pub value: ValueRef,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedAssignment {
     pub table: String,
     pub field: Option<String>, // None = expand slot object via schema types at render
     pub value: ValueRef,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResolvedModifier {
     OrderBy {
         table: String,

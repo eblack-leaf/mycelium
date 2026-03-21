@@ -2,6 +2,9 @@
 
 pub mod model;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Semantics {
     pub intent: IntentSpan,
     pub entity: EntitySpan,
@@ -18,6 +21,7 @@ impl Semantics {
 }
 
 /// Raw verb/phrase — GNN resolves to an Operation node.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntentSpan {
     pub text: String,
     pub start: usize,
@@ -25,6 +29,7 @@ pub struct IntentSpan {
 }
 
 /// Primary table reference (one per query). record_id holds the :id qualifier when present.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntitySpan {
     pub text: String,
     pub start: usize,
@@ -35,6 +40,7 @@ pub struct EntitySpan {
 /// Field to project in SELECT.
 /// fetch_index indexes into Semantics.modifiers when this field lives on a linked table;
 /// the NLP learns this binding from NL co-reference. None = field on primary table.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectionSpan {
     pub field_text: String,
     pub start: usize,
@@ -44,6 +50,7 @@ pub struct ProjectionSpan {
 
 /// Condition predicate. comparator_text is raw NL ("over", "less than", "equals") —
 /// GNN resolves it to a Comparator node.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConditionSpan {
     pub field_text: String,
     pub comparator_text: String,
@@ -54,6 +61,7 @@ pub struct ConditionSpan {
 
 /// Field=value write. field_text is None when the slot value is an object to be
 /// expanded field-by-field at render time using schema types.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssignmentSpan {
     pub field_text: Option<String>,
     pub value: ValueRef,
@@ -63,6 +71,7 @@ pub struct AssignmentSpan {
 
 /// Generic modifier span — GNN resolves the type (OrderBy/Limit/Fetch) via ModifierToType edges
 /// and the target field via multi-hop through ModifierToField schema edges.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifierSpan {
     pub text: String,                     // "order by", "fetch", "limit"
     pub argument: Option<String>,         // field text (for OrderBy/Fetch) or raw limit text
@@ -74,7 +83,7 @@ pub struct ModifierSpan {
 
 /// Value on the right-hand side of a condition or assignment.
 /// Kept opaque through NLP and GNN; substituted or normalised at render time.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValueRef {
     Literal(String),
     Slot(usize), // {1} → Slot(0),  {2} → Slot(1)  — deterministic pre-processing
@@ -83,7 +92,7 @@ pub enum ValueRef {
 
 /// Relative datetime expressions — normalised to SurrealQL at render time.
 /// e.g. LastWeek → time::now() - 7d,  Today → time::floor(time::now(), 1d)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TemporalExpr {
     Today,
     Yesterday,
@@ -94,7 +103,7 @@ pub enum TemporalExpr {
 }
 
 /// Resolved operation type — target for IntentSpan bilinear resolution.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Intent {
     Select,
     Create,
@@ -103,7 +112,7 @@ pub enum Intent {
 }
 
 /// Resolved comparator — target for ConditionSpan comparator bilinear resolution.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Comparator {
     Eq,
     Neq,

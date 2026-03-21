@@ -5,9 +5,11 @@ pub mod trainer;
 
 use hyphae::query::{ModifierKind, QueryNode};
 use hyphae::schema::{FieldType, Field, Schema, Table};
+use serde::{Deserialize, Serialize};
 use septa::*;
 
 /// A single labelled training example.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Datum {
     pub nl: String,
     pub surql: String,
@@ -21,7 +23,7 @@ pub struct Datum {
 }
 
 /// Which span vec in Semantics a label refers to.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SpanType {
     Intent,
     Entity,
@@ -31,6 +33,7 @@ pub enum SpanType {
     Modifier,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanLabel {
     pub span_type: SpanType,
     pub span_index: usize,   // index within that vec (0 for Intent/Entity since they're singular)
@@ -1097,5 +1100,94 @@ impl Datum {
         }
 
         data
+    }
+
+    pub fn print_stats(data: &[Datum]) {
+        println!("=== Dataset Statistics ===");
+        println!("Total datums: {}", data.len());
+
+        // Intent distribution
+        let mut intents: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for d in data {
+            let key = d.semantics.intent.text.split_whitespace().next().unwrap_or("?").to_string();
+            *intents.entry(key).or_default() += 1;
+        }
+        println!("\nIntent (first word):");
+        let mut intents: Vec<_> = intents.into_iter().collect();
+        intents.sort_by(|a, b| b.1.cmp(&a.1));
+        for (k, v) in &intents {
+            println!("  {:<20} {:>5} ({:.1}%)", k, v, *v as f32 / data.len() as f32 * 100.0);
+        }
+
+        // Span counts
+        let mut n_proj = 0usize;
+        let mut n_cond = 0usize;
+        let mut n_assign = 0usize;
+        let mut n_mod = 0usize;
+        for d in data {
+            n_proj += d.semantics.projections.len();
+            n_cond += d.semantics.conditions.len();
+            n_assign += d.semantics.assignments.len();
+            n_mod += d.semantics.modifiers.len();
+        }
+        println!("\nSpan totals:");
+        println!("  projections:  {} (avg {:.1}/datum)", n_proj, n_proj as f32 / data.len() as f32);
+        println!("  conditions:   {} (avg {:.1}/datum)", n_cond, n_cond as f32 / data.len() as f32);
+        println!("  assignments:  {} (avg {:.1}/datum)", n_assign, n_assign as f32 / data.len() as f32);
+        println!("  modifiers:    {} (avg {:.1}/datum)", n_mod, n_mod as f32 / data.len() as f32);
+
+        // Label distribution by head
+        let mut head_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for d in data {
+            for l in &d.labels {
+                let key = match (&l.span_type, &l.target) {
+                    (SpanType::Intent, _) => "intent",
+                    (SpanType::Entity, _) => "entity",
+                    (SpanType::Projection, _) => "projection",
+                    (SpanType::Condition, hyphae::query::QueryNode::Field { .. }) => "cond_field",
+                    (SpanType::Condition, hyphae::query::QueryNode::Comparator(_)) => "cond_cmp",
+                    (SpanType::Assignment, _) => "assignment",
+                    (SpanType::Modifier, hyphae::query::QueryNode::Modifier(_)) => "mod_type",
+                    (SpanType::Modifier, hyphae::query::QueryNode::Field { .. }) => "mod_field",
+                    _ => "other",
+                };
+                *head_counts.entry(key.to_string()).or_default() += 1;
+            }
+        }
+        println!("\nLabels by head:");
+        let mut head_counts: Vec<_> = head_counts.into_iter().collect();
+        head_counts.sort_by(|a, b| b.1.cmp(&a.1));
+        let total_labels: usize = head_counts.iter().map(|(_, v)| v).sum();
+        for (k, v) in &head_counts {
+            println!("  {:<15} {:>5} ({:.1}%)", k, v, *v as f32 / total_labels as f32 * 100.0);
+        }
+        println!("  total labels:  {}", total_labels);
+
+        // Token length distribution (whitespace tokens)
+        let lengths: Vec<usize> = data.iter().map(|d| d.nl.split_whitespace().count()).collect();
+        let mut sorted = lengths.clone();
+        sorted.sort();
+        let min = sorted[0];
+        let max = sorted[sorted.len() - 1];
+        let median = sorted[sorted.len() / 2];
+        let mean = sorted.iter().sum::<usize>() as f32 / sorted.len() as f32;
+        println!("\nToken lengths (whitespace):");
+        println!("  min={} max={} median={} mean={:.1}", min, max, median, mean);
+
+        // Histogram buckets
+        let buckets = [2, 4, 6, 8, 10, 12, 14, 16, 20, 30];
+        println!("  distribution:");
+        let mut prev = 0;
+        for &b in &buckets {
+            let count = sorted.iter().filter(|&&l| l > prev && l <= b).count();
+            if count > 0 {
+                println!("    {:>2}-{:<2} tokens: {:>5} ({:.1}%)", prev + 1, b, count, count as f32 / data.len() as f32 * 100.0);
+            }
+            prev = b;
+        }
+        let remainder = sorted.iter().filter(|&&l| l > prev).count();
+        if remainder > 0 {
+            println!("    {}>   tokens: {:>5} ({:.1}%)", prev, remainder, remainder as f32 / data.len() as f32 * 100.0);
+        }
     }
 }

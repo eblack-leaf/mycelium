@@ -7,3 +7,4 @@ edition = "2021"
 septa  = { path = "../septa" }
 regex  = "1"
 burn = { workspace = true }
+serde = { version = "1", features = ["derive"] }
