@@ -14,7 +14,7 @@ pub struct TrainerConfig {
     pub learning_rate: LearningRate,
     #[config(default = 10)]
     pub patience: usize,
-    #[config(default = 32)]
+    #[config(default = 64)]
     pub batch_size: usize,
 }
 
@@ -81,13 +81,8 @@ impl<M: Trainable> Trainer<M> {
         }
     }
 
-    pub fn train(&mut self, data: &[Datum]) -> TrainResult {
-        let mut indices: Vec<usize> = (0..data.len()).collect();
-        shuffle(&mut indices, 42);
-
-        let split = (indices.len() as f32 * 0.9) as usize;
-        let train_indices: Vec<usize> = indices[..split].to_vec();
-        let val_indices: Vec<usize> = indices[split..].to_vec();
+    pub fn train(&mut self, train_data: &[Datum], val_data: &[Datum]) -> TrainResult {
+        let mut train_indices: Vec<usize> = (0..train_data.len()).collect();
 
         let bar = ProgressBar::new(self.config.epochs as u64);
         bar.set_style(
@@ -109,8 +104,7 @@ impl<M: Trainable> Trainer<M> {
         let num_batches = (train_indices.len() + bs - 1) / bs;
 
         for epoch in 0..self.config.epochs {
-            let mut train_order = train_indices.clone();
-            shuffle(&mut train_order, epoch as u64);
+            shuffle(&mut train_indices, epoch as u64);
 
             let mut epoch_loss = 0.0f32;
             let mut epoch_datums = 0usize;
@@ -121,8 +115,8 @@ impl<M: Trainable> Trainer<M> {
                 ).unwrap().progress_chars("=> "),
             );
 
-            for chunk in train_order.chunks(bs) {
-                let batch: Vec<&Datum> = chunk.iter().map(|&i| &data[i]).collect();
+            for chunk in train_indices.chunks(bs) {
+                let batch: Vec<&Datum> = chunk.iter().map(|&i| &train_data[i]).collect();
                 let batch_loss = self.model.step_batch(&batch);
                 epoch_loss += batch_loss * batch.len() as f32;
                 epoch_datums += batch.len();
@@ -131,14 +125,14 @@ impl<M: Trainable> Trainer<M> {
             batch_bar.finish_and_clear();
 
             let train_loss = epoch_loss / epoch_datums as f32;
-            let val_data: Vec<&Datum> = val_indices.iter().map(|&i| &data[i]).collect();
-            let eval_bar = ProgressBar::new(((val_data.len() + 31) / 32) as u64);
+            let val_refs: Vec<&Datum> = val_data.iter().collect();
+            let eval_bar = ProgressBar::new(((val_refs.len() + 31) / 32) as u64);
             eval_bar.set_style(
                 ProgressStyle::with_template(
                     "  eval  [{bar:30.green/blue}] {pos}/{len} batch  {per_sec}  eta {eta}"
                 ).unwrap().progress_chars("=> "),
             );
-            let mut metrics = self.model.evaluate(&val_data, &eval_bar);
+            let mut metrics = self.model.evaluate(&val_refs, &eval_bar);
             eval_bar.finish_and_clear();
             metrics.train_loss = train_loss;
 
