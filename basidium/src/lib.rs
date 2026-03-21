@@ -1080,6 +1080,546 @@ fn gen_record_id(table: &Table, out: &mut Vec<Datum>) {
 }
 
 // =============================================================================
+// Combined generators — SELECT + projections + conditions/modifiers
+// =============================================================================
+
+/// "get the {f1} and {f2} from {table}s where {cf} {cmp} {val}"
+fn gen_select_proj_cond(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+    let name = &table.name;
+    let fields = non_record_fields(table);
+    if fields.len() < 2 { return; }
+
+    let intents = ["get the", "show me the", "find the", "pull the", "list the"];
+
+    // For each projection field × condition field (different fields)
+    for pf in &fields {
+        for cf in &fields {
+            if pf.name == cf.name { continue; }
+            let cmps = compatible_cmps(cf);
+            let cmp = &cmps[0];
+            let cmp_text = cmp_text_for(cmp, 0);
+            let (val_text, val_ref) = sample_value(cf);
+
+            for &intent_text in &intents {
+                let mut t = Tk::new();
+                let ir = t.push(intent_text);
+                t.sp();
+                let pr = t.push(&pf.name);
+                t.lit(&format!(" from {name}s where "));
+                let es = t.0.find(name).unwrap();
+                let ee = es + name.len();
+                let cs = t.0.len();
+                t.lit(&cf.name);
+                t.sp();
+                t.lit(cmp_text);
+                t.sp();
+                t.lit(val_text);
+                let ce = t.0.len();
+
+                out.push(Datum {
+                    nl: t.done(), surql: String::new(),
+                    semantics: Semantics {
+                        intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                        projections: vec![
+                            ProjectionSpan { field_text: pf.name.clone(), start: pr.0, end: pr.1, fetch_index: None },
+                        ],
+                        conditions: vec![
+                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce },
+                        ],
+                        assignments: vec![], modifiers: vec![],
+                    },
+                    labels: vec![
+                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                        SpanLabel { span_type: SpanType::Projection, span_index: 0, target: QueryNode::Field { table: name.clone(), name: pf.name.clone() } },
+                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cf.name.clone() } },
+                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
+                    ],
+                    ir: None,
+                });
+            }
+        }
+    }
+
+    // Two projections + condition: "get {f1} and {f2} from {table}s where {cf} {cmp} {val}"
+    for i in 0..fields.len().min(5) {
+        for j in (i+1)..fields.len().min(6) {
+            for cf in &fields {
+                if cf.name == fields[i].name || cf.name == fields[j].name { continue; }
+                let cmp = &compatible_cmps(cf)[0];
+                let cmp_text = cmp_text_for(cmp, 0);
+                let (val_text, val_ref) = sample_value(cf);
+
+                let mut t = Tk::new();
+                let ir = t.push("get the");
+                t.sp();
+                let p1r = t.push(&fields[i].name);
+                t.lit(" and ");
+                let p2r = t.push(&fields[j].name);
+                t.lit(&format!(" from {name}s where "));
+                let es = t.0.find(name).unwrap();
+                let ee = es + name.len();
+                let cs = t.0.len();
+                t.lit(&cf.name);
+                t.sp();
+                t.lit(cmp_text);
+                t.sp();
+                t.lit(val_text);
+                let ce = t.0.len();
+
+                out.push(Datum {
+                    nl: t.done(), surql: String::new(),
+                    semantics: Semantics {
+                        intent: IntentSpan { text: "get the".into(), start: ir.0, end: ir.1 },
+                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                        projections: vec![
+                            ProjectionSpan { field_text: fields[i].name.clone(), start: p1r.0, end: p1r.1, fetch_index: None },
+                            ProjectionSpan { field_text: fields[j].name.clone(), start: p2r.0, end: p2r.1, fetch_index: None },
+                        ],
+                        conditions: vec![
+                            ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: val_ref.clone(), start: cs, end: ce },
+                        ],
+                        assignments: vec![], modifiers: vec![],
+                    },
+                    labels: vec![
+                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                        SpanLabel { span_type: SpanType::Projection, span_index: 0, target: QueryNode::Field { table: name.clone(), name: fields[i].name.clone() } },
+                        SpanLabel { span_type: SpanType::Projection, span_index: 1, target: QueryNode::Field { table: name.clone(), name: fields[j].name.clone() } },
+                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cf.name.clone() } },
+                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
+                    ],
+                    ir: None,
+                });
+            }
+        }
+    }
+}
+
+/// "get {f1} from {table}s order by {f2}" — projections + modifiers
+fn gen_select_proj_modifier(table: &Table, out: &mut Vec<Datum>) {
+    let name = &table.name;
+    let fields = non_record_fields(table);
+    if fields.len() < 2 { return; }
+
+    let combos: &[(&str, &str)] = &[
+        ("get the", "order by"),
+        ("show me the", "sorted by"),
+        ("list the", "order by"),
+        ("find the", "sort on"),
+    ];
+
+    for pf in &fields {
+        for of in &fields {
+            if pf.name == of.name { continue; }
+
+            for &(intent_text, order_phrase) in combos {
+                let mut t = Tk::new();
+                let ir = t.push(intent_text);
+                t.sp();
+                let pr = t.push(&pf.name);
+                t.lit(&format!(" from {name}s "));
+                let es = t.0.find(name).unwrap();
+                let ee = es + name.len();
+                let mr = t.push(order_phrase);
+                t.sp();
+                t.lit(&of.name);
+
+                out.push(Datum {
+                    nl: t.done(), surql: String::new(),
+                    semantics: Semantics {
+                        intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                        projections: vec![
+                            ProjectionSpan { field_text: pf.name.clone(), start: pr.0, end: pr.1, fetch_index: None },
+                        ],
+                        conditions: vec![], assignments: vec![],
+                        modifiers: vec![
+                            ModifierSpan { text: order_phrase.into(), argument: Some(of.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1 },
+                        ],
+                    },
+                    labels: vec![
+                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                        SpanLabel { span_type: SpanType::Projection, span_index: 0, target: QueryNode::Field { table: name.clone(), name: pf.name.clone() } },
+                        SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Modifier(ModifierKind::OrderBy) },
+                        SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Field { table: name.clone(), name: of.name.clone() } },
+                    ],
+                    ir: None,
+                });
+            }
+        }
+    }
+}
+
+/// Multi-field CREATE with all field pairs (not just first 2)
+fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
+    let name = &table.name;
+    let fields = non_record_fields(table);
+    if fields.len() < 2 { return; }
+
+    let patterns: &[(&str, &str)] = &[
+        ("create a", "set to"),
+        ("add a new", "="),
+        ("make a", "as"),
+        ("insert a", "set to"),
+    ];
+
+    for i in 0..fields.len() {
+        for j in (i+1)..fields.len() {
+            let f1 = &fields[i];
+            let f2 = &fields[j];
+            let (v1_text, v1_ref) = sample_value(f1);
+            let (v2_text, v2_ref) = sample_value(f2);
+
+            for &(intent_text, setter) in patterns {
+                let mut t = Tk::new();
+                let ir = t.push(intent_text);
+                t.sp();
+                let es = t.0.len();
+                t.lit(name);
+                let ee = t.0.len();
+                t.lit(" with ");
+                let a1s = t.0.len();
+                t.lit(&f1.name);
+                t.sp();
+                t.lit(setter);
+                t.sp();
+                t.lit(v1_text);
+                let a1e = t.0.len();
+                t.lit(" and ");
+                let a2s = t.0.len();
+                t.lit(&f2.name);
+                t.sp();
+                t.lit(setter);
+                t.sp();
+                t.lit(v2_text);
+                let a2e = t.0.len();
+
+                out.push(Datum {
+                    nl: t.done(), surql: String::new(),
+                    semantics: Semantics {
+                        intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                        projections: vec![], conditions: vec![],
+                        assignments: vec![
+                            AssignmentSpan { field_text: Some(f1.name.clone()), value: v1_ref.clone(), start: a1s, end: a1e },
+                            AssignmentSpan { field_text: Some(f2.name.clone()), value: v2_ref.clone(), start: a2s, end: a2e },
+                        ],
+                        modifiers: vec![],
+                    },
+                    labels: vec![
+                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Create) },
+                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                        SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: f1.name.clone() } },
+                        SpanLabel { span_type: SpanType::Assignment, span_index: 1, target: QueryNode::Field { table: name.clone(), name: f2.name.clone() } },
+                    ],
+                    ir: None,
+                });
+            }
+        }
+    }
+
+    // Triple-field creates: sliding windows of 3
+    if fields.len() >= 3 {
+        for w in fields.windows(3) {
+            let (v0_text, v0_ref) = sample_value(&w[0]);
+            let (v1_text, v1_ref) = sample_value(&w[1]);
+            let (v2_text, v2_ref) = sample_value(&w[2]);
+
+            for &intent_text in &["create a", "add a new"] {
+                let mut t = Tk::new();
+                let ir = t.push(intent_text);
+                t.sp();
+                let es = t.0.len();
+                t.lit(name);
+                let ee = t.0.len();
+                t.lit(" with ");
+                let a0s = t.0.len();
+                t.lit(&w[0].name); t.lit(" set to "); t.lit(v0_text);
+                let a0e = t.0.len();
+                t.lit(", ");
+                let a1s = t.0.len();
+                t.lit(&w[1].name); t.lit(" set to "); t.lit(v1_text);
+                let a1e = t.0.len();
+                t.lit(" and ");
+                let a2s = t.0.len();
+                t.lit(&w[2].name); t.lit(" set to "); t.lit(v2_text);
+                let a2e = t.0.len();
+
+                out.push(Datum {
+                    nl: t.done(), surql: String::new(),
+                    semantics: Semantics {
+                        intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                        projections: vec![], conditions: vec![],
+                        assignments: vec![
+                            AssignmentSpan { field_text: Some(w[0].name.clone()), value: v0_ref.clone(), start: a0s, end: a0e },
+                            AssignmentSpan { field_text: Some(w[1].name.clone()), value: v1_ref.clone(), start: a1s, end: a1e },
+                            AssignmentSpan { field_text: Some(w[2].name.clone()), value: v2_ref.clone(), start: a2s, end: a2e },
+                        ],
+                        modifiers: vec![],
+                    },
+                    labels: vec![
+                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Create) },
+                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                        SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: w[0].name.clone() } },
+                        SpanLabel { span_type: SpanType::Assignment, span_index: 1, target: QueryNode::Field { table: name.clone(), name: w[1].name.clone() } },
+                        SpanLabel { span_type: SpanType::Assignment, span_index: 2, target: QueryNode::Field { table: name.clone(), name: w[2].name.clone() } },
+                    ],
+                    ir: None,
+                });
+            }
+        }
+    }
+}
+
+/// More modifier phrasings: OrderBy with all fields × more variety, dual modifiers
+fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
+    let name = &table.name;
+    let fields = non_record_fields(table);
+
+    // OrderBy with desc/asc variations for all fields
+    let order_combos: &[(&str, &str, Option<bool>)] = &[
+        ("get", "order by", None),
+        ("show", "sorted by", None),
+        ("list", "sort on", None),
+        ("find", "order by", Some(true)),
+        ("get", "sorted by", Some(true)),
+        ("show", "order by", Some(false)),
+        ("get", "in order of", None),
+        ("list", "arranged by", None),
+    ];
+
+    for field in &fields {
+        for &(intent_text, order_phrase, desc) in order_combos {
+            let mut t = Tk::new();
+            let ir = t.push(intent_text);
+            t.sp();
+            let es = t.0.len();
+            t.lit(name); t.lit("s");
+            let ee = es + name.len();
+            t.sp();
+            let mr = t.push(order_phrase);
+            t.sp();
+            t.lit(&field.name);
+            if desc == Some(true) { t.lit(" desc"); }
+            if desc == Some(false) { t.lit(" asc"); }
+
+            out.push(Datum {
+                nl: t.done(), surql: String::new(),
+                semantics: Semantics {
+                    intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                    entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                    projections: vec![], conditions: vec![], assignments: vec![],
+                    modifiers: vec![
+                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: desc, start: mr.0, end: mr.1 },
+                    ],
+                },
+                labels: vec![
+                    SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                    SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Modifier(ModifierKind::OrderBy) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Field { table: name.clone(), name: field.name.clone() } },
+                ],
+                ir: None,
+            });
+        }
+    }
+
+    // OrderBy + Limit combined: "get {table}s order by {field} limit 10"
+    for field in &fields {
+        for &(intent_text, order_phrase, limit_text) in &[
+            ("get", "order by", "limit 10"),
+            ("show", "sorted by", "top 5"),
+            ("list", "order by", "only 20"),
+        ] {
+            let mut t = Tk::new();
+            let ir = t.push(intent_text);
+            t.sp();
+            let es = t.0.len();
+            t.lit(name); t.lit("s ");
+            let ee = es + name.len();
+            let mr1 = t.push(order_phrase);
+            t.sp();
+            t.lit(&field.name);
+            t.sp();
+            let mr2 = t.push(limit_text);
+
+            out.push(Datum {
+                nl: t.done(), surql: String::new(),
+                semantics: Semantics {
+                    intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                    entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                    projections: vec![], conditions: vec![], assignments: vec![],
+                    modifiers: vec![
+                        ModifierSpan { text: order_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr1.0, end: mr1.1 },
+                        ModifierSpan { text: limit_text.into(), argument: None, argument_value: Some(ValueRef::Literal("10".into())), descending: None, start: mr2.0, end: mr2.1 },
+                    ],
+                },
+                labels: vec![
+                    SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                    SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Modifier(ModifierKind::OrderBy) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Field { table: name.clone(), name: field.name.clone() } },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 1, target: QueryNode::Modifier(ModifierKind::Limit) },
+                ],
+                ir: None,
+            });
+        }
+    }
+
+    // Fetch with more phrasings
+    let rec_fields = record_fields(table);
+    for field in &rec_fields {
+        for &(intent_text, fetch_phrase) in &[
+            ("get", "and fetch"),
+            ("show", "with"),
+            ("list", "and include"),
+            ("get", "along with"),
+            ("show", "and expand"),
+            ("find", "fetch"),
+        ] {
+            let mut t = Tk::new();
+            let ir = t.push(intent_text);
+            t.sp();
+            let es = t.0.len();
+            t.lit(name); t.lit("s ");
+            let ee = es + name.len();
+            let mr = t.push(fetch_phrase);
+            t.sp();
+            t.lit(&field.name);
+
+            out.push(Datum {
+                nl: t.done(), surql: String::new(),
+                semantics: Semantics {
+                    intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                    entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                    projections: vec![], conditions: vec![], assignments: vec![],
+                    modifiers: vec![
+                        ModifierSpan { text: fetch_phrase.into(), argument: Some(field.name.clone()), argument_value: None, descending: None, start: mr.0, end: mr.1 },
+                    ],
+                },
+                labels: vec![
+                    SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Select) },
+                    SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Modifier(ModifierKind::Fetch) },
+                    SpanLabel { span_type: SpanType::Modifier, span_index: 0, target: QueryNode::Field { table: name.clone(), name: field.name.clone() } },
+                ],
+                ir: None,
+            });
+        }
+    }
+}
+
+/// UPDATE with more phrasing variety and multi-field updates
+fn gen_update_expanded(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
+    let name = &table.name;
+    let fields = non_record_fields(table);
+    if fields.len() < 2 { return; }
+
+    // "change" pattern with reversed order: "change {f} to {v} on {table}s where ..."
+    for (i, af) in fields.iter().enumerate() {
+        for (j, cf) in fields.iter().enumerate() {
+            if i == j { continue; }
+            let (a_val, a_ref) = sample_value(af);
+            let (c_val, c_ref) = sample_value(cf);
+            let cmp = &compatible_cmps(cf)[0];
+            let cmp_text = cmp_text_for(cmp, 0);
+
+            let mut t = Tk::new();
+            let ir = t.push("change");
+            t.sp();
+            let as_ = t.0.len();
+            t.lit(&af.name); t.lit(" to "); t.lit(a_val);
+            let ae = t.0.len();
+            t.lit(" on ");
+            let es = t.0.len();
+            t.lit(name); t.lit("s");
+            let ee = es + name.len();
+            t.lit(" where ");
+            let cs = t.0.len();
+            t.lit(&cf.name); t.sp(); t.lit(cmp_text); t.sp(); t.lit(c_val);
+            let ce = t.0.len();
+
+            out.push(Datum {
+                nl: t.done(), surql: String::new(),
+                semantics: Semantics {
+                    intent: IntentSpan { text: "change".into(), start: ir.0, end: ir.1 },
+                    entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                    projections: vec![],
+                    conditions: vec![
+                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce },
+                    ],
+                    assignments: vec![
+                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae },
+                    ],
+                    modifiers: vec![],
+                },
+                labels: vec![
+                    SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Update) },
+                    SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                    SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: af.name.clone() } },
+                    SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cf.name.clone() } },
+                    SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
+                ],
+                ir: None,
+            });
+        }
+    }
+
+    // "for {table}s with {cond}, set {f} to {v}" — yet another word order
+    for af in &fields {
+        if let Some(cf) = fields.iter().find(|f| f.name != af.name) {
+            let (a_val, a_ref) = sample_value(af);
+            let (c_val, c_ref) = sample_value(cf);
+            let cmp = &compatible_cmps(cf)[0];
+            let cmp_text = cmp_text_for(cmp, 0);
+
+            let mut t = Tk::new();
+            let ir = t.push("for");
+            t.sp();
+            let es = t.0.len();
+            t.lit(name); t.lit("s");
+            let ee = es + name.len();
+            t.lit(" with ");
+            let cs = t.0.len();
+            t.lit(&cf.name); t.sp(); t.lit(cmp_text); t.sp(); t.lit(c_val);
+            let ce = t.0.len();
+            t.lit(", set ");
+            let as_ = t.0.len();
+            t.lit(&af.name); t.lit(" to "); t.lit(a_val);
+            let ae = t.0.len();
+
+            out.push(Datum {
+                nl: t.done(), surql: String::new(),
+                semantics: Semantics {
+                    intent: IntentSpan { text: "for".into(), start: ir.0, end: ir.1 },
+                    entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                    projections: vec![],
+                    conditions: vec![
+                        ConditionSpan { field_text: cf.name.clone(), comparator_text: cmp_text.into(), value: c_ref, start: cs, end: ce },
+                    ],
+                    assignments: vec![
+                        AssignmentSpan { field_text: Some(af.name.clone()), value: a_ref, start: as_, end: ae },
+                    ],
+                    modifiers: vec![],
+                },
+                labels: vec![
+                    SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Update) },
+                    SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                    SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: af.name.clone() } },
+                    SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cf.name.clone() } },
+                    SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
+                ],
+                ir: None,
+            });
+        }
+    }
+}
+
+// =============================================================================
 // Top-level generation
 // =============================================================================
 
@@ -1093,10 +1633,15 @@ impl Datum {
             gen_select_projections(table, &mut data);
             gen_select_conditions(table, &cmp_pool, &mut data);
             gen_select_with_modifiers(table, &cmp_pool, &mut data);
+            gen_select_proj_cond(table, &cmp_pool, &mut data);
+            gen_select_proj_modifier(table, &mut data);
             gen_create(table, &mut data);
+            gen_create_multi(table, &mut data);
             gen_update(table, &cmp_pool, &mut data);
+            gen_update_expanded(table, &cmp_pool, &mut data);
             gen_delete(table, &cmp_pool, &mut data);
             gen_record_id(table, &mut data);
+            gen_more_modifiers(table, &mut data);
         }
 
         data
@@ -1106,17 +1651,20 @@ impl Datum {
         println!("=== Dataset Statistics ===");
         println!("Total datums: {}", data.len());
 
-        // Intent distribution
+        // Intent distribution — group by target Operation label
         let mut intents: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         for d in data {
-            let key = d.semantics.intent.text.split_whitespace().next().unwrap_or("?").to_string();
-            *intents.entry(key).or_default() += 1;
+            let op = d.labels.iter()
+                .find(|l| l.span_type == SpanType::Intent)
+                .map(|l| format!("{:?}", l.target))
+                .unwrap_or_else(|| "?".into());
+            *intents.entry(op).or_default() += 1;
         }
-        println!("\nIntent (first word):");
+        println!("\nIntent (by target):");
         let mut intents: Vec<_> = intents.into_iter().collect();
         intents.sort_by(|a, b| b.1.cmp(&a.1));
         for (k, v) in &intents {
-            println!("  {:<20} {:>5} ({:.1}%)", k, v, *v as f32 / data.len() as f32 * 100.0);
+            println!("  {:<30} {:>5} ({:.1}%)", k, v, *v as f32 / data.len() as f32 * 100.0);
         }
 
         // Span counts
