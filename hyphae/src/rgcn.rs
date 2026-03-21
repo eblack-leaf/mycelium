@@ -23,6 +23,7 @@ pub enum EdgeType {
     EntityToSpan,      // entity span → field-resolving spans (table context broadcast)
     SpanToTable,       // field-resolving spans → all table nodes (bridge to field subgraph)
     ProjectionToFetch, // ProjectionSpan → ModifierSpan (co-reference)
+    FieldToSpan,       // Field → field-resolving span (direct candidate info)
 }
 
 impl EdgeType {
@@ -35,6 +36,7 @@ impl EdgeType {
             EdgeType::EntityToSpan,
             EdgeType::SpanToTable,
             EdgeType::ProjectionToFetch,
+            EdgeType::FieldToSpan,
         ]
     }
 }

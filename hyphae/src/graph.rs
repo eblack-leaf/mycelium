@@ -178,13 +178,18 @@ impl SchemaGraph {
         let entity_resolution = Resolution { span_index: entity_idx, candidates: table_indices.clone() };
 
         // Wire a field-resolving span: EntityToSpan (receive table context)
-        // + SpanToTable (bridge to field subgraph via HasField).
+        // + SpanToTable (bridge to field subgraph via HasField)
+        // + FieldToSpan (each candidate field sends its embedding to the span).
         fn wire_field_span(
-            edges: &mut TypedEdges, entity_idx: usize, idx: usize, table_indices: &[usize],
+            edges: &mut TypedEdges, entity_idx: usize, idx: usize,
+            table_indices: &[usize], field_indices: &[usize],
         ) {
             edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
             for &t in table_indices {
                 edges.get_mut(&EdgeType::SpanToTable).unwrap().push(Edge { src: idx, dst: t });
+            }
+            for &f in field_indices {
+                edges.get_mut(&EdgeType::FieldToSpan).unwrap().push(Edge { src: f, dst: idx });
             }
         }
 
@@ -193,7 +198,7 @@ impl SchemaGraph {
         for _proj in &semantics.projections {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
-            wire_field_span(&mut edges, entity_idx, idx, &table_indices);
+            wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
             proj_span_indices.push(idx);
             projection_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
         }
@@ -207,7 +212,7 @@ impl SchemaGraph {
             mod_span_indices.push(idx);
             modifier_type_resolutions.push(Resolution { span_index: idx, candidates: mod_indices.clone() });
             if modifier.argument.is_some() {
-                wire_field_span(&mut edges, entity_idx, idx, &table_indices);
+                wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
                 modifier_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
@@ -228,7 +233,7 @@ impl SchemaGraph {
         for _cond in &semantics.conditions {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
-            wire_field_span(&mut edges, entity_idx, idx, &table_indices);
+            wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
             condition_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             condition_cmp_resolutions.push(Resolution   { span_index: idx, candidates: cmp_indices.clone() });
         }
@@ -238,7 +243,7 @@ impl SchemaGraph {
             let idx = nodes.len();
             nodes.push(QueryNode::Span);
             if assign.field_text.is_some() {
-                wire_field_span(&mut edges, entity_idx, idx, &table_indices);
+                wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
                 assignment_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
