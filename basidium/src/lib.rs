@@ -1,5 +1,6 @@
 // basidium — synthetic training data generation for the mycelium domain
 
+pub mod eval;
 pub mod trainable;
 pub mod trainer;
 
@@ -64,12 +65,12 @@ impl Tk {
 
 fn comparator_texts() -> Vec<(Comparator, Vec<&'static str>)> {
     vec![
-        (Comparator::Eq,       vec!["equals", "is", "is equal to", "matches"]),
-        (Comparator::Neq,      vec!["is not", "does not equal", "differs from"]),
-        (Comparator::Gt,       vec!["is greater than", "is more than", "exceeds", "is above"]),
-        (Comparator::Gte,      vec!["is at least", "is no less than"]),
-        (Comparator::Lt,       vec!["is less than", "is under", "is below"]),
-        (Comparator::Lte,      vec!["is at most", "is no more than"]),
+        (Comparator::Eq,       vec!["equals", "is", "is equal to", "matches", "is exactly"]),
+        (Comparator::Neq,      vec!["is not", "does not equal", "differs from", "isn't"]),
+        (Comparator::Gt,       vec!["is greater than", "is more than", "exceeds", "is above", "is over"]),
+        (Comparator::Gte,      vec!["is at least", "is no less than", "is greater than or equal to"]),
+        (Comparator::Lt,       vec!["is less than", "is under", "is below", "is fewer than"]),
+        (Comparator::Lte,      vec!["is at most", "is no more than", "does not exceed"]),
         (Comparator::Contains, vec!["contains", "includes", "has"]),
     ]
 }
@@ -137,6 +138,15 @@ fn gen_select_all(table: &Table, out: &mut Vec<Datum>) {
         ("grab every", ""),
         ("can you show", " records"),
         ("show", "s"),
+        ("i'd like to see all", "s"),
+        ("could you pull up the", " list"),
+        ("let me browse the", "s"),
+        ("need a dump of all", "s"),
+        ("go ahead and list all", "s"),
+        ("retrieve all", "s"),
+        ("fetch all", "s"),
+        ("look up all", "s"),
+        ("just give me every", ""),
     ];
 
     for &(intent_text, suffix) in patterns {
@@ -169,6 +179,10 @@ fn gen_select_all(table: &Table, out: &mut Vec<Datum>) {
         ("what", "s are there"),
         ("how about the", "s"),
         ("any", "s available"),
+        ("what", "s do we currently have"),
+        ("what are all the", "s"),
+        ("everything in", "s"),
+        ("yo show me the", " table"),
     ] {
         let mut t = Tk::new();
         let ir = t.push(prefix);
@@ -239,7 +253,9 @@ fn gen_select_projections(table: &Table, out: &mut Vec<Datum>) {
         });
     };
 
-    let intents = ["get the", "show me", "pull", "list", "i want the", "show"];
+    let intents = ["get the", "show me", "pull", "list", "i want the", "show",
+                    "what's the", "give me the", "can i get the", "return", "let me see",
+                    "only grab the", "i only need the", "show me just the"];
     let seps = [" and ", ", ", " ", ", "];
 
     // Singles: each field × each phrasing
@@ -292,6 +308,16 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
                     ("get", "s that have"),
                     ("which", "s have"),
                     ("look up", "s whose"),
+                    ("search for", "s with"),
+                    ("look for", "s whose"),
+                    ("retrieve", "s where"),
+                    ("only show", "s where"),
+                    ("i want", "s where"),
+                    ("give me", "s where"),
+                    ("grab", "s where"),
+                    ("fetch", "s whose"),
+                    ("i need", "s where"),
+                    ("show me", "s where the"),
                 ];
 
                 for &(intent_text, connector) in patterns {
@@ -355,6 +381,12 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
             ("show", "sorted by", None),
             ("list", "order by", Some(true)),
             ("get", "sort on", None),
+            ("show me", "ordered by", None),
+            ("pull up", "sorted by", Some(true)),
+            ("give me", "in order of", None),
+            ("i need", "sorted by", None),
+            ("list", "sort on", None),
+            ("get", "ordered by", None),
         ] {
             let mut t = Tk::new();
             let ir = t.push(intent_text);
@@ -638,6 +670,11 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
             ("make a", "with", "as"),
             ("insert a", "with", "set to"),
             ("new", ":", ""),
+            ("register a new", "with", "set to"),
+            ("spin up a", "with", ""),
+            ("write a new", "with", "set to"),
+            ("please create a", "with", "set to"),
+            ("add a", "with", ""),
         ];
 
         for &(intent_text, connector, setter) in patterns {
@@ -776,10 +813,14 @@ fn gen_create(table: &Table, out: &mut Vec<Datum>) {
     }
 }
 
-fn gen_update(table: &Table, out: &mut Vec<Datum>) {
+fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
     if fields.len() < 2 { return; }
+
+    let patterns: &[&str] = &[
+        "update", "change", "modify", "set", "please update", "edit",
+    ];
 
     // For each pair (assign_field, cond_field) where they differ
     for (i, assign_field) in fields.iter().enumerate() {
@@ -788,71 +829,68 @@ fn gen_update(table: &Table, out: &mut Vec<Datum>) {
             let (a_val_text, a_val_ref) = sample_value(assign_field);
             let (c_val_text, c_val_ref) = sample_value(cond_field);
             let cmps = compatible_cmps(cond_field);
-            let cmp = &cmps[0];
-            let cmp_text = cmp_text_for(cmp, 0);
 
-            let patterns: &[(&str, bool)] = &[
-                ("update", false),    // "update {table}s set {f} to {v} where {f2} {cmp} {v2}"
-                ("change", false),    // "change {f} to {v} on {table}s where ..."
-                ("modify", false),    // "modify {table}s set {f} to {v} where ..."
-            ];
+            for cmp in &cmps {
+                let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
+                for &cmp_text in texts {
+                    for &intent_text in patterns {
+                        let mut t = Tk::new();
+                        let ir = t.push(intent_text);
+                        t.sp();
+                        let es = t.0.len();
+                        t.lit(name);
+                        t.lit("s");
+                        let ee = es + name.len();
+                        t.lit(" set ");
+                        let as_ = t.0.len();
+                        t.lit(&assign_field.name);
+                        t.lit(" to ");
+                        t.lit(a_val_text);
+                        let ae = t.0.len();
+                        t.lit(" where ");
+                        let cs = t.0.len();
+                        t.lit(&cond_field.name);
+                        t.sp();
+                        t.lit(cmp_text);
+                        t.sp();
+                        t.lit(c_val_text);
+                        let ce = t.0.len();
 
-            for &(intent_text, _reversed) in patterns {
-                let mut t = Tk::new();
-                let ir = t.push(intent_text);
-                t.sp();
-                let es = t.0.len();
-                t.lit(name);
-                t.lit("s");
-                let ee = es + name.len();
-                t.lit(" set ");
-                let as_ = t.0.len();
-                t.lit(&assign_field.name);
-                t.lit(" to ");
-                t.lit(a_val_text);
-                let ae = t.0.len();
-                t.lit(" where ");
-                let cs = t.0.len();
-                t.lit(&cond_field.name);
-                t.sp();
-                t.lit(cmp_text);
-                t.sp();
-                t.lit(c_val_text);
-                let ce = t.0.len();
-
-                out.push(Datum {
-                    nl: t.done(),
-                    surql: String::new(),
-                    semantics: Semantics {
-                        intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
-                        entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
-                        projections: vec![],
-                        conditions: vec![
-                            ConditionSpan {
-                                field_text: cond_field.name.clone(),
-                                comparator_text: cmp_text.into(),
-                                value: c_val_ref.clone(),
-                                start: cs, end: ce,
+                        out.push(Datum {
+                            nl: t.done(),
+                            surql: String::new(),
+                            semantics: Semantics {
+                                intent: IntentSpan { text: intent_text.into(), start: ir.0, end: ir.1 },
+                                entity: EntitySpan { text: name.clone(), start: es, end: ee, record_id: None },
+                                projections: vec![],
+                                conditions: vec![
+                                    ConditionSpan {
+                                        field_text: cond_field.name.clone(),
+                                        comparator_text: cmp_text.into(),
+                                        value: c_val_ref.clone(),
+                                        start: cs, end: ce,
+                                    },
+                                ],
+                                assignments: vec![
+                                    AssignmentSpan {
+                                        field_text: Some(assign_field.name.clone()),
+                                        value: a_val_ref.clone(),
+                                        start: as_, end: ae,
+                                    },
+                                ],
+                                modifiers: vec![],
                             },
-                        ],
-                        assignments: vec![
-                            AssignmentSpan {
-                                field_text: Some(assign_field.name.clone()),
-                                value: a_val_ref.clone(),
-                                start: as_, end: ae,
-                            },
-                        ],
-                        modifiers: vec![],
-                    },
-                    labels: vec![
-                        SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Update) },
-                        SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
-                        SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: assign_field.name.clone() } },
-                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cond_field.name.clone() } },
-                        SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
-                    ],
-                    ir: None,
-                });
+                            labels: vec![
+                                SpanLabel { span_type: SpanType::Intent, span_index: 0, target: QueryNode::Operation(Intent::Update) },
+                                SpanLabel { span_type: SpanType::Entity, span_index: 0, target: QueryNode::Table(name.clone()) },
+                                SpanLabel { span_type: SpanType::Assignment, span_index: 0, target: QueryNode::Field { table: name.clone(), name: assign_field.name.clone() } },
+                                SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Field { table: name.clone(), name: cond_field.name.clone() } },
+                                SpanLabel { span_type: SpanType::Condition, span_index: 0, target: QueryNode::Comparator(cmp.clone()) },
+                            ],
+                            ir: None,
+                        });
+                    }
+                }
             }
         }
     }
@@ -867,16 +905,21 @@ fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
 
         for cmp in &cmps {
             let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
-            // Use first text variant for each comparator (conditions generator covers all variants)
-            let cmp_text = texts[0];
 
             let patterns: &[(&str, &str)] = &[
                 ("delete", "s where"),
                 ("remove", "s that have"),
                 ("get rid of", "s where"),
                 ("drop any", " with"),
+                ("purge", "s where"),
+                ("wipe", "s where"),
+                ("nuke", "s where"),
+                ("clear out", "s where"),
+                ("destroy all", "s where"),
+                ("trash", "s where"),
             ];
 
+            for &cmp_text in texts {
             for &(intent_text, connector) in patterns {
                 let mut t = Tk::new();
                 let ir = t.push(intent_text);
@@ -919,6 +962,7 @@ fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                     ir: None,
                 });
             }
+            }
         }
     }
 }
@@ -947,6 +991,10 @@ fn gen_record_id(table: &Table, out: &mut Vec<Datum>) {
             ("look up", " "),
             ("show", " the "),
             ("pull up", " "),
+            ("get me", " "),
+            ("open", " "),
+            ("i need", " "),
+            ("fetch", " "),
         ] {
             let mut t = Tk::new();
             let ir = t.push(intent_text);
@@ -1637,7 +1685,7 @@ impl Datum {
             gen_select_proj_modifier(table, &mut data);
             gen_create(table, &mut data);
             gen_create_multi(table, &mut data);
-            gen_update(table, &mut data);
+            gen_update(table, &cmp_pool, &mut data);
             gen_update_expanded(table, &mut data);
             gen_delete(table, &cmp_pool, &mut data);
             gen_record_id(table, &mut data);
@@ -1645,6 +1693,12 @@ impl Datum {
         }
 
         data
+    }
+
+    /// Hand-crafted evaluation set — natural phrasing not seen in training templates.
+    /// Each datum is individually written with varied grammar, contractions, and word order.
+    pub fn generate_eval() -> Vec<Datum> {
+        eval::build_eval_set()
     }
 
     pub fn print_stats(data: &[Datum]) {

@@ -22,9 +22,10 @@ fn main() {
         "stats" => cmd_stats(),
         "train" => cmd_train(),
         "infer" => cmd_infer(),
+        "eval" => cmd_eval(),
         other => {
             eprintln!("unknown command: {other}");
-            eprintln!("usage: basidium <generate|stats|train|infer>");
+            eprintln!("usage: basidium <generate|stats|train|infer|eval>");
             std::process::exit(1);
         }
     }
@@ -178,6 +179,65 @@ fn cmd_infer() {
 
     println!("\n=== Inference Results ===");
     println!("{correct}/{total} datums fully correct ({:.1}%)", correct as f32 / total as f32 * 100.0);
+}
+
+fn cmd_eval() {
+    let eval_data = Datum::generate_eval();
+
+    let device = WgpuDevice::default();
+    let schema = Schema::from_dir(Path::new(SCHEMA_DIR)).unwrap();
+    let hyphae_config = HyphaeConfig::new();
+    let septa_config = SeptaConfig::new(12);
+    let schema_graph = SchemaGraph::new(schema, hyphae_config.ngram_buckets);
+
+    let hyphae = hyphae::model::Hyphae::<InferB>::new(&hyphae_config, &device);
+    let septa = septa::model::Septa::<InferB>::new(&septa_config, &device);
+    let mut model = Basidium { septa, hyphae };
+
+    let weights_path = Path::new("weights/basidium/best.bin");
+    if !weights_path.exists() {
+        eprintln!("No weights found at {}", weights_path.display());
+        eprintln!("Run `basidium train` first");
+        std::process::exit(1);
+    }
+
+    {
+        use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
+        let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
+        let record = recorder.load(weights_path.to_path_buf(), &device).unwrap();
+        model = model.load_record(record);
+    }
+    println!("Loaded weights from {}\n", weights_path.display());
+
+    let mut correct = 0usize;
+    let mut total = 0usize;
+
+    for datum in &eval_data {
+        let hiddens = model.septa.forward_with_spans(
+            &datum.nl, &datum.semantics, septa_config.vocab_size, &device,
+        );
+        let grounded = schema_graph.inject(&datum.semantics);
+        let logits = model.hyphae.forward(&grounded, &hiddens, &device);
+        let ir = hyphae::model::Hyphae::<InferB>::resolve(&logits, &grounded, &datum.semantics);
+        let query = ir.render(&[]);
+
+        let matches = check_predictions(&ir, &datum.labels, &grounded.nodes);
+
+        println!("---");
+        println!("  NL:    {}", datum.nl);
+        println!("  SurQL: {}", query.surql);
+        if matches {
+            println!("  ✓ correct");
+            correct += 1;
+        } else {
+            println!("  ✗ MISMATCH");
+            print_mismatches(&ir, &datum.labels, &grounded.nodes);
+        }
+        total += 1;
+    }
+
+    println!("\n=== Eval Results ===");
+    println!("{correct}/{total} datums correct ({:.1}%)", correct as f32 / total as f32 * 100.0);
 }
 
 /// Check if all label predictions match ground truth.
