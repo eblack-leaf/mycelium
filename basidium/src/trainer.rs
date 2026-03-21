@@ -12,7 +12,7 @@ pub struct TrainerConfig {
     pub epochs: usize,
     #[config(default = 1e-3)]
     pub learning_rate: LearningRate,
-    #[config(default = 10)]
+    #[config(default = 5)]
     pub patience: usize,
     #[config(default = 64)]
     pub batch_size: usize,
