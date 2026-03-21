@@ -100,7 +100,7 @@ fn cmd_train() {
         hyphae_config, septa_config, schema_graph, 1e-3, num_iters,
         trainer_config.micro_batch_size, &device,
     );
-    let mut trainer = Trainer::new(trainer_config, ctx, "weights/pipeline");
+    let mut trainer = Trainer::new(trainer_config, ctx, "weights/basidium");
 
     let result = trainer.train(&train_data, &val_data);
     println!(
