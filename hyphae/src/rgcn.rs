@@ -1,6 +1,6 @@
 // rgcn.rs — R-GCN: per-relation-type linear projections with scatter-add aggregation.
 //
-// One Linear per edge type (HeteroConv pattern). 7 edge types.
+// One Linear per edge type (HeteroConv pattern). 10 edge types.
 
 use crate::ops;
 use burn::{
@@ -19,11 +19,13 @@ pub enum EdgeType {
     LinksTo,    // Record-link Field → linked Table
     LinkedFrom, // Linked Table → record-link Field (reverse)
 
-    // --- Span routing (added per query in inject()) ---
-    EntityToSpan,      // entity span → field-resolving spans (table context broadcast)
-    SpanToTable,       // field-resolving spans → all table nodes (bridge to field subgraph)
-    ProjectionToFetch, // ProjectionSpan → ModifierSpan (co-reference)
-    FieldToSpan,       // Field → field-resolving span (direct candidate info)
+    // --- Role-typed span routing (added per query in inject()) ---
+    ProjToTable,       // projection span → all tables
+    CondToTable,       // condition span → all tables
+    CondToCmp,         // condition span → comparator vocab nodes
+    AsgnToTable,       // assignment span → all tables
+    ModToTable,        // modifier span → all tables (if has field arg)
+    ProjectionToFetch, // projection span → modifier span (co-reference)
 }
 
 impl EdgeType {
@@ -33,10 +35,12 @@ impl EdgeType {
             EdgeType::FieldOf,
             EdgeType::LinksTo,
             EdgeType::LinkedFrom,
-            EdgeType::EntityToSpan,
-            EdgeType::SpanToTable,
+            EdgeType::ProjToTable,
+            EdgeType::CondToTable,
+            EdgeType::CondToCmp,
+            EdgeType::AsgnToTable,
+            EdgeType::ModToTable,
             EdgeType::ProjectionToFetch,
-            EdgeType::FieldToSpan,
         ]
     }
 }

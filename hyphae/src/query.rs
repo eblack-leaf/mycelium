@@ -9,9 +9,14 @@ pub enum QueryNode {
     Operation(Intent),
     Comparator(Comparator),
     Modifier(ModifierKind),
-    /// Placeholder for span nodes added by inject().
-    /// Features come from SpanHiddens (BiLSTM output), not from this variant.
-    Span,
+    /// Typed span nodes added by inject(). Features come from SpanHiddens (BiLSTM
+    /// output) + a learned role embedding. Graph edges are role-specific.
+    IntentSpan,
+    EntitySpan,
+    ProjSpan,
+    CondSpan,
+    AsgnSpan,
+    ModSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

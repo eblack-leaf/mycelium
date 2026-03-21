@@ -62,6 +62,11 @@ pub struct Hyphae<B: Backend> {
     /// Projects BiLSTM span hiddens [2 * septa_hidden_dim] → [node_feat_dim].
     pub span_proj: Linear<B>,
 
+    /// Learned role embeddings for 6 typed span roles:
+    /// 0=IntentSpan, 1=EntitySpan, 2=ProjSpan, 3=CondSpan, 4=AsgnSpan, 5=ModSpan.
+    /// Added to projected BiLSTM hidden to give each span role a distinct initial feature.
+    pub role_emb: Embedding<B>,
+
     // Bilinear resolution heads — [hidden_dim, hidden_dim], no bias.
     pub bilinear_intent:    Linear<B>,
     pub bilinear_entity:    Linear<B>,
@@ -85,6 +90,7 @@ impl<B: Backend> Hyphae<B> {
             vocab_emb:   EmbeddingConfig::new(14, config.node_feat_dim).init(device),
             ngram_table: EmbeddingConfig::new(config.ngram_buckets, config.node_feat_dim).init(device),
             span_proj:   LinearConfig::new(2 * config.septa_hidden_dim, config.node_feat_dim).init(device),
+            role_emb:    EmbeddingConfig::new(6, config.node_feat_dim).init(device),
             bilinear_intent:    bilinear(device),
             bilinear_entity:    bilinear(device),
             bilinear_proj:      bilinear(device),
@@ -133,15 +139,25 @@ impl<B: Backend> Hyphae<B> {
             feats.push(rows.mean_dim(0).squeeze::<1>());                   // [feat_dim]
         }
 
-        // ── Span nodes: project BiLSTM hiddens ───────────────────────────
-        // Must match the order inject() pushes QueryNode::Span:
+        // ── Typed span nodes: project BiLSTM hidden + add role embedding ─
+        // Must match the order inject() pushes spans:
         //   intent, entity, projections, modifiers, conditions, assignments.
-        feats.push(self.span_proj.forward(hiddens.intent.clone()));
-        feats.push(self.span_proj.forward(hiddens.entity.clone()));
-        for h in &hiddens.projections  { feats.push(self.span_proj.forward(h.clone())); }
-        for h in &hiddens.modifiers    { feats.push(self.span_proj.forward(h.clone())); }
-        for h in &hiddens.conditions   { feats.push(self.span_proj.forward(h.clone())); }
-        for h in &hiddens.assignments  { feats.push(self.span_proj.forward(h.clone())); }
+        // Role indices: 0=Intent, 1=Entity, 2=Proj, 3=Cond, 4=Asgn, 5=Mod
+        let role = |role_idx: usize| -> Tensor<B, 1> {
+            let idx = Tensor::<B, 1, Int>::from_data([role_idx as i32], device)
+                .unsqueeze::<2>();
+            self.role_emb.forward(idx).flatten(0, 2)
+        };
+        let span_with_role = |h: Tensor<B, 1>, role_idx: usize| -> Tensor<B, 1> {
+            self.span_proj.forward(h) + role(role_idx)
+        };
+
+        feats.push(span_with_role(hiddens.intent.clone(), 0));
+        feats.push(span_with_role(hiddens.entity.clone(), 1));
+        for h in &hiddens.projections  { feats.push(span_with_role(h.clone(), 2)); }
+        for h in &hiddens.modifiers    { feats.push(span_with_role(h.clone(), 5)); }
+        for h in &hiddens.conditions   { feats.push(span_with_role(h.clone(), 3)); }
+        for h in &hiddens.assignments  { feats.push(span_with_role(h.clone(), 4)); }
 
         Tensor::stack(feats, 0)
     }

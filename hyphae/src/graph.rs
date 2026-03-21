@@ -162,43 +162,33 @@ impl SchemaGraph {
 
         let schema_node_count = nodes.len();
 
-        // ── Span nodes (order must match init_node_features in Hyphae) ──
+        // ── Typed span nodes ─────────────────────────────────────────────
+        //   Order must match init_node_features in Hyphae:
         //   intent, entity, projections, modifiers, conditions, assignments.
         //
-        // Trivially-solved heads (intent, entity, cond_cmp, mod_type) have no graph
-        // edges — BiGRU text + bilinear head is sufficient. Field-resolving spans
-        // get EntityToSpan (table context) + SpanToTable (bridge to field subgraph).
+        // Each span type has role-specific edges:
+        //   IntentSpan/EntitySpan: no edges (BiGRU sufficient)
+        //   ProjSpan:  ProjToTable → all tables
+        //   CondSpan:  CondToTable → all tables, CondToCmp → comparator vocab
+        //   AsgnSpan:  AsgnToTable → all tables
+        //   ModSpan:   ModToTable → all tables (if has field arg)
 
         let intent_idx = nodes.len();
-        nodes.push(QueryNode::Span);
+        nodes.push(QueryNode::IntentSpan);
         let intent_resolution = Resolution { span_index: intent_idx, candidates: op_indices.clone() };
 
         let entity_idx = nodes.len();
-        nodes.push(QueryNode::Span);
+        nodes.push(QueryNode::EntitySpan);
         let entity_resolution = Resolution { span_index: entity_idx, candidates: table_indices.clone() };
-
-        // Wire a field-resolving span: EntityToSpan (receive table context)
-        // + SpanToTable (bridge to field subgraph via HasField)
-        // + FieldToSpan (each candidate field sends its embedding to the span).
-        fn wire_field_span(
-            edges: &mut TypedEdges, entity_idx: usize, idx: usize,
-            table_indices: &[usize], field_indices: &[usize],
-        ) {
-            edges.get_mut(&EdgeType::EntityToSpan).unwrap().push(Edge { src: entity_idx, dst: idx });
-            for &t in table_indices {
-                edges.get_mut(&EdgeType::SpanToTable).unwrap().push(Edge { src: idx, dst: t });
-            }
-            for &f in field_indices {
-                edges.get_mut(&EdgeType::FieldToSpan).unwrap().push(Edge { src: f, dst: idx });
-            }
-        }
 
         let mut projection_resolutions = Vec::new();
         let mut proj_span_indices: Vec<usize> = Vec::new();
         for _proj in &semantics.projections {
             let idx = nodes.len();
-            nodes.push(QueryNode::Span);
-            wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
+            nodes.push(QueryNode::ProjSpan);
+            for &t in &table_indices {
+                edges.get_mut(&EdgeType::ProjToTable).unwrap().push(Edge { src: idx, dst: t });
+            }
             proj_span_indices.push(idx);
             projection_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
         }
@@ -208,11 +198,13 @@ impl SchemaGraph {
         let mut mod_span_indices: Vec<usize> = Vec::new();
         for modifier in &semantics.modifiers {
             let idx = nodes.len();
-            nodes.push(QueryNode::Span);
+            nodes.push(QueryNode::ModSpan);
             mod_span_indices.push(idx);
             modifier_type_resolutions.push(Resolution { span_index: idx, candidates: mod_indices.clone() });
             if modifier.argument.is_some() {
-                wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
+                for &t in &table_indices {
+                    edges.get_mut(&EdgeType::ModToTable).unwrap().push(Edge { src: idx, dst: t });
+                }
                 modifier_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
@@ -232,8 +224,13 @@ impl SchemaGraph {
         let mut condition_cmp_resolutions   = Vec::new();
         for _cond in &semantics.conditions {
             let idx = nodes.len();
-            nodes.push(QueryNode::Span);
-            wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
+            nodes.push(QueryNode::CondSpan);
+            for &t in &table_indices {
+                edges.get_mut(&EdgeType::CondToTable).unwrap().push(Edge { src: idx, dst: t });
+            }
+            for &c in &cmp_indices {
+                edges.get_mut(&EdgeType::CondToCmp).unwrap().push(Edge { src: idx, dst: c });
+            }
             condition_field_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             condition_cmp_resolutions.push(Resolution   { span_index: idx, candidates: cmp_indices.clone() });
         }
@@ -241,9 +238,11 @@ impl SchemaGraph {
         let mut assignment_resolutions = Vec::new();
         for assign in &semantics.assignments {
             let idx = nodes.len();
-            nodes.push(QueryNode::Span);
+            nodes.push(QueryNode::AsgnSpan);
             if assign.field_text.is_some() {
-                wire_field_span(&mut edges, entity_idx, idx, &table_indices, &field_indices);
+                for &t in &table_indices {
+                    edges.get_mut(&EdgeType::AsgnToTable).unwrap().push(Edge { src: idx, dst: t });
+                }
                 assignment_resolutions.push(Resolution { span_index: idx, candidates: field_indices.clone() });
             }
         }
