@@ -120,6 +120,16 @@ fn cmp_text_for(cmp: &Comparator, idx: usize) -> &'static str {
     entry.1[idx % entry.1.len()]
 }
 
+/// Return up to `n` items from `pool`, starting at `key % pool.len()` and wrapping.
+/// Ensures different (field, cmp, text) keys pick different subsets of phrasings
+/// so variety is spread across the dataset without expanding every combination.
+fn pick_n<T>(pool: &[T], n: usize, key: usize) -> impl Iterator<Item = &T> {
+    let len = pool.len();
+    let start = if len == 0 { 0 } else { key % len };
+    let count = n.min(len);
+    (0..count).map(move |k| &pool[(start + k) % len])
+}
+
 // =============================================================================
 // Pattern generators
 // =============================================================================
@@ -294,14 +304,13 @@ fn gen_select_projections(table: &Table, out: &mut Vec<Datum>) {
 fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
     let name = &table.name;
 
-    for field in non_record_fields(table) {
+    for (fi, field) in non_record_fields(table).iter().enumerate() {
         let (val_text, val_ref) = sample_value(field);
         let cmps = compatible_cmps(field);
 
-        for cmp in &cmps {
+        for (ci, cmp) in cmps.iter().enumerate() {
             let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
-            for &cmp_text in texts {
-                // Vary the sentence structure
+            for (ti, &cmp_text) in texts.iter().enumerate() {
                 let patterns: &[(&str, &str)] = &[
                     ("find", "s where"),
                     ("show", "s with"),
@@ -320,7 +329,8 @@ fn gen_select_conditions(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], ou
                     ("show me", "s where the"),
                 ];
 
-                for &(intent_text, connector) in patterns {
+                let key = fi * 31 + ci * 7 + ti * 3;
+                for &(intent_text, connector) in pick_n(patterns, 3, key) {
                     let mut t = Tk::new();
                     let ir = t.push(intent_text);
                     t.sp();
@@ -377,19 +387,20 @@ fn gen_select_with_modifiers(table: &Table, out: &mut Vec<Datum>) {
     let rec_fields = record_fields(table);
 
     // OrderBy: "get {table}s {order_phrase} {field}"
-    for field in &fields {
-        for &(intent_text, order_phrase, desc) in &[
-            ("get", "order by", None),
-            ("show", "sorted by", None),
-            ("list", "order by", Some(true)),
-            ("get", "sort on", None),
-            ("show me", "ordered by", None),
-            ("pull up", "sorted by", Some(true)),
-            ("give me", "in order of", None),
-            ("i need", "sorted by", None),
-            ("list", "sort on", None),
-            ("get", "ordered by", None),
-        ] {
+    let order_patterns: &[(&str, &str, Option<bool>)] = &[
+        ("get", "order by", None),
+        ("show", "sorted by", None),
+        ("list", "order by", Some(true)),
+        ("get", "sort on", None),
+        ("show me", "ordered by", None),
+        ("pull up", "sorted by", Some(true)),
+        ("give me", "in order of", None),
+        ("i need", "sorted by", None),
+        ("list", "sort on", None),
+        ("get", "ordered by", None),
+    ];
+    for (fi, field) in fields.iter().enumerate() {
+        for &(intent_text, order_phrase, desc) in pick_n(order_patterns, 4, fi * 11) {
             let mut t = Tk::new();
             let ir = t.push(intent_text);
             t.sp();
@@ -848,22 +859,23 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
     let fields = non_record_fields(table);
     if fields.len() < 2 { return; }
 
-    let patterns: &[&str] = &[
+    let upd_patterns: &[&str] = &[
         "update", "change", "modify", "set", "please update", "edit",
     ];
 
-    // For each pair (assign_field, cond_field) where they differ
-    for (i, assign_field) in fields.iter().enumerate() {
-        for (j, cond_field) in fields.iter().enumerate() {
-            if i == j { continue; }
-            let (a_val_text, a_val_ref) = sample_value(assign_field);
-            let (c_val_text, c_val_ref) = sample_value(cond_field);
-            let cmps = compatible_cmps(cond_field);
+    // Adjacent pairs only: (fields[i], fields[i+1]) — O(n) instead of O(n²)
+    for i in 0..fields.len().saturating_sub(1) {
+        let assign_field = &fields[i];
+        let cond_field   = &fields[i + 1];
+        let (a_val_text, a_val_ref) = sample_value(assign_field);
+        let (c_val_text, c_val_ref) = sample_value(cond_field);
+        let cmps = compatible_cmps(cond_field);
 
-            for cmp in &cmps {
-                let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
-                for &cmp_text in texts {
-                    for &intent_text in patterns {
+        for (ci, cmp) in cmps.iter().enumerate() {
+            let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
+            for (ti, &cmp_text) in texts.iter().enumerate() {
+                let key = i * 17 + ci * 7 + ti * 3;
+                for &intent_text in pick_n(upd_patterns, 2, key) {
                         let mut t = Tk::new();
                         let ir = t.push(intent_text);
                         t.sp();
@@ -928,7 +940,6 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                             ],
                             ir: None,
                         });
-                    }
                 }
             }
         }
@@ -938,14 +949,14 @@ fn gen_update(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
 fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec<Datum>) {
     let name = &table.name;
 
-    for field in non_record_fields(table) {
+    for (fi, field) in non_record_fields(table).iter().enumerate() {
         let (val_text, val_ref) = sample_value(field);
         let cmps = compatible_cmps(field);
 
-        for cmp in &cmps {
+        for (ci, cmp) in cmps.iter().enumerate() {
             let texts = &cmp_pool.iter().find(|(c, _)| c == cmp).unwrap().1;
 
-            let patterns: &[(&str, &str)] = &[
+            let del_patterns: &[(&str, &str)] = &[
                 ("delete", "s where"),
                 ("remove", "s that have"),
                 ("get rid of", "s where"),
@@ -958,8 +969,9 @@ fn gen_delete(table: &Table, cmp_pool: &[(Comparator, Vec<&str>)], out: &mut Vec
                 ("trash", "s where"),
             ];
 
-            for &cmp_text in texts {
-            for &(intent_text, connector) in patterns {
+            for (ti, &cmp_text) in texts.iter().enumerate() {
+            let key = fi * 31 + ci * 7 + ti * 3;
+            for &(intent_text, connector) in pick_n(del_patterns, 3, key) {
                 let mut t = Tk::new();
                 let ir = t.push(intent_text);
                 t.sp();
@@ -1186,16 +1198,16 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
 
     let intents = ["get the", "show me the", "find the", "pull the", "list the"];
 
-    // For each projection field × condition field (different fields)
-    for pf in &fields {
-        for cf in &fields {
-            if pf.name == cf.name { continue; }
-            let cmps = compatible_cmps(cf);
-            let cmp = &cmps[0];
-            let cmp_text = cmp_text_for(cmp, 0);
-            let (val_text, val_ref) = sample_value(cf);
+    // Adjacent (pf=fields[i], cf=fields[i+1]) pairs only — O(n) instead of O(n²)
+    for i in 0..fields.len().saturating_sub(1) {
+        let pf = &fields[i];
+        let cf = &fields[i + 1];
+        let cmps = compatible_cmps(cf);
+        let cmp = &cmps[0];
+        let cmp_text = cmp_text_for(cmp, i);
+        let (val_text, val_ref) = sample_value(cf);
 
-            for &intent_text in &intents {
+        for &intent_text in pick_n(&intents, 2, i * 7) {
                 let mut t = Tk::new();
                 let ir = t.push(intent_text);
                 t.sp();
@@ -1237,7 +1249,6 @@ fn gen_select_proj_cond(table: &Table, out: &mut Vec<Datum>) {
                     ],
                     ir: None,
                 });
-            }
         }
     }
 
@@ -1313,11 +1324,12 @@ fn gen_select_proj_modifier(table: &Table, out: &mut Vec<Datum>) {
         ("find the", "sort on"),
     ];
 
-    for pf in &fields {
-        for of in &fields {
-            if pf.name == of.name { continue; }
-
-            for &(intent_text, order_phrase) in combos {
+    // Adjacent pairs only
+    for i in 0..fields.len().saturating_sub(1) {
+        let pf = &fields[i];
+        let of = &fields[i + 1];
+        {
+            for &(intent_text, order_phrase) in pick_n(combos, 2, i * 5) {
                 let mut t = Tk::new();
                 let ir = t.push(intent_text);
                 t.sp();
@@ -1357,7 +1369,7 @@ fn gen_select_proj_modifier(table: &Table, out: &mut Vec<Datum>) {
     }
 }
 
-/// Multi-field CREATE with all field pairs (not just first 2)
+/// Multi-field CREATE with adjacent field pairs (not all combinations)
 fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
     let name = &table.name;
     let fields = non_record_fields(table);
@@ -1370,14 +1382,15 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
         ("insert a", "set to"),
     ];
 
-    for i in 0..fields.len() {
-        for j in (i+1)..fields.len() {
-            let f1 = &fields[i];
-            let f2 = &fields[j];
-            let (v1_text, v1_ref) = sample_value(f1);
-            let (v2_text, v2_ref) = sample_value(f2);
+    // Adjacent pairs only
+    for i in 0..fields.len().saturating_sub(1) {
+        let j = i + 1;
+        let f1 = &fields[i];
+        let f2 = &fields[j];
+        let (v1_text, v1_ref) = sample_value(f1);
+        let (v2_text, v2_ref) = sample_value(f2);
 
-            for &(intent_text, setter) in patterns {
+        for &(intent_text, setter) in pick_n(patterns, 2, i * 5) {
                 let mut t = Tk::new();
                 let ir = t.push(intent_text);
                 t.sp();
@@ -1425,7 +1438,6 @@ fn gen_create_multi(table: &Table, out: &mut Vec<Datum>) {
                     ],
                     ir: None,
                 });
-            }
         }
     }
 
@@ -1503,8 +1515,8 @@ fn gen_more_modifiers(table: &Table, out: &mut Vec<Datum>) {
         ("list", "arranged by", None),
     ];
 
-    for field in &fields {
-        for &(intent_text, order_phrase, desc) in order_combos {
+    for (fi, field) in fields.iter().enumerate() {
+        for &(intent_text, order_phrase, desc) in pick_n(order_combos, 3, fi * 11) {
             let mut t = Tk::new();
             let ir = t.push(intent_text);
             t.sp();
@@ -1634,13 +1646,15 @@ fn gen_update_expanded(table: &Table, out: &mut Vec<Datum>) {
     if fields.len() < 2 { return; }
 
     // "change" pattern with reversed order: "change {f} to {v} on {table}s where ..."
-    for (i, af) in fields.iter().enumerate() {
-        for (j, cf) in fields.iter().enumerate() {
-            if i == j { continue; }
-            let (a_val, a_ref) = sample_value(af);
-            let (c_val, c_ref) = sample_value(cf);
-            let cmp = &compatible_cmps(cf)[0];
-            let cmp_text = cmp_text_for(cmp, 0);
+    // Adjacent pairs only to avoid O(n²) explosion.
+    for i in 0..fields.len().saturating_sub(1) {
+        let af = &fields[i];
+        let cf = &fields[i + 1];
+        let (a_val, a_ref) = sample_value(af);
+        let (c_val, c_ref) = sample_value(cf);
+        let cmp = &compatible_cmps(cf)[0];
+        let cmp_text = cmp_text_for(cmp, i);
+        {
 
             let mut t = Tk::new();
             let ir = t.push("change");

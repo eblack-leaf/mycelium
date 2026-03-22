@@ -309,7 +309,6 @@ impl<B: AutodiffBackend> Trainable for BasidiumTrainCtx<B> {
             let all_hiddens = inner.septa.batch_forward_with_spans(
                 &texts, &sems, self.septa_config.vocab_size, &self.device,
             );
-
             for (datum, hiddens) in chunk.iter().zip(all_hiddens.iter()) {
                 let graph = self.schema_graph.inject(&datum.semantics);
                 let logits = inner.hyphae.forward(&graph, hiddens, &self.device);

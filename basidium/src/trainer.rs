@@ -5,6 +5,7 @@ use burn::config::Config;
 use burn::optim::LearningRate;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
+use std::time::Instant;
 
 #[derive(Config, Debug)]
 pub struct TrainerConfig {
@@ -14,7 +15,7 @@ pub struct TrainerConfig {
     pub learning_rate: LearningRate,
     #[config(default = 5)]
     pub patience: usize,
-    #[config(default = 64)]
+    #[config(default = 1)]
     pub batch_size: usize,
 }
 
@@ -87,12 +88,13 @@ impl<M: Trainable> Trainer<M> {
         let bar = ProgressBar::new(self.config.epochs as u64);
         bar.set_style(
             ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] epoch {pos}/{len} (eta {eta}) {msg}"
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] epoch {pos}/{len}  {msg}"
             ).unwrap()
             .progress_chars("=> "),
         );
 
         let mut best_val_loss = f32::MAX;
+        let mut epoch_secs: Vec<f64> = Vec::new(); // wall time per epoch, epoch 0 excluded from ETA
         let mut best_epoch = 0;
         let mut patience_counter = 0;
         let mut best_metrics = Metrics {
@@ -104,6 +106,7 @@ impl<M: Trainable> Trainer<M> {
         let num_batches = (train_indices.len() + bs - 1) / bs;
 
         for epoch in 0..self.config.epochs {
+            let epoch_start = Instant::now();
             shuffle(&mut train_indices, epoch as u64);
 
             let mut epoch_loss = 0.0f32;
@@ -136,15 +139,26 @@ impl<M: Trainable> Trainer<M> {
             eval_bar.finish_and_clear();
             metrics.train_loss = train_loss;
 
+            let elapsed = epoch_start.elapsed().as_secs_f64();
+            // Skip epoch 0 from ETA — GPU shader warmup makes it unrepresentative.
+            if epoch > 0 { epoch_secs.push(elapsed); }
+            let eta_str = if epoch_secs.is_empty() {
+                "warmup".to_string()
+            } else {
+                let avg = epoch_secs.iter().copied().sum::<f64>() / epoch_secs.len() as f64;
+                let remaining = (self.config.epochs - epoch - 1) as f64;
+                fmt_duration(avg * remaining)
+            };
+
             bar.set_message(format!(
-                "loss={:.4} val={:.4} acc={:.1}%",
-                train_loss, metrics.val_loss, metrics.val_acc * 100.0,
+                "loss={:.4} val={:.4} acc={:.1}%  eta {}",
+                train_loss, metrics.val_loss, metrics.val_acc * 100.0, eta_str,
             ));
             bar.inc(1);
             bar.println(format!(
-                "  epoch {:>2}  loss={:.4}  val={:.4}  acc={:.1}%  | {}",
+                "  epoch {:>2}  loss={:.4}  val={:.4}  acc={:.1}%  [{:.0}s]  | {}",
                 epoch + 1, train_loss, metrics.val_loss, metrics.val_acc * 100.0,
-                metrics.head_acc.display(),
+                elapsed, metrics.head_acc.display(),
             ));
 
             if metrics.val_loss < best_val_loss {
@@ -174,6 +188,13 @@ impl<M: Trainable> Trainer<M> {
             weights_path: self.output_dir.join("best.bin"),
         }
     }
+}
+
+fn fmt_duration(secs: f64) -> String {
+    let s = secs as u64;
+    if s < 60 { format!("{s}s") }
+    else if s < 3600 { format!("{}m{:02}s", s / 60, s % 60) }
+    else { format!("{}h{:02}m", s / 3600, (s % 3600) / 60) }
 }
 
 /// Fisher-Yates shuffle with a simple LCG PRNG (no external dependency).
