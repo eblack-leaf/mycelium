@@ -14,8 +14,8 @@ use std::path::Path;
 type MyBackend = Wgpu;
 type MyAutodiffBackend = Autodiff<MyBackend>;
 
-const SCHEMA_DIR: &str = "stipe/fixtures/schema/";
-const EVAL_SCHEMA_DIR: &str = "stipe/fixtures/eval-schema/";
+const SCHEMA_DIR: &str = "data/fixtures/schema/";
+const EVAL_SCHEMA_DIR: &str = "data/fixtures/eval-schema/";
 const WEIGHTS_FILE: &str = "weights/lamella.bin";
 const DATASET_DIR: &str = "data/lamella/";
 const EVAL_DATASET_DIR: &str = "data/lamella-eval/";
