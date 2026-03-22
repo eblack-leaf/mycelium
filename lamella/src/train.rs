@@ -128,8 +128,10 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let batch_tokens: Vec<Vec<String>> = batch.iter()
             .map(|d| tokenize(&d.nl).0)
             .collect();
-        let pools = self.model.encode_nl_batch(&batch_tokens, self.config.token_buckets, &self.device);
-        // pools: [batch_size, d_model]
+        let (full_seqs, pools, seq_lens) = self.model.encode_nl_batch(
+            &batch_tokens, self.config.token_buckets, &self.device,
+        );
+        let d = self.config.d_model;
 
         // Accumulate all per-datum losses into one tensor, then single backward
         let mut losses: Vec<Tensor<B, 1>> = Vec::new();
@@ -137,10 +139,12 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let mut total_loss_val = 0.0f32;
 
         for (i, datum) in batch.iter().enumerate() {
-            let pool = pools.clone().slice([i..i+1, 0..self.config.d_model]).reshape([self.config.d_model]);
+            let pool = pools.clone().slice([i..i+1, 0..d]).reshape([d]);
+            let sl = seq_lens[i];
+            let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
             let slots = datum.slot_counts();
             let logits = self.model.head_scoring(
-                pool, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
             );
 
             let (loss, n) = self.datum_loss(&logits, datum);
@@ -245,13 +249,18 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let chunk_tokens: Vec<Vec<String>> = chunk.iter()
                 .map(|d| tokenize(&d.nl).0)
                 .collect();
-            let pools = inner.encode_nl_batch(&chunk_tokens, self.config.token_buckets, &self.device);
+            let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
+                &chunk_tokens, self.config.token_buckets, &self.device,
+            );
+            let d = self.config.d_model;
 
             for (i, datum) in chunk.iter().enumerate() {
-                let pool = pools.clone().slice([i..i+1, 0..self.config.d_model]).reshape([self.config.d_model]);
+                let pool = pools.clone().slice([i..i+1, 0..d]).reshape([d]);
+                let sl = seq_lens[i];
+                let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
                 let slots = datum.slot_counts();
                 let logits = inner.head_scoring(
-                    pool, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                    pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
                 );
 
                 // Loss
@@ -364,16 +373,21 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let chunk_tokens: Vec<Vec<String>> = chunk.iter()
                 .map(|d| tokenize(&d.nl).0)
                 .collect();
-            let pools = inner.encode_nl_batch(&chunk_tokens, self.config.token_buckets, &self.device);
+            let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
+                &chunk_tokens, self.config.token_buckets, &self.device,
+            );
+            let d = self.config.d_model;
 
             for (ci, datum) in chunk.iter().enumerate() {
                 if datum.asgn_fields.is_empty() { continue; }
                 let pool = pools.clone()
-                    .slice([ci..ci+1, 0..self.config.d_model])
-                    .reshape([self.config.d_model]);
+                    .slice([ci..ci+1, 0..d])
+                    .reshape([d]);
+                let sl = seq_lens[ci];
+                let nl_seq = full_seqs.clone().slice([ci..ci+1, 0..sl, 0..d]).reshape([sl, d]);
                 let slots = datum.slot_counts();
                 let logits = inner.head_scoring(
-                    pool, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                    pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
                 );
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
                 let ti = datum.entity;

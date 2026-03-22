@@ -5,7 +5,7 @@ use burn::nn::{
     Linear, LinearConfig,
     transformer::{TransformerEncoder, TransformerEncoderConfig, TransformerEncoderInput},
 };
-use burn::tensor::{Bool, ElementConversion, Int, Tensor, backend::Backend};
+use burn::tensor::{Bool, ElementConversion, Int, Tensor, activation, backend::Backend};
 
 use crate::catalog::SchemaCatalog;
 use crate::embed::char_ngram_buckets;
@@ -231,18 +231,18 @@ impl<B: Backend> Lamella<B> {
     }
 
     /// Encode a batch of tokenized NL inputs in one transformer pass.
-    /// Returns [batch, d_model] — one mean-pooled vector per datum.
+    /// Returns (full_seq [bs, max_seq, d_model], pool [bs, d_model], seq_lens).
     pub fn encode_nl_batch(
         &self,
         batch_tokens: &[Vec<String>],
         token_buckets: usize,
         device: &B::Device,
-    ) -> Tensor<B, 2> {
+    ) -> (Tensor<B, 3>, Tensor<B, 2>, Vec<usize>) {
         let d = self.d_model;
         let ed = self.embed_dim;
         let bs = batch_tokens.len();
         if bs == 0 {
-            return Tensor::zeros([0, d], device);
+            return (Tensor::zeros([0, 1, d], device), Tensor::zeros([0, d], device), vec![]);
         }
 
         // Per-token n-gram indices for each datum
@@ -250,7 +250,8 @@ impl<B: Backend> Lamella<B> {
             .map(|toks| toks.iter().map(|t| char_ngram_buckets(t, token_buckets)).collect())
             .collect();
 
-        let max_seq = batch_ngrams.iter().map(|toks| toks.len().max(1)).max().unwrap();
+        let seq_lens: Vec<usize> = batch_ngrams.iter().map(|toks| toks.len().max(1)).collect();
+        let max_seq = seq_lens.iter().copied().max().unwrap();
         let max_ng = batch_ngrams.iter()
             .flat_map(|toks| toks.iter().map(|b| b.len()))
             .max().unwrap_or(1);
@@ -298,11 +299,12 @@ impl<B: Backend> Lamella<B> {
         let h = self.transformer.forward(input); // [bs, max_seq, d_model]
 
         // Masked mean-pool over sequence dim → [bs, d_model]
-        // Expand pad_mask to [bs, max_seq, 1] for broadcasting
         let seq_mask = pad_mask.float().reshape([bs as i32, max_seq as i32, 1]);
         let seq_counts = seq_mask.clone().sum_dim(1).clamp_min(1.0); // [bs, 1, 1]
-        let pooled = (h * seq_mask).sum_dim(1) / seq_counts; // [bs, 1, d_model]
-        pooled.reshape([bs as i32, d as i32])
+        let pooled = (h.clone() * seq_mask).sum_dim(1) / seq_counts; // [bs, 1, d_model]
+        let pool = pooled.reshape([bs as i32, d as i32]);
+
+        (h, pool, seq_lens)
     }
 
     /// Compute schema node embeddings from precomputed n-gram indices.
@@ -403,68 +405,114 @@ impl<B: Backend> Lamella<B> {
         embs: &SchemaEmbs<B>,
         device: &B::Device,
     ) -> LamellaLogits<B> {
-        let pool = self.encode_nl(tokens, token_buckets, device);
-        self.head_scoring(pool, slots, catalog, entity_table_idx, embs, device)
+        let d = self.d_model;
+        let (full_seq, pools, seq_lens) = self.encode_nl_batch(
+            &[tokens.to_vec()], token_buckets, device,
+        );
+        let pool = pools.reshape([d]);
+        let sl = seq_lens[0];
+        let nl_seq = full_seq.slice([0..1, 0..sl, 0..d]).reshape([sl, d]);
+        self.head_scoring(pool, nl_seq, slots, catalog, entity_table_idx, embs, device)
     }
 
-    /// Head scoring from a precomputed pool vector [d_model].
+    /// Head scoring from a precomputed pool vector and full NL sequence.
+    ///
+    /// Option 3: pool is enriched by cross-attending over the resolved table's
+    ///           field embeddings, making it schema-aware before any head fires.
+    ///
+    /// Option 2: field heads (proj, cond_f, asgn, mod_f) use per-slot cross-
+    ///           attention over the full NL sequence so each slot attends to the
+    ///           specific words in the query that name that field.
     pub fn head_scoring(
         &self,
         pool: Tensor<B, 1>,
+        nl_seq: Tensor<B, 2>,   // [seq_len, d_model] — full transformer output for this datum
         slots: &SlotCounts,
         catalog: &SchemaCatalog,
         entity_table_idx: usize,
         embs: &SchemaEmbs<B>,
         device: &B::Device,
     ) -> LamellaLogits<B> {
+        let d = self.d_model;
+        let scale = 1.0f32 / (d as f32).sqrt();
 
         // Field candidate mask: only fields of the resolved entity table
         let valid_field_indices = &catalog.table_field_indices[entity_table_idx];
         let masked_field_embs = self.gather_rows(&embs.field_embs, valid_field_indices, device);
 
-        // Intent
-        let intent_q = self.head_intent.forward(pool.clone().unsqueeze::<2>()).squeeze::<1>();
+        // Option 3: field cross-attention — enrich pool with schema awareness.
+        // pool [d] attends over table's field embeddings [n_fields, d] → schema_ctx [d].
+        let enriched_pool = if !valid_field_indices.is_empty() {
+            // [1, d] @ [d, n_fields] → [1, n_fields]
+            let attn = activation::softmax(
+                pool.clone().unsqueeze::<2>().matmul(masked_field_embs.clone().transpose()),
+                1,
+            );
+            // [1, n_fields] @ [n_fields, d] → [1, d] → [d]
+            let schema_ctx = attn.matmul(masked_field_embs.clone()).reshape([d]);
+            pool.clone() + schema_ctx
+        } else {
+            pool.clone()
+        };
+
+        // Option 2: per-slot cross-attention over NL sequence.
+        // query = head(enriched_pool + slot_emb[i]) drives which tokens to attend.
+        // ctx = attended NL context for this slot → drives bilinear field scoring.
+        let slot_field_score = |head: &Linear<B>, bi: &Linear<B>, i: usize| -> Tensor<B, 1> {
+            let q = head.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>(); // [d]
+            // attn_scores: [seq_len, d] @ [d, 1] → [seq_len, 1]
+            let attn_scores = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
+            let attn_w = activation::softmax(attn_scores, 0); // [seq_len, 1]
+            // ctx: [d, seq_len] @ [seq_len, 1] → [d, 1] → [d]
+            let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
+            self.score(ctx, bi, masked_field_embs.clone())
+        };
+
+        // Intent — global, uses enriched pool
+        let intent_q = self.head_intent.forward(enriched_pool.clone().unsqueeze::<2>()).squeeze::<1>();
         let intent = self.score(intent_q, &self.bi_intent, embs.op_embs.clone());
 
-        // Entity
-        let entity_q = self.head_entity.forward(pool.clone().unsqueeze::<2>()).squeeze::<1>();
+        // Entity — global
+        let entity_q = self.head_entity.forward(enriched_pool.clone().unsqueeze::<2>()).squeeze::<1>();
         let entity = self.score(entity_q, &self.bi_entity, embs.table_embs.clone());
 
-        // Projection slots
-        let projection: Vec<Tensor<B, 1>> = (0..slots.projections).map(|i| {
-            let q = self.head_proj.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
-            self.score(q, &self.bi_proj, masked_field_embs.clone())
-        }).collect();
+        // Projection slots — per-slot NL attention
+        let projection: Vec<Tensor<B, 1>> = (0..slots.projections)
+            .map(|i| slot_field_score(&self.head_proj, &self.bi_proj, i))
+            .collect();
 
-        // Condition field slots
-        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
-            let q = self.head_cond_f.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
-            self.score(q, &self.bi_cond_f, masked_field_embs.clone())
-        }).collect();
+        // Condition field slots — per-slot NL attention
+        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions)
+            .map(|i| slot_field_score(&self.head_cond_f, &self.bi_cond_f, i))
+            .collect();
 
-        // Condition comparator slots
+        // Condition comparator — global (small fixed vocab, no lexical overlap needed)
         let cond_cmp: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
-            let q = self.head_cond_c.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
+            let q = self.head_cond_c.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
             self.score(q, &self.bi_cond_c, embs.cmp_embs.clone())
         }).collect();
 
-        // Assignment field slots
-        let assignment: Vec<Tensor<B, 1>> = (0..slots.assignments).map(|i| {
-            let q = self.head_asgn.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
-            self.score(q, &self.bi_asgn, masked_field_embs.clone())
-        }).collect();
+        // Assignment field slots — per-slot NL attention
+        let assignment: Vec<Tensor<B, 1>> = (0..slots.assignments)
+            .map(|i| slot_field_score(&self.head_asgn, &self.bi_asgn, i))
+            .collect();
 
-        // Modifier type slots
+        // Modifier type — global
         let mod_type: Vec<Tensor<B, 1>> = (0..slots.mod_types).map(|i| {
-            let q = self.head_mod_t.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
+            let q = self.head_mod_t.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
             self.score(q, &self.bi_mod_t, embs.mod_embs.clone())
         }).collect();
 
-        // Modifier field slots
-        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields).map(|i| {
-            let q = self.head_mod_f.forward((pool.clone() + self.slot(i, device)).unsqueeze::<2>()).squeeze::<1>();
-            self.score(q, &self.bi_mod_f, masked_field_embs.clone())
-        }).collect();
+        // Modifier field slots — per-slot NL attention
+        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields)
+            .map(|i| slot_field_score(&self.head_mod_f, &self.bi_mod_f, i))
+            .collect();
 
         LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
     }

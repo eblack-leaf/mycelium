@@ -1,0 +1,86 @@
+{"nl": "set doctor specialty to Cardiology", "intent": "update", "table": "doctor", "assignments": [{"field": "specialty", "value": "Cardiology"}]}
+{"nl": "update doctor rating to 4.5", "intent": "update", "table": "doctor", "assignments": [{"field": "rating", "value": "4.5"}]}
+{"nl": "deactivate the doctor", "intent": "update", "table": "doctor", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "change doctor email to newdoc@clinic.com", "intent": "update", "table": "doctor", "assignments": [{"field": "email", "value": "newdoc@clinic.com"}]}
+{"nl": "update doctor specialty and rating", "intent": "update", "table": "doctor", "assignments": [{"field": "specialty", "value": "Neurology"}, {"field": "rating", "value": "4.8"}]}
+{"nl": "update doctor rating and then deactivate", "intent": "update", "table": "doctor", "assignments": [{"field": "rating", "value": "3.9"}, {"field": "active", "value": "false"}]}
+{"nl": "set active false and specialty to Retired for doctor", "intent": "update", "table": "doctor", "assignments": [{"field": "active", "value": "false"}, {"field": "specialty", "value": "Retired"}]}
+{"nl": "update rating email and specialty for inactive doctors", "intent": "update", "table": "doctor", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}], "assignments": [{"field": "rating", "value": "0"}, {"field": "email", "value": "inactive@clinic.com"}, {"field": "specialty", "value": "None"}]}
+{"nl": "set specialty active and rating for top doctors", "intent": "update", "table": "doctor", "conditions": [{"field": "rating", "cmp": "gte", "value": "4.5"}], "assignments": [{"field": "specialty", "value": "Specialist"}, {"field": "active", "value": "true"}, {"field": "rating", "value": "5.0"}]}
+{"nl": "update warehouse location to Denver", "intent": "update", "table": "warehouse", "assignments": [{"field": "location", "value": "Denver"}]}
+{"nl": "set warehouse capacity to 7500", "intent": "update", "table": "warehouse", "assignments": [{"field": "capacity", "value": "7500"}]}
+{"nl": "deactivate the warehouse", "intent": "update", "table": "warehouse", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "rename the warehouse to Central Depot", "intent": "update", "table": "warehouse", "assignments": [{"field": "name", "value": "Central Depot"}]}
+{"nl": "update warehouse location and capacity", "intent": "update", "table": "warehouse", "assignments": [{"field": "location", "value": "Atlanta"}, {"field": "capacity", "value": "9000"}]}
+{"nl": "set capacity and active for the warehouse", "intent": "update", "table": "warehouse", "assignments": [{"field": "capacity", "value": "5000"}, {"field": "active", "value": "true"}]}
+{"nl": "update active status and location of warehouse", "intent": "update", "table": "warehouse", "assignments": [{"field": "active", "value": "true"}, {"field": "location", "value": "Memphis"}]}
+{"nl": "rename warehouse and set capacity and active", "intent": "update", "table": "warehouse", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}], "assignments": [{"field": "name", "value": "Reopened"}, {"field": "capacity", "value": "3000"}, {"field": "active", "value": "true"}]}
+{"nl": "set location name and deactivate warehouse", "intent": "update", "table": "warehouse", "assignments": [{"field": "location", "value": "Closed"}, {"field": "name", "value": "Archived"}, {"field": "active", "value": "false"}]}
+{"nl": "update product stock to 200", "intent": "update", "table": "product", "assignments": [{"field": "stock", "value": "200"}]}
+{"nl": "change product price to 49.99", "intent": "update", "table": "product", "assignments": [{"field": "price", "value": "49.99"}]}
+{"nl": "update product sku to NEW-SKU", "intent": "update", "table": "product", "assignments": [{"field": "sku", "value": "NEW-SKU"}]}
+{"nl": "activate the product", "intent": "update", "table": "product", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "update stock and price for the product", "intent": "update", "table": "product", "assignments": [{"field": "stock", "value": "50"}, {"field": "price", "value": "29.99"}]}
+{"nl": "change price and sku for the product", "intent": "update", "table": "product", "assignments": [{"field": "price", "value": "99"}, {"field": "sku", "value": "SALE-001"}]}
+{"nl": "set sku and activate the product", "intent": "update", "table": "product", "assignments": [{"field": "sku", "value": "ACT-999"}, {"field": "active", "value": "true"}]}
+{"nl": "update product stock sku and price", "intent": "update", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "stock", "value": "100"}, {"field": "sku", "value": "UPD-SKU"}, {"field": "price", "value": "59"}]}
+{"nl": "set price active and stock for out of stock products", "intent": "update", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}], "assignments": [{"field": "price", "value": "0"}, {"field": "active", "value": "false"}, {"field": "stock", "value": "0"}]}
+{"nl": "update prescription dosage to 500mg", "intent": "update", "table": "prescription", "assignments": [{"field": "dosage", "value": "500mg"}]}
+{"nl": "change prescription drug to Aspirin", "intent": "update", "table": "prescription", "assignments": [{"field": "drug", "value": "Aspirin"}]}
+{"nl": "expire the prescription by setting active to false", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update drug and dosage for prescription", "intent": "update", "table": "prescription", "assignments": [{"field": "drug", "value": "Ibuprofen"}, {"field": "dosage", "value": "400mg"}]}
+{"nl": "set dosage and deactivate prescription", "intent": "update", "table": "prescription", "assignments": [{"field": "dosage", "value": "0mg"}, {"field": "active", "value": "false"}]}
+{"nl": "activate prescription and change drug", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "true"}, {"field": "drug", "value": "Metformin"}]}
+{"nl": "update drug dosage and active for prescriptions", "intent": "update", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "drug", "value": "Lisinopril"}, {"field": "dosage", "value": "10mg"}, {"field": "active", "value": "true"}]}
+{"nl": "set active dosage and drug for expired prescriptions", "intent": "update", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}], "assignments": [{"field": "active", "value": "false"}, {"field": "dosage", "value": "0mg"}, {"field": "drug", "value": "Discontinued"}]}
+{"nl": "update budget spent amount", "intent": "update", "table": "budget", "assignments": [{"field": "spent", "value": "15000"}]}
+{"nl": "change budget amount to 60000", "intent": "update", "table": "budget", "assignments": [{"field": "amount", "value": "60000"}]}
+{"nl": "deactivate the budget", "intent": "update", "table": "budget", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "rename the budget to Q4 Ops", "intent": "update", "table": "budget", "assignments": [{"field": "name", "value": "Q4 Ops"}]}
+{"nl": "update spent and amount for budget", "intent": "update", "table": "budget", "assignments": [{"field": "spent", "value": "0"}, {"field": "amount", "value": "100000"}]}
+{"nl": "set amount and deactivate budget", "intent": "update", "table": "budget", "assignments": [{"field": "amount", "value": "0"}, {"field": "active", "value": "false"}]}
+{"nl": "activate budget and reset spent", "intent": "update", "table": "budget", "assignments": [{"field": "active", "value": "true"}, {"field": "spent", "value": "0"}]}
+{"nl": "update spent active and amount for all active budgets", "intent": "update", "table": "budget", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "spent", "value": "10000"}, {"field": "active", "value": "true"}, {"field": "amount", "value": "80000"}]}
+{"nl": "update property address to 99 Oak Ave", "intent": "update", "table": "property", "assignments": [{"field": "address", "value": "99 Oak Ave"}]}
+{"nl": "change property price to 310000", "intent": "update", "table": "property", "assignments": [{"field": "price", "value": "310000"}]}
+{"nl": "update property bedrooms count to 4", "intent": "update", "table": "property", "assignments": [{"field": "bedrooms", "value": "4"}]}
+{"nl": "update property bathrooms to 2", "intent": "update", "table": "property", "assignments": [{"field": "bathrooms", "value": "2"}]}
+{"nl": "change property type to townhouse", "intent": "update", "table": "property", "assignments": [{"field": "type", "value": "townhouse"}]}
+{"nl": "deactivate the property listing", "intent": "update", "table": "property", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update property bedrooms and price", "intent": "update", "table": "property", "assignments": [{"field": "bedrooms", "value": "3"}, {"field": "price", "value": "280000"}]}
+{"nl": "change price and address for property", "intent": "update", "table": "property", "assignments": [{"field": "price", "value": "350000"}, {"field": "address", "value": "12 Maple St"}]}
+{"nl": "set bathrooms and bedrooms for property", "intent": "update", "table": "property", "assignments": [{"field": "bathrooms", "value": "3"}, {"field": "bedrooms", "value": "5"}]}
+{"nl": "update address bedrooms and price for active properties", "intent": "update", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "address", "value": "Updated Address"}, {"field": "bedrooms", "value": "4"}, {"field": "price", "value": "420000"}]}
+{"nl": "set type active and bathrooms for cheap properties", "intent": "update", "table": "property", "conditions": [{"field": "price", "cmp": "lt", "value": "200000"}], "assignments": [{"field": "type", "value": "studio"}, {"field": "active", "value": "true"}, {"field": "bathrooms", "value": "1"}]}
+{"nl": "update supplier country to France", "intent": "update", "table": "supplier", "assignments": [{"field": "country", "value": "France"}]}
+{"nl": "change supplier rating to 4.0", "intent": "update", "table": "supplier", "assignments": [{"field": "rating", "value": "4.0"}]}
+{"nl": "deactivate the supplier", "intent": "update", "table": "supplier", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update supplier email to contact@supplier.com", "intent": "update", "table": "supplier", "assignments": [{"field": "email", "value": "contact@supplier.com"}]}
+{"nl": "update supplier country and rating", "intent": "update", "table": "supplier", "assignments": [{"field": "country", "value": "Brazil"}, {"field": "rating", "value": "3.5"}]}
+{"nl": "change rating and activate supplier", "intent": "update", "table": "supplier", "assignments": [{"field": "rating", "value": "4.5"}, {"field": "active", "value": "true"}]}
+{"nl": "set active and country for supplier", "intent": "update", "table": "supplier", "assignments": [{"field": "active", "value": "false"}, {"field": "country", "value": "Unknown"}]}
+{"nl": "update country email and rating for active suppliers", "intent": "update", "table": "supplier", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "country", "value": "USA"}, {"field": "email", "value": "usa@supply.com"}, {"field": "rating", "value": "4.2"}]}
+{"nl": "update transaction amount to 750", "intent": "update", "table": "transaction", "assignments": [{"field": "amount", "value": "750"}]}
+{"nl": "change transaction type to refund", "intent": "update", "table": "transaction", "assignments": [{"field": "type", "value": "refund"}]}
+{"nl": "mark transaction as completed", "intent": "update", "table": "transaction", "assignments": [{"field": "status", "value": "completed"}]}
+{"nl": "update transaction amount and status", "intent": "update", "table": "transaction", "assignments": [{"field": "amount", "value": "1000"}, {"field": "status", "value": "completed"}]}
+{"nl": "change amount and type for transaction", "intent": "update", "table": "transaction", "assignments": [{"field": "amount", "value": "250"}, {"field": "type", "value": "deposit"}]}
+{"nl": "set type and mark transaction as failed", "intent": "update", "table": "transaction", "assignments": [{"field": "type", "value": "payment"}, {"field": "status", "value": "failed"}]}
+{"nl": "update status and amount for completed transactions", "intent": "update", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}], "assignments": [{"field": "status", "value": "settled"}, {"field": "amount", "value": "500"}]}
+{"nl": "set amount type and status for pending transactions", "intent": "update", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "amount", "value": "300"}, {"field": "type", "value": "transfer"}, {"field": "status", "value": "completed"}]}
+{"nl": "update order status to shipped", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "shipped"}]}
+{"nl": "change order total to 199", "intent": "update", "table": "order", "assignments": [{"field": "total", "value": "199"}]}
+{"nl": "update order status and total", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "processing"}, {"field": "total", "value": "150"}]}
+{"nl": "change total and update status for order", "intent": "update", "table": "order", "assignments": [{"field": "total", "value": "300"}, {"field": "status", "value": "shipped"}]}
+{"nl": "set status to completed for shipped orders", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "shipped"}], "assignments": [{"field": "status", "value": "completed"}]}
+{"nl": "update total status for large orders", "intent": "update", "table": "order", "conditions": [{"field": "total", "cmp": "gt", "value": "1000"}], "assignments": [{"field": "total", "value": "999"}, {"field": "status", "value": "review"}]}
+{"nl": "update listing status to sold", "intent": "update", "table": "listing", "assignments": [{"field": "status", "value": "sold"}]}
+{"nl": "change listing price to 275000", "intent": "update", "table": "listing", "assignments": [{"field": "price", "value": "275000"}]}
+{"nl": "update listing price and status", "intent": "update", "table": "listing", "assignments": [{"field": "price", "value": "350000"}, {"field": "status", "value": "active"}]}
+{"nl": "change status and price for listing", "intent": "update", "table": "listing", "assignments": [{"field": "status", "value": "pending"}, {"field": "price", "value": "180000"}]}
+{"nl": "reduce price and mark listing as inactive", "intent": "update", "table": "listing", "conditions": [{"field": "price", "cmp": "gt", "value": "500000"}], "assignments": [{"field": "price", "value": "490000"}, {"field": "status", "value": "inactive"}]}
+{"nl": "update ticket status to sold", "intent": "update", "table": "ticket", "assignments": [{"field": "status", "value": "sold"}]}
+{"nl": "change ticket price to 30", "intent": "update", "table": "ticket", "assignments": [{"field": "price", "value": "30"}]}
+{"nl": "update ticket price and status", "intent": "update", "table": "ticket", "assignments": [{"field": "price", "value": "50"}, {"field": "status", "value": "sold"}]}
+{"nl": "set status and price for available tickets", "intent": "update", "table": "ticket", "assignments": [{"field": "status", "value": "reserved"}, {"field": "price", "value": "40"}]}
+{"nl": "cancel ticket and set price to zero", "intent": "update", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}], "assignments": [{"field": "status", "value": "cancelled"}, {"field": "price", "value": "0"}]}
