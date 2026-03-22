@@ -173,7 +173,7 @@ fn cmd_infer(args: &[String]) {
         mod_fields: 0,
     };
 
-    let logits = model.forward(&tokens, config.token_buckets, &slots, &catalog, 0, &device);
+    let logits = model.forward(&tokens, config.token_buckets, &slots, &catalog, None, &device);
     let entity_idx: usize = logits.entity.clone().argmax(0).into_scalar().elem::<i32>() as usize;
 
     println!("Intent: {:?}", catalog.ops[logits.intent.clone().argmax(0).into_scalar().elem::<i32>() as usize]);

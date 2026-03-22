@@ -1,0 +1,65 @@
+// select5.jsonl — projections combined with ORDER BY modifiers
+// employee
+{"nl": "list employee name and salary ordered by salary descending", "intent": "select", "table": "employee", "projections": ["name", "salary"], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}]}
+{"nl": "show name email and role sorted by name", "intent": "select", "table": "employee", "projections": ["name", "email", "role"], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get employees name department hired ordered by hired date", "intent": "select", "table": "employee", "projections": ["name", "department", "hired"], "modifiers": [{"type": "order_by", "field": "hired"}]}
+{"nl": "fetch name and salary sorted by salary highest first", "intent": "select", "table": "employee", "projections": ["name", "salary"], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}]}
+{"nl": "list active employees name role department ordered by role", "intent": "select", "table": "employee", "projections": ["name", "role", "department"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "role"}]}
+{"nl": "show top 10 highest paid employees name and salary", "intent": "select", "table": "employee", "projections": ["name", "salary"], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}, {"type": "limit", "value": "10"}]}
+// product
+{"nl": "list product name price ordered by price ascending", "intent": "select", "table": "product", "projections": ["name", "price"], "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "show name sku and stock sorted by stock descending", "intent": "select", "table": "product", "projections": ["name", "sku", "stock"], "modifiers": [{"type": "order_by", "field": "stock", "descending": true}]}
+{"nl": "get product name and price ordered by price lowest first", "intent": "select", "table": "product", "projections": ["name", "price"], "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "fetch active products name price category sorted by name", "intent": "select", "table": "product", "projections": ["name", "price", "category"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "show top 5 most expensive products name and sku", "intent": "select", "table": "product", "projections": ["name", "sku"], "modifiers": [{"type": "order_by", "field": "price", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "list product name stock and price sorted by created date", "intent": "select", "table": "product", "projections": ["name", "stock", "price"], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+// student
+{"nl": "list student name and gpa ordered by gpa descending", "intent": "select", "table": "student", "projections": ["name", "gpa"], "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}]}
+{"nl": "show student name email sorted by name", "intent": "select", "table": "student", "projections": ["name", "email"], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get enrolled students name and gpa sorted by gpa highest first", "intent": "select", "table": "student", "projections": ["name", "gpa"], "conditions": [{"field": "enrolled", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}]}
+{"nl": "fetch top 10 students by gpa show name and email", "intent": "select", "table": "student", "projections": ["name", "email"], "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "list student name gpa email ordered by created", "intent": "select", "table": "student", "projections": ["name", "gpa", "email"], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+// doctor
+{"nl": "list doctor name and rating sorted by rating descending", "intent": "select", "table": "doctor", "projections": ["name", "rating"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "show doctor name specialty sorted by name", "intent": "select", "table": "doctor", "projections": ["name", "specialty"], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get active doctors name email rating ordered by rating", "intent": "select", "table": "doctor", "projections": ["name", "email", "rating"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "fetch top 5 highest rated doctors show name and specialty", "intent": "select", "table": "doctor", "projections": ["name", "specialty"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}, {"type": "limit", "value": "5"}]}
+// property
+{"nl": "list property address and price ordered by price", "intent": "select", "table": "property", "projections": ["address", "price"], "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "show address type and bedrooms sorted by price descending", "intent": "select", "table": "property", "projections": ["address", "type", "bedrooms"], "modifiers": [{"type": "order_by", "field": "price", "descending": true}]}
+{"nl": "get active properties address price type sorted by created", "intent": "select", "table": "property", "projections": ["address", "price", "type"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "show top 10 cheapest active properties address and bedrooms", "intent": "select", "table": "property", "projections": ["address", "bedrooms"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "price"}, {"type": "limit", "value": "10"}]}
+// supplier
+{"nl": "list supplier name and rating ordered by rating descending", "intent": "select", "table": "supplier", "projections": ["name", "rating"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "show active suppliers name country sorted by name", "intent": "select", "table": "supplier", "projections": ["name", "country"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get top 5 suppliers by rating show name email and country", "intent": "select", "table": "supplier", "projections": ["name", "email", "country"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}, {"type": "limit", "value": "5"}]}
+// account
+{"nl": "list account name and balance sorted by balance descending", "intent": "select", "table": "account", "projections": ["name", "balance"], "modifiers": [{"type": "order_by", "field": "balance", "descending": true}]}
+{"nl": "show account name type and balance ordered by name", "intent": "select", "table": "account", "projections": ["name", "type", "balance"], "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get active accounts name and balance sorted by balance highest first", "intent": "select", "table": "account", "projections": ["name", "balance"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "balance", "descending": true}]}
+{"nl": "fetch top 10 accounts by balance show name and owner", "intent": "select", "table": "account", "projections": ["name", "owner"], "modifiers": [{"type": "order_by", "field": "balance", "descending": true}, {"type": "limit", "value": "10"}]}
+// transaction
+{"nl": "list transaction amount and type sorted by amount descending", "intent": "select", "table": "transaction", "projections": ["amount", "type"], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "show amount status and created ordered by created date", "intent": "select", "table": "transaction", "projections": ["amount", "status", "created"], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "get pending transactions amount type sorted by amount", "intent": "select", "table": "transaction", "projections": ["amount", "type"], "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+// review
+{"nl": "list review rating and body sorted by rating descending", "intent": "select", "table": "review", "projections": ["rating", "body"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "show review author body and rating ordered by created", "intent": "select", "table": "review", "projections": ["author", "body", "rating"], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "get top 10 highest rated reviews show body and author", "intent": "select", "table": "review", "projections": ["body", "author"], "modifiers": [{"type": "order_by", "field": "rating", "descending": true}, {"type": "limit", "value": "10"}]}
+// expense
+{"nl": "list expense amount and description sorted by amount descending", "intent": "select", "table": "expense", "projections": ["amount", "description"], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "show amount employee and approved ordered by created", "intent": "select", "table": "expense", "projections": ["amount", "employee", "approved"], "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "fetch unapproved expenses amount and description sorted by amount", "intent": "select", "table": "expense", "projections": ["amount", "description"], "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+// course
+{"nl": "list course name and credits sorted by credits descending", "intent": "select", "table": "course", "projections": ["name", "credits"], "modifiers": [{"type": "order_by", "field": "credits", "descending": true}]}
+{"nl": "show active courses name capacity and instructor ordered by name", "intent": "select", "table": "course", "projections": ["name", "capacity", "instructor"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "name"}]}
+// budget
+{"nl": "list budget name and amount sorted by amount descending", "intent": "select", "table": "budget", "projections": ["name", "amount"], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "show budget name spent and department ordered by spent descending", "intent": "select", "table": "budget", "projections": ["name", "spent", "department"], "modifiers": [{"type": "order_by", "field": "spent", "descending": true}]}
+{"nl": "get active budgets name amount sorted by amount", "intent": "select", "table": "budget", "projections": ["name", "amount"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+// venue
+{"nl": "list venue name and capacity sorted by capacity descending", "intent": "select", "table": "venue", "projections": ["name", "capacity"], "modifiers": [{"type": "order_by", "field": "capacity", "descending": true}]}
+{"nl": "show active venues name address sorted by name", "intent": "select", "table": "venue", "projections": ["name", "address"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "name"}]}
+// warehouse
+{"nl": "list warehouse name and capacity sorted by capacity descending", "intent": "select", "table": "warehouse", "projections": ["name", "capacity"], "modifiers": [{"type": "order_by", "field": "capacity", "descending": true}]}
+{"nl": "show active warehouses name and location sorted by name", "intent": "select", "table": "warehouse", "projections": ["name", "location"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "name"}]}

@@ -133,32 +133,37 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         );
         let d = self.config.d_model;
 
+        // Level-1 in one batched pass: table cross-attn + entity head for all datums.
+        let (pool1s, entity_logits) = self.model.level1_batch(pools, &embs, &self.device);
+
         // Accumulate all per-datum losses into one tensor, then single backward
         let mut losses: Vec<Tensor<B, 1>> = Vec::new();
         let mut n_total = 0usize;
         let mut total_loss_val = 0.0f32;
 
         for (i, datum) in batch.iter().enumerate() {
-            let pool = pools.clone().slice([i..i+1, 0..d]).reshape([d]);
+            let pool_1 = pool1s.clone().slice([i..i+1, 0..d]).reshape([d]);
+            let n_tables = entity_logits.dims()[1];
+            let entity = entity_logits.clone().slice([i..i+1, 0..n_tables]).reshape([n_tables]);
             let sl = seq_lens[i];
             let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
             let slots = datum.slot_counts();
             let logits = self.model.head_scoring(
-                pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
             );
 
             let (loss, n) = self.datum_loss(&logits, datum);
             if n == 0 { continue; }
 
-            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>() * n as f32;
+            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>();
             n_total += n;
             losses.push(loss);
         }
 
         if n_total == 0 { return 0.0; }
 
-        // Single backward through the entire batch graph
-        let batch_loss = losses.into_iter().reduce(|a, b| a + b).unwrap();
+        // Single backward — normalize by total predictions so each slot has equal gradient weight
+        let batch_loss = losses.into_iter().reduce(|a, b| a + b).unwrap() / n_total as f32;
         let grads = batch_loss.backward();
         let grads = GradientsParams::from_grads(grads, &self.model);
 
@@ -233,7 +238,7 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             return (Tensor::zeros([1], &self.device), 0);
         }
         let total = losses.into_iter().reduce(|a, b| a + b).unwrap();
-        (total / (count as f32), count)
+        (total, count)
     }
 
     pub fn evaluate(&self, data: &[&LamellaDatum], bar: &ProgressBar) -> Metrics {
@@ -254,13 +259,17 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             );
             let d = self.config.d_model;
 
+            let (pool1s, entity_logits) = inner.level1_batch(pools, &embs, &self.device);
+
             for (i, datum) in chunk.iter().enumerate() {
-                let pool = pools.clone().slice([i..i+1, 0..d]).reshape([d]);
+                let pool_1 = pool1s.clone().slice([i..i+1, 0..d]).reshape([d]);
+                let n_tables = entity_logits.dims()[1];
+                let entity = entity_logits.clone().slice([i..i+1, 0..n_tables]).reshape([n_tables]);
                 let sl = seq_lens[i];
                 let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
                 let slots = datum.slot_counts();
                 let logits = inner.head_scoring(
-                    pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                    pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
                 );
 
                 // Loss
@@ -378,16 +387,18 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             );
             let d = self.config.d_model;
 
+            let (pool1s, entity_logits) = inner.level1_batch(pools, &embs, &self.device);
+
             for (ci, datum) in chunk.iter().enumerate() {
                 if datum.asgn_fields.is_empty() { continue; }
-                let pool = pools.clone()
-                    .slice([ci..ci+1, 0..d])
-                    .reshape([d]);
+                let pool_1 = pool1s.clone().slice([ci..ci+1, 0..d]).reshape([d]);
+                let n_tables = entity_logits.dims()[1];
+                let entity = entity_logits.clone().slice([ci..ci+1, 0..n_tables]).reshape([n_tables]);
                 let sl = seq_lens[ci];
                 let nl_seq = full_seqs.clone().slice([ci..ci+1, 0..sl, 0..d]).reshape([sl, d]);
                 let slots = datum.slot_counts();
                 let logits = inner.head_scoring(
-                    pool, nl_seq, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                    pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
                 );
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
                 let ti = datum.entity;

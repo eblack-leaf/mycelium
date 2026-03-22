@@ -86,8 +86,9 @@ pub struct Lamella<B: Backend> {
     cmp_emb: Embedding<B>,
     mod_emb: Embedding<B>,
 
-    // Slot positional embedding
-    slot_emb: Embedding<B>,
+    // Slot embeddings: positional (which slot within a head) + type (which SurrealQL slot kind)
+    slot_pos_emb: Embedding<B>,
+    slot_type_emb: Embedding<B>,
 
     // 8 head projections
     head_intent: Linear<B>,
@@ -108,6 +109,10 @@ pub struct Lamella<B: Backend> {
     bi_asgn: Linear<B>,
     bi_mod_t: Linear<B>,
     bi_mod_f: Linear<B>,
+
+    // Cross-attention Q projections for hierarchical schema enrichment
+    xattn_table_q: Linear<B>,  // NL tokens → table cross-attention queries
+    xattn_field_q: Linear<B>,  // NL tokens → field cross-attention queries
 
     d_model: usize,
     embed_dim: usize,
@@ -137,7 +142,8 @@ impl LamellaConfig {
             op_emb: EmbeddingConfig::new(4, d).init(device),
             cmp_emb: EmbeddingConfig::new(7, d).init(device),
             mod_emb: EmbeddingConfig::new(3, d).init(device),
-            slot_emb: EmbeddingConfig::new(self.max_slots, d).init(device),
+            slot_pos_emb: EmbeddingConfig::new(self.max_slots, d).init(device),
+            slot_type_emb: EmbeddingConfig::new(8, d).init(device),
             head_intent: head(device),
             head_entity: head(device),
             head_proj: head(device),
@@ -154,6 +160,8 @@ impl LamellaConfig {
             bi_asgn: bilinear(device),
             bi_mod_t: bilinear(device),
             bi_mod_f: bilinear(device),
+            xattn_table_q: head(device),
+            xattn_field_q: head(device),
             d_model: d,
             embed_dim: self.embed_dim,
         }
@@ -352,11 +360,17 @@ impl<B: Backend> Lamella<B> {
         candidates.matmul(proj.transpose()).squeeze::<1>() // [n_candidates]
     }
 
-    /// Slot embedding for index i.
+    /// Positional slot embedding for index i within a head.
     fn slot(&self, i: usize, device: &B::Device) -> Tensor<B, 1> {
         let idx = Tensor::<B, 1, Int>::from_ints([i as i32].as_slice(), device);
-        // [1, 1, d_model] → [d_model]
-        self.slot_emb.forward(idx.unsqueeze::<2>()).reshape([self.d_model])
+        self.slot_pos_emb.forward(idx.unsqueeze::<2>()).reshape([self.d_model])
+    }
+
+    /// SurrealQL slot-type embedding — encodes which part of the query grammar
+    /// this head is responsible for (intent, entity, projection, condition, etc.).
+    fn stype(&self, t: usize, device: &B::Device) -> Tensor<B, 1> {
+        let idx = Tensor::<B, 1, Int>::from_ints([t as i32].as_slice(), device);
+        self.slot_type_emb.forward(idx.unsqueeze::<2>()).reshape([self.d_model])
     }
 
     /// Precompute schema + fixed vocab embeddings (call once per batch).
@@ -380,6 +394,35 @@ impl<B: Backend> Lamella<B> {
         SchemaEmbs { table_embs, field_embs, op_embs, cmp_embs, mod_embs }
     }
 
+    /// Batched level-1: table cross-attention + entity head across all datums at once.
+    /// Replaces bs × [1, d] ops with one [bs, d] pass — avoids repeated small matmuls.
+    /// Returns (pool1s [bs, d], entity_logits [bs, n_tables]).
+    pub fn level1_batch(
+        &self,
+        pools: Tensor<B, 2>,    // [bs, d_model]
+        embs: &SchemaEmbs<B>,
+        device: &B::Device,
+    ) -> (Tensor<B, 2>, Tensor<B, 2>) {
+        let d = self.d_model;
+        let scale = 1.0f32 / (d as f32).sqrt();
+
+        // Table cross-attention: [bs, d] → pool_1s [bs, d]
+        let q1 = self.xattn_table_q.forward(pools.clone());          // [bs, d]
+        let scores1 = q1.matmul(embs.table_embs.clone().transpose()) * scale; // [bs, n_tables]
+        let attn1 = activation::softmax(scores1, 1);
+        let ctx_1 = attn1.matmul(embs.table_embs.clone());           // [bs, d]
+        let pool1s = pools + ctx_1;                                   // [bs, d]
+
+        // Entity head: pool_1 + T_ENTITY type signal → logits over tables
+        // Broadcast type emb [1, d] over batch dim.
+        let entity_type = self.stype(1 /*T_ENTITY*/, device).unsqueeze::<2>(); // [1, d]
+        let entity_q = self.head_entity.forward(pool1s.clone() + entity_type); // [bs, d]
+        let entity_proj = self.bi_entity.forward(entity_q);          // [bs, d]
+        let entity_logits = entity_proj.matmul(embs.table_embs.clone().transpose()); // [bs, n_tables]
+
+        (pool1s, entity_logits)
+    }
+
     /// Full forward pass: NL → logits for all heads.
     pub fn forward(
         &self,
@@ -387,7 +430,7 @@ impl<B: Backend> Lamella<B> {
         token_buckets: usize,
         slots: &SlotCounts,
         catalog: &SchemaCatalog,
-        entity_table_idx: usize,
+        entity_table_idx: Option<usize>,
         device: &B::Device,
     ) -> LamellaLogits<B> {
         let embs = self.precompute_schema_embs(catalog, device);
@@ -401,7 +444,7 @@ impl<B: Backend> Lamella<B> {
         token_buckets: usize,
         slots: &SlotCounts,
         catalog: &SchemaCatalog,
-        entity_table_idx: usize,
+        entity_table_idx: Option<usize>,
         embs: &SchemaEmbs<B>,
         device: &B::Device,
     ) -> LamellaLogits<B> {
@@ -409,120 +452,139 @@ impl<B: Backend> Lamella<B> {
         let (full_seq, pools, seq_lens) = self.encode_nl_batch(
             &[tokens.to_vec()], token_buckets, device,
         );
-        let pool = pools.reshape([d]);
+        let (pool1s, entity_logits) = self.level1_batch(pools, embs, device);
+        let pool_1 = pool1s.reshape([d]);
+        let entity = entity_logits.reshape([embs.table_embs.dims()[0]]);
         let sl = seq_lens[0];
         let nl_seq = full_seq.slice([0..1, 0..sl, 0..d]).reshape([sl, d]);
-        self.head_scoring(pool, nl_seq, slots, catalog, entity_table_idx, embs, device)
+        self.head_scoring(pool_1, entity, nl_seq, slots, catalog, entity_table_idx, embs, device)
     }
 
-    /// Head scoring from a precomputed pool vector and full NL sequence.
+    /// Head scoring via two-level hierarchical schema cross-attention.
     ///
-    /// Option 3: pool is enriched by cross-attending over the resolved table's
-    ///           field embeddings, making it schema-aware before any head fires.
+    /// Level 1 — Q-projected pool attends over all table embeddings.
+    ///   pool_1 → entity head (no oracle, no circular dependency).
     ///
-    /// Option 2: field heads (proj, cond_f, asgn, mod_f) use per-slot cross-
-    ///           attention over the full NL sequence so each slot attends to the
-    ///           specific words in the query that name that field.
+    /// Level 2 — Q-projected pool_1 attends over the resolved entity's fields.
+    ///   entity_table_idx: Some(idx) = teacher forcing (training),
+    ///                     None      = argmax of entity logits (inference).
+    ///   pool_2 → intent + all field heads.
+    ///
+    /// Cross-attention is pool-level ([1, n_schema] attention weights) rather
+    /// than sequence-level to stay compatible with CubeCL 0.9.0 kernel codegen.
+    /// Per-slot attention over nl_seq resolves individual field slots.
     pub fn head_scoring(
         &self,
-        pool: Tensor<B, 1>,
-        nl_seq: Tensor<B, 2>,   // [seq_len, d_model] — full transformer output for this datum
+        pool_1: Tensor<B, 1>,            // [d_model] — level-1 enriched pool (from level1_batch)
+        entity: Tensor<B, 1>,            // [n_tables] — entity logits (from level1_batch)
+        nl_seq: Tensor<B, 2>,            // [seq_len, d_model] — full transformer output
         slots: &SlotCounts,
         catalog: &SchemaCatalog,
-        entity_table_idx: usize,
+        entity_table_idx: Option<usize>, // Some = teacher forcing, None = inference
         embs: &SchemaEmbs<B>,
         device: &B::Device,
     ) -> LamellaLogits<B> {
         let d = self.d_model;
         let scale = 1.0f32 / (d as f32).sqrt();
 
-        // Field candidate mask: only fields of the resolved entity table
-        let valid_field_indices = &catalog.table_field_indices[entity_table_idx];
-        let masked_field_embs = self.gather_rows(&embs.field_embs, valid_field_indices, device);
+        // Slot type indices — which part of SurrealQL grammar each head handles.
+        const T_INTENT:     usize = 0;
+        const T_ENTITY:     usize = 1;
+        const T_PROJ:       usize = 2;
+        const T_COND_FIELD: usize = 3;
+        const T_COND_CMP:   usize = 4;
+        const T_ASGN:       usize = 5;
+        const T_MOD_TYPE:   usize = 6;
+        const T_MOD_FIELD:  usize = 7;
 
-        // Option 3: field cross-attention — enrich pool with schema awareness.
-        // pool [d] attends over table's field embeddings [n_fields, d] → schema_ctx [d].
-        let enriched_pool = if !valid_field_indices.is_empty() {
-            // [1, d] @ [d, n_fields] → [1, n_fields]
-            let attn = activation::softmax(
-                pool.clone().unsqueeze::<2>().matmul(masked_field_embs.clone().transpose()),
-                1,
-            );
-            // [1, n_fields] @ [n_fields, d] → [1, d] → [d]
-            let schema_ctx = attn.matmul(masked_field_embs.clone()).reshape([d]);
-            pool.clone() + schema_ctx
-        } else {
-            pool.clone()
+        // Precompute all 8 type embeddings once — reused across slot positions.
+        let st: [Tensor<B, 1>; 8] = [
+            self.stype(T_INTENT, device),
+            self.stype(T_ENTITY, device),
+            self.stype(T_PROJ, device),
+            self.stype(T_COND_FIELD, device),
+            self.stype(T_COND_CMP, device),
+            self.stype(T_ASGN, device),
+            self.stype(T_MOD_TYPE, device),
+            self.stype(T_MOD_FIELD, device),
+        ];
+
+        // pool_1 is already level-1 enriched (table cross-attn + entity type signal
+        // applied outside in a batched pass — see level1_batch). Entity logits also
+        // arrive pre-computed from that batch pass.
+        //
+        // ── Level 2: pool_1 attends over resolved entity's field embeddings ──
+        let resolved_entity_idx: usize = match entity_table_idx {
+            Some(idx) => idx,
+            None => entity.clone().argmax(0).into_scalar().elem::<i32>() as usize,
         };
 
-        // Option 2: per-slot cross-attention over NL sequence.
-        // query = head(enriched_pool + slot_emb[i]) drives which tokens to attend.
-        // ctx = attended NL context for this slot → drives bilinear field scoring.
-        let slot_field_score = |head: &Linear<B>, bi: &Linear<B>, i: usize| -> Tensor<B, 1> {
+        let valid_field_indices = &catalog.table_field_indices[resolved_entity_idx];
+        let masked_field_embs = self.gather_rows(&embs.field_embs, valid_field_indices, device);
+
+        let pool_2 = if !valid_field_indices.is_empty() {
+            let q2 = self.xattn_field_q.forward(pool_1.clone().unsqueeze::<2>()).squeeze::<1>();
+            let scores2 = q2.unsqueeze::<2>().matmul(masked_field_embs.clone().transpose());
+            let attn2 = activation::softmax(scores2, 1);             // [1, n_fields]
+            let ctx_2 = attn2.matmul(masked_field_embs.clone()).reshape([d]);
+            pool_1.clone() + ctx_2                                   // [d]
+        } else {
+            pool_1.clone()
+        };
+
+        // Intent — pool_2 + type. Intent is clarified by field-level context.
+        let intent_q = self.head_intent.forward(
+            (pool_2.clone() + st[T_INTENT].clone()).unsqueeze::<2>()
+        ).squeeze::<1>();
+        let intent = self.score(intent_q, &self.bi_intent, embs.op_embs.clone());
+
+        // Per-slot NL attention for field heads: query = pool_2 + type_emb + pos_emb.
+        // Attends over NL tokens to find which ones name the schema element for this slot.
+        let slot_nl_score = |head: &Linear<B>, bi: &Linear<B>, type_emb: Tensor<B, 1>, i: usize| -> Tensor<B, 1> {
             let q = head.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
-            ).squeeze::<1>(); // [d]
-            // attn_scores: [seq_len, d] @ [d, 1] → [seq_len, 1]
+                (pool_2.clone() + type_emb + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
             let attn_scores = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
             let attn_w = activation::softmax(attn_scores, 0); // [seq_len, 1]
-            // ctx: [d, seq_len] @ [seq_len, 1] → [d, 1] → [d]
             let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
             self.score(ctx, bi, masked_field_embs.clone())
         };
 
-        // Intent — global, uses enriched pool
-        let intent_q = self.head_intent.forward(enriched_pool.clone().unsqueeze::<2>()).squeeze::<1>();
-        let intent = self.score(intent_q, &self.bi_intent, embs.op_embs.clone());
+        // Projection — NL attention (field names appear in NL: "show X and Y")
+        let projection: Vec<Tensor<B, 1>> = (0..slots.projections)
+            .map(|i| slot_nl_score(&self.head_proj, &self.bi_proj, st[T_PROJ].clone(), i))
+            .collect();
 
-        // Entity — global
-        let entity_q = self.head_entity.forward(enriched_pool.clone().unsqueeze::<2>()).squeeze::<1>();
-        let entity = self.score(entity_q, &self.bi_entity, embs.table_embs.clone());
+        // Condition field — NL attention ("where X > 5", X is named in NL)
+        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions)
+            .map(|i| slot_nl_score(&self.head_cond_f, &self.bi_cond_f, st[T_COND_FIELD].clone(), i))
+            .collect();
 
-        // Projection slots — pool+slot (fields co-occur in short NL, attention confuses slots)
-        let projection: Vec<Tensor<B, 1>> = (0..slots.projections).map(|i| {
-            let q = self.head_proj.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
-            ).squeeze::<1>();
-            self.score(q, &self.bi_proj, masked_field_embs.clone())
-        }).collect();
-
-        // Condition field slots — pool+slot
-        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
-            let q = self.head_cond_f.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
-            ).squeeze::<1>();
-            self.score(q, &self.bi_cond_f, masked_field_embs.clone())
-        }).collect();
-
-        // Condition comparator — pool+slot
+        // Condition comparator — pool only; comparators are structural SurrealQL choices.
         let cond_cmp: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
             let q = self.head_cond_c.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+                (pool_2.clone() + st[T_COND_CMP].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             self.score(q, &self.bi_cond_c, embs.cmp_embs.clone())
         }).collect();
 
-        // Assignment field slots — per-slot NL attention (fields are named explicitly and
-        // separated by "and"/"set X to Y" patterns, so attention resolves slot ordering)
+        // Assignment field — NL attention ("set X to Y", X is named in NL)
         let assignment: Vec<Tensor<B, 1>> = (0..slots.assignments)
-            .map(|i| slot_field_score(&self.head_asgn, &self.bi_asgn, i))
+            .map(|i| slot_nl_score(&self.head_asgn, &self.bi_asgn, st[T_ASGN].clone(), i))
             .collect();
 
-        // Modifier type — pool+slot
+        // Modifier type — pool only; ORDER BY / LIMIT / FETCH are structural choices.
         let mod_type: Vec<Tensor<B, 1>> = (0..slots.mod_types).map(|i| {
             let q = self.head_mod_t.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+                (pool_2.clone() + st[T_MOD_TYPE].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             self.score(q, &self.bi_mod_t, embs.mod_embs.clone())
         }).collect();
 
-        // Modifier field slots — pool+slot
-        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields).map(|i| {
-            let q = self.head_mod_f.forward(
-                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
-            ).squeeze::<1>();
-            self.score(q, &self.bi_mod_f, masked_field_embs.clone())
-        }).collect();
+        // Modifier field — NL attention ("order by X", X is named in NL)
+        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields)
+            .map(|i| slot_nl_score(&self.head_mod_f, &self.bi_mod_f, st[T_MOD_FIELD].clone(), i))
+            .collect();
 
         LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
     }
