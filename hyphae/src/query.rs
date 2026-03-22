@@ -137,28 +137,26 @@ impl QueryIr {
             }
             Intent::Create => {
                 let mut q = format!("CREATE {table}");
-                if !self.assignments.is_empty() {
+                if self.assignments.len() == 1 && self.assignments[0].field.is_none() {
+                    q.push_str(&format!(" CONTENT {}", resolve_value(&self.assignments[0].value)));
+                } else if !self.assignments.is_empty() {
                     q.push_str(" SET ");
-                    let sets: Vec<String> = self.assignments.iter().map(|a| {
-                        match &a.field {
-                            Some(f) => format!("{f} = {}", resolve_value(&a.value)),
-                            None => format!("/* expand {} */", resolve_value(&a.value)),
-                        }
-                    }).collect();
+                    let sets: Vec<String> = self.assignments.iter()
+                        .filter_map(|a| a.field.as_ref().map(|f| format!("{f} = {}", resolve_value(&a.value))))
+                        .collect();
                     q.push_str(&sets.join(", "));
                 }
                 q
             }
             Intent::Update => {
                 let mut q = format!("UPDATE {table}");
-                if !self.assignments.is_empty() {
+                if self.assignments.len() == 1 && self.assignments[0].field.is_none() {
+                    q.push_str(&format!(" CONTENT {}", resolve_value(&self.assignments[0].value)));
+                } else if !self.assignments.is_empty() {
                     q.push_str(" SET ");
-                    let sets: Vec<String> = self.assignments.iter().map(|a| {
-                        match &a.field {
-                            Some(f) => format!("{f} = {}", resolve_value(&a.value)),
-                            None => format!("/* expand {} */", resolve_value(&a.value)),
-                        }
-                    }).collect();
+                    let sets: Vec<String> = self.assignments.iter()
+                        .filter_map(|a| a.field.as_ref().map(|f| format!("{f} = {}", resolve_value(&a.value))))
+                        .collect();
                     q.push_str(&sets.join(", "));
                 }
                 if !self.conditions.is_empty() {
