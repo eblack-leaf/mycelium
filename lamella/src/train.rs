@@ -61,7 +61,7 @@ impl HeadAcc {
 pub struct TrainConfig {
     #[config(default = 50)]
     pub epochs: usize,
-    #[config(default = 1e-3)]
+    #[config(default = 3e-4)]
     pub learning_rate: f64,
     #[config(default = 8)]
     pub patience: usize,
