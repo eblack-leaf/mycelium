@@ -1,0 +1,224 @@
+{"nl": "show me all orders", "intent": "select", "table": "order"}
+{"nl": "list every order in the system", "intent": "select", "table": "order"}
+{"nl": "get all the orders", "intent": "select", "table": "order"}
+{"nl": "pull up the orders", "intent": "select", "table": "order"}
+{"nl": "I need to see all orders", "intent": "select", "table": "order"}
+{"nl": "fetch orders", "intent": "select", "table": "order"}
+{"nl": "can you show me the orders", "intent": "select", "table": "order"}
+{"nl": "retrieve all orders", "intent": "select", "table": "order"}
+{"nl": "what orders do we have", "intent": "select", "table": "order"}
+{"nl": "display all orders", "intent": "select", "table": "order"}
+{"nl": "get the status of each order", "intent": "select", "table": "order", "projections": ["status"]}
+{"nl": "show me order totals", "intent": "select", "table": "order", "projections": ["total"]}
+{"nl": "list the status and total for all orders", "intent": "select", "table": "order", "projections": ["status", "total"]}
+{"nl": "what is the total on each order", "intent": "select", "table": "order", "projections": ["total"]}
+{"nl": "show me when orders were created", "intent": "select", "table": "order", "projections": ["created"]}
+{"nl": "get order status and creation date", "intent": "select", "table": "order", "projections": ["status", "created"]}
+{"nl": "orders with total over 100", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "gt", "value": "100"}]}
+{"nl": "find orders where the total exceeds 500", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "gt", "value": "500"}]}
+{"nl": "get orders with status pending", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
+{"nl": "show me completed orders", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}]}
+{"nl": "which orders are still processing", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "processing"}]}
+{"nl": "orders under 50 dollars", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "lt", "value": "50"}]}
+{"nl": "find orders that are not cancelled", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "neq", "value": "cancelled"}]}
+{"nl": "orders where total is at least 200", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "gte", "value": "200"}]}
+{"nl": "show orders sorted by total", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "total"}]}
+{"nl": "orders ordered by creation date descending", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "give me the top 5 orders", "intent": "select", "table": "order", "modifiers": [{"type": "limit", "value": "5"}]}
+{"nl": "first 10 orders by date", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "created"}, {"type": "limit", "value": "10"}]}
+{"nl": "latest 3 orders", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "created", "descending": true}, {"type": "limit", "value": "3"}]}
+{"nl": "create a new order with status pending and total 59.99", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "pending"}, {"field": "total", "value": "59.99"}]}
+{"nl": "add an order for 120 dollars", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "120"}]}
+{"nl": "insert a new order with status shipped", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "shipped"}]}
+{"nl": "make a new order totalling 250", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "250"}]}
+{"nl": "update orders where status is pending set status to shipped", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "status", "value": "shipped"}]}
+{"nl": "change the total to 0 on orders where status is cancelled", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}], "assignments": [{"field": "total", "value": "0"}]}
+{"nl": "mark all pending orders as processing", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "status", "value": "processing"}]}
+{"nl": "delete orders where status is cancelled", "intent": "delete", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove all orders with total 0", "intent": "delete", "table": "order", "conditions": [{"field": "total", "cmp": "eq", "value": "0"}]}
+{"nl": "delete orders older than 2023", "intent": "delete", "table": "order", "conditions": [{"field": "created", "cmp": "lt", "value": "2023-01-01"}]}
+{"nl": "show me all products", "intent": "select", "table": "product"}
+{"nl": "list all products", "intent": "select", "table": "product"}
+{"nl": "get every product we carry", "intent": "select", "table": "product"}
+{"nl": "what products do we have", "intent": "select", "table": "product"}
+{"nl": "pull up the product catalog", "intent": "select", "table": "product"}
+{"nl": "show product names and prices", "intent": "select", "table": "product", "projections": ["name", "price"]}
+{"nl": "get the name and stock level for each product", "intent": "select", "table": "product", "projections": ["name", "stock"]}
+{"nl": "list product names", "intent": "select", "table": "product", "projections": ["name"]}
+{"nl": "how much stock does each product have", "intent": "select", "table": "product", "projections": ["stock"]}
+{"nl": "what are the product prices", "intent": "select", "table": "product", "projections": ["price"]}
+{"nl": "show sku and name of all products", "intent": "select", "table": "product", "projections": ["sku", "name"]}
+{"nl": "products priced over 50", "intent": "select", "table": "product", "conditions": [{"field": "price", "cmp": "gt", "value": "50"}]}
+{"nl": "find products under 20 dollars", "intent": "select", "table": "product", "conditions": [{"field": "price", "cmp": "lt", "value": "20"}]}
+{"nl": "which products are active", "intent": "select", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "show inactive products", "intent": "select", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "products with zero stock", "intent": "select", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
+{"nl": "find products where stock is less than 10", "intent": "select", "table": "product", "conditions": [{"field": "stock", "cmp": "lt", "value": "10"}]}
+{"nl": "products where name contains shirt", "intent": "select", "table": "product", "conditions": [{"field": "name", "cmp": "contains", "value": "shirt"}]}
+{"nl": "products with price between 10 and 50", "intent": "select", "table": "product", "conditions": [{"field": "price", "cmp": "gte", "value": "10"}]}
+{"nl": "cheapest products first", "intent": "select", "table": "product", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "most expensive products", "intent": "select", "table": "product", "modifiers": [{"type": "order_by", "field": "price", "descending": true}]}
+{"nl": "top 10 products by price", "intent": "select", "table": "product", "modifiers": [{"type": "order_by", "field": "price", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "add a product called Widget priced at 29.99", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Widget"}, {"field": "price", "value": "29.99"}]}
+{"nl": "create a new product named Gadget with price 15 and stock 100", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Gadget"}, {"field": "price", "value": "15"}, {"field": "stock", "value": "100"}]}
+{"nl": "insert product with sku ABC123 and name Test Item", "intent": "create", "table": "product", "assignments": [{"field": "sku", "value": "ABC123"}, {"field": "name", "value": "Test Item"}]}
+{"nl": "set the price of products where name is Widget to 24.99", "intent": "update", "table": "product", "conditions": [{"field": "name", "cmp": "eq", "value": "Widget"}], "assignments": [{"field": "price", "value": "24.99"}]}
+{"nl": "mark all products with zero stock as inactive", "intent": "update", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update product stock to 50 where sku is ABC123", "intent": "update", "table": "product", "conditions": [{"field": "sku", "cmp": "eq", "value": "ABC123"}], "assignments": [{"field": "stock", "value": "50"}]}
+{"nl": "delete products that are inactive", "intent": "delete", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove products with no stock", "intent": "delete", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
+{"nl": "get all customers", "intent": "select", "table": "customer"}
+{"nl": "list our customers", "intent": "select", "table": "customer"}
+{"nl": "show me every customer", "intent": "select", "table": "customer"}
+{"nl": "who are our customers", "intent": "select", "table": "customer"}
+{"nl": "pull up the customer list", "intent": "select", "table": "customer"}
+{"nl": "get customer names and emails", "intent": "select", "table": "customer", "projections": ["name", "email"]}
+{"nl": "show me customer phone numbers", "intent": "select", "table": "customer", "projections": ["phone"]}
+{"nl": "list customer names", "intent": "select", "table": "customer", "projections": ["name"]}
+{"nl": "what are the customer email addresses", "intent": "select", "table": "customer", "projections": ["email"]}
+{"nl": "find customers named John", "intent": "select", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "John"}]}
+{"nl": "customers with email containing gmail", "intent": "select", "table": "customer", "conditions": [{"field": "email", "cmp": "contains", "value": "gmail"}]}
+{"nl": "search for customer by name Smith", "intent": "select", "table": "customer", "conditions": [{"field": "name", "cmp": "contains", "value": "Smith"}]}
+{"nl": "customers sorted by name", "intent": "select", "table": "customer", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "newest customers first", "intent": "select", "table": "customer", "modifiers": [{"type": "order_by", "field": "created", "descending": true}]}
+{"nl": "first 20 customers", "intent": "select", "table": "customer", "modifiers": [{"type": "limit", "value": "20"}]}
+{"nl": "add a customer named Alice with email alice@example.com", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Alice"}, {"field": "email", "value": "alice@example.com"}]}
+{"nl": "create customer Bob with phone 555-1234", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Bob"}, {"field": "phone", "value": "555-1234"}]}
+{"nl": "register a new customer Jane Doe with email jane@test.com and phone 555-9999", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Jane Doe"}, {"field": "email", "value": "jane@test.com"}, {"field": "phone", "value": "555-9999"}]}
+{"nl": "update the email for customer John to john@new.com", "intent": "update", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "John"}], "assignments": [{"field": "email", "value": "john@new.com"}]}
+{"nl": "change the phone number to 555-0000 for customer Alice", "intent": "update", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "Alice"}], "assignments": [{"field": "phone", "value": "555-0000"}]}
+{"nl": "delete customer named Bob", "intent": "delete", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "Bob"}]}
+{"nl": "remove customers with email containing spam", "intent": "delete", "table": "customer", "conditions": [{"field": "email", "cmp": "contains", "value": "spam"}]}
+{"nl": "show all employees", "intent": "select", "table": "employee"}
+{"nl": "list the employees", "intent": "select", "table": "employee"}
+{"nl": "get all staff members", "intent": "select", "table": "employee"}
+{"nl": "who works here", "intent": "select", "table": "employee"}
+{"nl": "show me employee names and salaries", "intent": "select", "table": "employee", "projections": ["name", "salary"]}
+{"nl": "get employee emails", "intent": "select", "table": "employee", "projections": ["email"]}
+{"nl": "list employee names and hire dates", "intent": "select", "table": "employee", "projections": ["name", "hired"]}
+{"nl": "which employees are active", "intent": "select", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "find employees with salary over 80000", "intent": "select", "table": "employee", "conditions": [{"field": "salary", "cmp": "gt", "value": "80000"}]}
+{"nl": "employees making less than 50000", "intent": "select", "table": "employee", "conditions": [{"field": "salary", "cmp": "lt", "value": "50000"}]}
+{"nl": "who earns at least 100000", "intent": "select", "table": "employee", "conditions": [{"field": "salary", "cmp": "gte", "value": "100000"}]}
+{"nl": "inactive employees", "intent": "select", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "employees hired after 2023", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "gt", "value": "2023-01-01"}]}
+{"nl": "employees sorted by salary highest first", "intent": "select", "table": "employee", "modifiers": [{"type": "order_by", "field": "salary", "descending": true}]}
+{"nl": "top 5 highest paid employees", "intent": "select", "table": "employee", "modifiers": [{"type": "order_by", "field": "salary", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "newest hires", "intent": "select", "table": "employee", "modifiers": [{"type": "order_by", "field": "hired", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "hire a new employee named Sarah with salary 65000", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Sarah"}, {"field": "salary", "value": "65000"}]}
+{"nl": "add an employee Mike with email mike@company.com", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Mike"}, {"field": "email", "value": "mike@company.com"}]}
+{"nl": "give all active employees a raise to 75000", "intent": "update", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "salary", "value": "75000"}]}
+{"nl": "set employee Sarah to inactive", "intent": "update", "table": "employee", "conditions": [{"field": "name", "cmp": "eq", "value": "Sarah"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "fire employee named Mike", "intent": "delete", "table": "employee", "conditions": [{"field": "name", "cmp": "eq", "value": "Mike"}]}
+{"nl": "remove inactive employees", "intent": "delete", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "show me all students", "intent": "select", "table": "student"}
+{"nl": "list the students", "intent": "select", "table": "student"}
+{"nl": "get all enrolled students", "intent": "select", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "true"}]}
+{"nl": "who is enrolled", "intent": "select", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "true"}]}
+{"nl": "show student names and GPAs", "intent": "select", "table": "student", "projections": ["name", "gpa"]}
+{"nl": "list student email addresses", "intent": "select", "table": "student", "projections": ["email"]}
+{"nl": "students with GPA above 3.5", "intent": "select", "table": "student", "conditions": [{"field": "gpa", "cmp": "gt", "value": "3.5"}]}
+{"nl": "find students with GPA below 2.0", "intent": "select", "table": "student", "conditions": [{"field": "gpa", "cmp": "lt", "value": "2.0"}]}
+{"nl": "students not currently enrolled", "intent": "select", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "false"}]}
+{"nl": "students ranked by GPA", "intent": "select", "table": "student", "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}]}
+{"nl": "top 10 students by GPA", "intent": "select", "table": "student", "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "enroll a new student named Alex with email alex@school.edu", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Alex"}, {"field": "email", "value": "alex@school.edu"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "add student Pat with GPA 3.8", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Pat"}, {"field": "gpa", "value": "3.8"}]}
+{"nl": "update GPA to 3.9 for student Alex", "intent": "update", "table": "student", "conditions": [{"field": "name", "cmp": "eq", "value": "Alex"}], "assignments": [{"field": "gpa", "value": "3.9"}]}
+{"nl": "unenroll student Pat", "intent": "update", "table": "student", "conditions": [{"field": "name", "cmp": "eq", "value": "Pat"}], "assignments": [{"field": "enrolled", "value": "false"}]}
+{"nl": "delete students who are not enrolled", "intent": "delete", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "false"}]}
+{"nl": "list all invoices", "intent": "select", "table": "invoice"}
+{"nl": "show me the invoices", "intent": "select", "table": "invoice"}
+{"nl": "get all unpaid invoices", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
+{"nl": "find paid invoices", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "invoices over 1000 dollars", "intent": "select", "table": "invoice", "conditions": [{"field": "amount", "cmp": "gt", "value": "1000"}]}
+{"nl": "show invoice amounts", "intent": "select", "table": "invoice", "projections": ["amount"]}
+{"nl": "get amount and paid status of invoices", "intent": "select", "table": "invoice", "projections": ["amount", "paid"]}
+{"nl": "invoices sorted by amount", "intent": "select", "table": "invoice", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "most recent invoices", "intent": "select", "table": "invoice", "modifiers": [{"type": "order_by", "field": "issued", "descending": true}]}
+{"nl": "create an invoice for 500 dollars", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "500"}, {"field": "paid", "value": "false"}]}
+{"nl": "mark invoice as paid where amount is 500", "intent": "update", "table": "invoice", "conditions": [{"field": "amount", "cmp": "eq", "value": "500"}], "assignments": [{"field": "paid", "value": "true"}]}
+{"nl": "delete paid invoices", "intent": "delete", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "show all properties", "intent": "select", "table": "property"}
+{"nl": "list available properties", "intent": "select", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "get property addresses and prices", "intent": "select", "table": "property", "projections": ["address", "price"]}
+{"nl": "find properties under 300000", "intent": "select", "table": "property", "conditions": [{"field": "price", "cmp": "lt", "value": "300000"}]}
+{"nl": "houses with at least 3 bedrooms", "intent": "select", "table": "property", "conditions": [{"field": "bedrooms", "cmp": "gte", "value": "3"}]}
+{"nl": "properties with 2 or more bathrooms", "intent": "select", "table": "property", "conditions": [{"field": "bathrooms", "cmp": "gte", "value": "2"}]}
+{"nl": "show me properties sorted by price cheapest first", "intent": "select", "table": "property", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "most expensive properties", "intent": "select", "table": "property", "modifiers": [{"type": "order_by", "field": "price", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "add a property at 123 Main St for 250000 with 3 bedrooms", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "123 Main St"}, {"field": "price", "value": "250000"}, {"field": "bedrooms", "value": "3"}]}
+{"nl": "update price to 275000 for property at 123 Main St", "intent": "update", "table": "property", "conditions": [{"field": "address", "cmp": "eq", "value": "123 Main St"}], "assignments": [{"field": "price", "value": "275000"}]}
+{"nl": "delist property at 456 Oak Ave", "intent": "update", "table": "property", "conditions": [{"field": "address", "cmp": "eq", "value": "456 Oak Ave"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "delete inactive properties", "intent": "delete", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "show me all tickets", "intent": "select", "table": "ticket"}
+{"nl": "get ticket prices and statuses", "intent": "select", "table": "ticket", "projections": ["price", "status"]}
+{"nl": "find tickets with status sold", "intent": "select", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "available tickets", "intent": "select", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "available"}]}
+{"nl": "tickets priced over 100", "intent": "select", "table": "ticket", "conditions": [{"field": "price", "cmp": "gt", "value": "100"}]}
+{"nl": "cheapest tickets", "intent": "select", "table": "ticket", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "create a ticket with price 75 and status available", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "75"}, {"field": "status", "value": "available"}]}
+{"nl": "mark tickets as sold where status is reserved", "intent": "update", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "reserved"}], "assignments": [{"field": "status", "value": "sold"}]}
+{"nl": "list all appointments", "intent": "select", "table": "appointment"}
+{"nl": "show upcoming appointments", "intent": "select", "table": "appointment"}
+{"nl": "get appointment status and schedule", "intent": "select", "table": "appointment", "projections": ["status", "scheduled"]}
+{"nl": "find cancelled appointments", "intent": "select", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "appointments scheduled after 2024-06-01", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "gt", "value": "2024-06-01"}]}
+{"nl": "appointments with notes containing follow-up", "intent": "select", "table": "appointment", "conditions": [{"field": "notes", "cmp": "contains", "value": "follow-up"}]}
+{"nl": "appointments sorted by date", "intent": "select", "table": "appointment", "modifiers": [{"type": "order_by", "field": "scheduled"}]}
+{"nl": "next 5 appointments", "intent": "select", "table": "appointment", "modifiers": [{"type": "order_by", "field": "scheduled"}, {"type": "limit", "value": "5"}]}
+{"nl": "schedule an appointment with notes checkup and status confirmed", "intent": "create", "table": "appointment", "assignments": [{"field": "notes", "value": "checkup"}, {"field": "status", "value": "confirmed"}]}
+{"nl": "cancel appointment where notes contain checkup", "intent": "update", "table": "appointment", "conditions": [{"field": "notes", "cmp": "contains", "value": "checkup"}], "assignments": [{"field": "status", "value": "cancelled"}]}
+{"nl": "delete cancelled appointments", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "show all shipments", "intent": "select", "table": "shipment"}
+{"nl": "list shipments and their carriers", "intent": "select", "table": "shipment", "projections": ["carrier", "status"]}
+{"nl": "find shipments by FedEx", "intent": "select", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq", "value": "FedEx"}]}
+{"nl": "shipments with status in transit", "intent": "select", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "in_transit"}]}
+{"nl": "heavy shipments over 50 pounds", "intent": "select", "table": "shipment", "conditions": [{"field": "weight", "cmp": "gt", "value": "50"}]}
+{"nl": "shipments sorted by weight", "intent": "select", "table": "shipment", "modifiers": [{"type": "order_by", "field": "weight", "descending": true}]}
+{"nl": "create shipment via UPS weighing 15 pounds", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "UPS"}, {"field": "weight", "value": "15"}, {"field": "status", "value": "pending"}]}
+{"nl": "update shipment status to delivered where carrier is FedEx", "intent": "update", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq", "value": "FedEx"}], "assignments": [{"field": "status", "value": "delivered"}]}
+{"nl": "show all expenses", "intent": "select", "table": "expense"}
+{"nl": "get expense amounts and categories", "intent": "select", "table": "expense"}
+{"nl": "show me all transactions", "intent": "select", "table": "transaction"}
+{"nl": "get all transactions", "intent": "select", "table": "transaction"}
+{"nl": "list all reviews", "intent": "select", "table": "review"}
+{"nl": "show the reviews", "intent": "select", "table": "review"}
+{"nl": "get all events", "intent": "select", "table": "event"}
+{"nl": "list upcoming events", "intent": "select", "table": "event"}
+{"nl": "show all courses", "intent": "select", "table": "course"}
+{"nl": "list available courses", "intent": "select", "table": "course"}
+{"nl": "get all departments", "intent": "select", "table": "department"}
+{"nl": "show the departments", "intent": "select", "table": "department"}
+{"nl": "list all warehouses", "intent": "select", "table": "warehouse"}
+{"nl": "show me the warehouses", "intent": "select", "table": "warehouse"}
+{"nl": "get all suppliers", "intent": "select", "table": "supplier"}
+{"nl": "list our suppliers", "intent": "select", "table": "supplier"}
+{"nl": "show all roles", "intent": "select", "table": "role"}
+{"nl": "list the roles", "intent": "select", "table": "role"}
+{"nl": "show all listings", "intent": "select", "table": "listing"}
+{"nl": "get listings", "intent": "select", "table": "listing"}
+{"nl": "show all accounts", "intent": "select", "table": "account"}
+{"nl": "list user accounts", "intent": "select", "table": "account"}
+{"nl": "show all agents", "intent": "select", "table": "agent"}
+{"nl": "list the agents", "intent": "select", "table": "agent"}
+{"nl": "get all patients", "intent": "select", "table": "patient"}
+{"nl": "list all patients", "intent": "select", "table": "patient"}
+{"nl": "show all doctors", "intent": "select", "table": "doctor"}
+{"nl": "list the doctors", "intent": "select", "table": "doctor"}
+{"nl": "get all prescriptions", "intent": "select", "table": "prescription"}
+{"nl": "list prescriptions", "intent": "select", "table": "prescription"}
+{"nl": "show all enrollments", "intent": "select", "table": "enrollment"}
+{"nl": "list enrollments", "intent": "select", "table": "enrollment"}
+{"nl": "get all instructors", "intent": "select", "table": "instructor"}
+{"nl": "list the instructors", "intent": "select", "table": "instructor"}
+{"nl": "show all attendees", "intent": "select", "table": "attendee"}
+{"nl": "list attendees", "intent": "select", "table": "attendee"}
+{"nl": "show all budgets", "intent": "select", "table": "budget"}
+{"nl": "get the budgets", "intent": "select", "table": "budget"}
+{"nl": "show all categories", "intent": "select", "table": "category"}
+{"nl": "list categories", "intent": "select", "table": "category"}
+{"nl": "show all venues", "intent": "select", "table": "venue"}
+{"nl": "list the venues", "intent": "select", "table": "venue"}
+{"nl": "show all shifts", "intent": "select", "table": "shift"}
+{"nl": "get employee shifts", "intent": "select", "table": "shift"}

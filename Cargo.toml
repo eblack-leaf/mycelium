@@ -1,6 +1,6 @@
 [workspace]
-members = ["ui/src-tauri", "stipe", "septa", "hyphae", "basidium"]
+members = ["ui/src-tauri", "stipe", "septa", "hyphae", "basidium", "lamella"]
 resolver = "2"
 
 [workspace.dependencies]
-burn = { version = "0.20.1", default-features = false, features = ["ndarray", "autodiff", "wgpu", "std"] }
+burn = { version = "0.20.1", default-features = false, features = ["ndarray", "autodiff", "wgpu", "fusion", "std"] }
