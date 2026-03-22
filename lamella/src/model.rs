@@ -478,17 +478,23 @@ impl<B: Backend> Lamella<B> {
         let entity_q = self.head_entity.forward(enriched_pool.clone().unsqueeze::<2>()).squeeze::<1>();
         let entity = self.score(entity_q, &self.bi_entity, embs.table_embs.clone());
 
-        // Projection slots — per-slot NL attention
-        let projection: Vec<Tensor<B, 1>> = (0..slots.projections)
-            .map(|i| slot_field_score(&self.head_proj, &self.bi_proj, i))
-            .collect();
+        // Projection slots — pool+slot (fields co-occur in short NL, attention confuses slots)
+        let projection: Vec<Tensor<B, 1>> = (0..slots.projections).map(|i| {
+            let q = self.head_proj.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            self.score(q, &self.bi_proj, masked_field_embs.clone())
+        }).collect();
 
-        // Condition field slots — per-slot NL attention
-        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions)
-            .map(|i| slot_field_score(&self.head_cond_f, &self.bi_cond_f, i))
-            .collect();
+        // Condition field slots — pool+slot
+        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
+            let q = self.head_cond_f.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            self.score(q, &self.bi_cond_f, masked_field_embs.clone())
+        }).collect();
 
-        // Condition comparator — global (small fixed vocab, no lexical overlap needed)
+        // Condition comparator — pool+slot
         let cond_cmp: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
             let q = self.head_cond_c.forward(
                 (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
@@ -496,12 +502,13 @@ impl<B: Backend> Lamella<B> {
             self.score(q, &self.bi_cond_c, embs.cmp_embs.clone())
         }).collect();
 
-        // Assignment field slots — per-slot NL attention
+        // Assignment field slots — per-slot NL attention (fields are named explicitly and
+        // separated by "and"/"set X to Y" patterns, so attention resolves slot ordering)
         let assignment: Vec<Tensor<B, 1>> = (0..slots.assignments)
             .map(|i| slot_field_score(&self.head_asgn, &self.bi_asgn, i))
             .collect();
 
-        // Modifier type — global
+        // Modifier type — pool+slot
         let mod_type: Vec<Tensor<B, 1>> = (0..slots.mod_types).map(|i| {
             let q = self.head_mod_t.forward(
                 (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
@@ -509,10 +516,13 @@ impl<B: Backend> Lamella<B> {
             self.score(q, &self.bi_mod_t, embs.mod_embs.clone())
         }).collect();
 
-        // Modifier field slots — per-slot NL attention
-        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields)
-            .map(|i| slot_field_score(&self.head_mod_f, &self.bi_mod_f, i))
-            .collect();
+        // Modifier field slots — pool+slot
+        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields).map(|i| {
+            let q = self.head_mod_f.forward(
+                (enriched_pool.clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            self.score(q, &self.bi_mod_f, masked_field_embs.clone())
+        }).collect();
 
         LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
     }
