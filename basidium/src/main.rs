@@ -9,6 +9,7 @@ type B = Autodiff<Wgpu>;
 type InferB = Wgpu;
 
 const SCHEMA_DIR: &str = "stipe/fixtures/schema/";
+const EVAL_SCHEMA_DIR: &str = "stipe/fixtures/eval-schema/";
 const DATA_DIR: &str = "data";
 
 fn main() {
@@ -184,7 +185,7 @@ fn cmd_eval() {
     let eval_data = Datum::generate_eval();
 
     let device = WgpuDevice::default();
-    let schema = Schema::from_dir(Path::new(SCHEMA_DIR)).unwrap();
+    let schema = Schema::from_dir(Path::new(EVAL_SCHEMA_DIR)).unwrap();
     let hyphae_config = HyphaeConfig::new();
     let septa_config = SeptaConfig::new(12);
     let schema_graph = SchemaGraph::new(schema, hyphae_config.ngram_buckets);
