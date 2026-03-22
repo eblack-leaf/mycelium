@@ -1,0 +1,301 @@
+{"nl": "show me all accounts", "intent": "select", "table": "account"}
+{"nl": "list every account", "intent": "select", "table": "account"}
+{"nl": "get all user accounts", "intent": "select", "table": "account"}
+{"nl": "pull up the account list", "intent": "select", "table": "account"}
+{"nl": "what accounts exist in the system", "intent": "select", "table": "account"}
+{"nl": "show account names and balances", "intent": "select", "table": "account", "projections": ["name", "balance"]}
+{"nl": "get the balance of each account", "intent": "select", "table": "account", "projections": ["balance"]}
+{"nl": "what type is each account", "intent": "select", "table": "account", "projections": ["type"]}
+{"nl": "list account names and types", "intent": "select", "table": "account", "projections": ["name", "type"]}
+{"nl": "accounts with balance over 10000", "intent": "select", "table": "account", "conditions": [{"field": "balance", "cmp": "gt", "value": "10000"}]}
+{"nl": "find accounts with zero balance", "intent": "select", "table": "account", "conditions": [{"field": "balance", "cmp": "eq", "value": "0"}]}
+{"nl": "which accounts are active", "intent": "select", "table": "account", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "inactive accounts", "intent": "select", "table": "account", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "savings accounts only", "intent": "select", "table": "account", "conditions": [{"field": "type", "cmp": "eq", "value": "savings"}]}
+{"nl": "accounts with balance below 100", "intent": "select", "table": "account", "conditions": [{"field": "balance", "cmp": "lt", "value": "100"}]}
+{"nl": "accounts sorted by balance highest first", "intent": "select", "table": "account", "modifiers": [{"type": "order_by", "field": "balance", "descending": true}]}
+{"nl": "oldest accounts", "intent": "select", "table": "account", "modifiers": [{"type": "order_by", "field": "created"}]}
+{"nl": "top 5 accounts by balance", "intent": "select", "table": "account", "modifiers": [{"type": "order_by", "field": "balance", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "show all agents", "intent": "select", "table": "agent"}
+{"nl": "list every agent we have", "intent": "select", "table": "agent"}
+{"nl": "get all agents", "intent": "select", "table": "agent"}
+{"nl": "who are our agents", "intent": "select", "table": "agent"}
+{"nl": "show agent names and ratings", "intent": "select", "table": "agent", "projections": ["name", "rating"]}
+{"nl": "get agent emails and phone numbers", "intent": "select", "table": "agent", "projections": ["email", "phone"]}
+{"nl": "agent contact info", "intent": "select", "table": "agent", "projections": ["name", "email", "phone"]}
+{"nl": "agents with rating above 4.5", "intent": "select", "table": "agent", "conditions": [{"field": "rating", "cmp": "gt", "value": "4.5"}]}
+{"nl": "find active agents", "intent": "select", "table": "agent", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "agents who are not active", "intent": "select", "table": "agent", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "agents rated below 3", "intent": "select", "table": "agent", "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
+{"nl": "best agents by rating", "intent": "select", "table": "agent", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "top 3 agents", "intent": "select", "table": "agent", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}, {"type": "limit", "value": "3"}]}
+{"nl": "all appointments", "intent": "select", "table": "appointment"}
+{"nl": "show the appointments", "intent": "select", "table": "appointment"}
+{"nl": "get every appointment", "intent": "select", "table": "appointment"}
+{"nl": "list all scheduled appointments", "intent": "select", "table": "appointment"}
+{"nl": "pull up the appointment schedule", "intent": "select", "table": "appointment"}
+{"nl": "appointment statuses", "intent": "select", "table": "appointment", "projections": ["status"]}
+{"nl": "show appointment dates and statuses", "intent": "select", "table": "appointment", "projections": ["scheduled", "status"]}
+{"nl": "appointment notes", "intent": "select", "table": "appointment", "projections": ["notes"]}
+{"nl": "confirmed appointments", "intent": "select", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "confirmed"}]}
+{"nl": "cancelled appointments", "intent": "select", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "appointments after June 2024", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "gt", "value": "2024-06-01"}]}
+{"nl": "appointments before next month", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "lt", "value": "2024-07-01"}]}
+{"nl": "appointments where notes mention surgery", "intent": "select", "table": "appointment", "conditions": [{"field": "notes", "cmp": "contains", "value": "surgery"}]}
+{"nl": "upcoming appointments soonest first", "intent": "select", "table": "appointment", "modifiers": [{"type": "order_by", "field": "scheduled"}]}
+{"nl": "last 10 appointments", "intent": "select", "table": "appointment", "modifiers": [{"type": "order_by", "field": "scheduled", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "show all attendees", "intent": "select", "table": "attendee"}
+{"nl": "list attendee names", "intent": "select", "table": "attendee", "projections": ["name"]}
+{"nl": "get attendee contact info", "intent": "select", "table": "attendee", "projections": ["name", "email", "phone"]}
+{"nl": "attendees with email containing outlook", "intent": "select", "table": "attendee", "conditions": [{"field": "email", "cmp": "contains", "value": "outlook"}]}
+{"nl": "attendees sorted by name", "intent": "select", "table": "attendee", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "show all budgets", "intent": "select", "table": "budget"}
+{"nl": "list the budgets", "intent": "select", "table": "budget"}
+{"nl": "get all budget allocations", "intent": "select", "table": "budget"}
+{"nl": "budget names and amounts", "intent": "select", "table": "budget", "projections": ["name", "amount"]}
+{"nl": "how much has been spent on each budget", "intent": "select", "table": "budget", "projections": ["name", "spent"]}
+{"nl": "budgets where spent exceeds amount", "intent": "select", "table": "budget", "conditions": [{"field": "spent", "cmp": "gt", "value": "10000"}]}
+{"nl": "active budgets", "intent": "select", "table": "budget", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "budgets under 5000", "intent": "select", "table": "budget", "conditions": [{"field": "amount", "cmp": "lt", "value": "5000"}]}
+{"nl": "largest budgets first", "intent": "select", "table": "budget", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "show all categories", "intent": "select", "table": "category"}
+{"nl": "list the categories", "intent": "select", "table": "category"}
+{"nl": "what categories are there", "intent": "select", "table": "category"}
+{"nl": "get category names and descriptions", "intent": "select", "table": "category", "projections": ["name", "description"]}
+{"nl": "categories with name containing electronics", "intent": "select", "table": "category", "conditions": [{"field": "name", "cmp": "contains", "value": "electronics"}]}
+{"nl": "categories sorted by name", "intent": "select", "table": "category", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "all courses", "intent": "select", "table": "course"}
+{"nl": "list available courses", "intent": "select", "table": "course"}
+{"nl": "show me the course catalog", "intent": "select", "table": "course"}
+{"nl": "what courses are offered", "intent": "select", "table": "course"}
+{"nl": "course names and credit hours", "intent": "select", "table": "course", "projections": ["name", "credits"]}
+{"nl": "how many credits is each course", "intent": "select", "table": "course", "projections": ["credits"]}
+{"nl": "course capacity", "intent": "select", "table": "course", "projections": ["name", "capacity"]}
+{"nl": "active courses only", "intent": "select", "table": "course", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "courses with more than 3 credits", "intent": "select", "table": "course", "conditions": [{"field": "credits", "cmp": "gt", "value": "3"}]}
+{"nl": "courses with capacity under 30", "intent": "select", "table": "course", "conditions": [{"field": "capacity", "cmp": "lt", "value": "30"}]}
+{"nl": "courses sorted by credits", "intent": "select", "table": "course", "modifiers": [{"type": "order_by", "field": "credits", "descending": true}]}
+{"nl": "show all customers", "intent": "select", "table": "customer"}
+{"nl": "list our customer base", "intent": "select", "table": "customer"}
+{"nl": "get every customer record", "intent": "select", "table": "customer"}
+{"nl": "all customer names", "intent": "select", "table": "customer", "projections": ["name"]}
+{"nl": "customer email list", "intent": "select", "table": "customer", "projections": ["email"]}
+{"nl": "customer names and phone numbers", "intent": "select", "table": "customer", "projections": ["name", "phone"]}
+{"nl": "find customer by name Johnson", "intent": "select", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "Johnson"}]}
+{"nl": "customers whose email has yahoo", "intent": "select", "table": "customer", "conditions": [{"field": "email", "cmp": "contains", "value": "yahoo"}]}
+{"nl": "customers created after 2024", "intent": "select", "table": "customer", "conditions": [{"field": "created", "cmp": "gt", "value": "2024-01-01"}]}
+{"nl": "customers alphabetically", "intent": "select", "table": "customer", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "newest 10 customers", "intent": "select", "table": "customer", "modifiers": [{"type": "order_by", "field": "created", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "show departments", "intent": "select", "table": "department"}
+{"nl": "list all departments", "intent": "select", "table": "department"}
+{"nl": "what departments do we have", "intent": "select", "table": "department"}
+{"nl": "department names and budgets", "intent": "select", "table": "department", "projections": ["name", "budget"]}
+{"nl": "departments with budget over 100000", "intent": "select", "table": "department", "conditions": [{"field": "budget", "cmp": "gt", "value": "100000"}]}
+{"nl": "departments sorted by budget", "intent": "select", "table": "department", "modifiers": [{"type": "order_by", "field": "budget", "descending": true}]}
+{"nl": "get all doctors", "intent": "select", "table": "doctor"}
+{"nl": "show me the doctors", "intent": "select", "table": "doctor"}
+{"nl": "list all physicians", "intent": "select", "table": "doctor"}
+{"nl": "doctor names and specialties", "intent": "select", "table": "doctor", "projections": ["name", "specialty"]}
+{"nl": "doctor email addresses", "intent": "select", "table": "doctor", "projections": ["email"]}
+{"nl": "doctor ratings", "intent": "select", "table": "doctor", "projections": ["name", "rating"]}
+{"nl": "cardiologists", "intent": "select", "table": "doctor", "conditions": [{"field": "specialty", "cmp": "eq", "value": "cardiology"}]}
+{"nl": "doctors specializing in dermatology", "intent": "select", "table": "doctor", "conditions": [{"field": "specialty", "cmp": "eq", "value": "dermatology"}]}
+{"nl": "doctors with rating above 4", "intent": "select", "table": "doctor", "conditions": [{"field": "rating", "cmp": "gt", "value": "4"}]}
+{"nl": "active doctors", "intent": "select", "table": "doctor", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "highest rated doctors", "intent": "select", "table": "doctor", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "top 5 doctors by rating", "intent": "select", "table": "doctor", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "get all employees", "intent": "select", "table": "employee"}
+{"nl": "show employee roster", "intent": "select", "table": "employee"}
+{"nl": "list everyone on staff", "intent": "select", "table": "employee"}
+{"nl": "employee names and email addresses", "intent": "select", "table": "employee", "projections": ["name", "email"]}
+{"nl": "employee salaries", "intent": "select", "table": "employee", "projections": ["name", "salary"]}
+{"nl": "when were employees hired", "intent": "select", "table": "employee", "projections": ["name", "hired"]}
+{"nl": "employees earning over 90000", "intent": "select", "table": "employee", "conditions": [{"field": "salary", "cmp": "gt", "value": "90000"}]}
+{"nl": "employees with salary under 40000", "intent": "select", "table": "employee", "conditions": [{"field": "salary", "cmp": "lt", "value": "40000"}]}
+{"nl": "who is currently active", "intent": "select", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "employees hired before 2020", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "lt", "value": "2020-01-01"}]}
+{"nl": "employees with name containing Garcia", "intent": "select", "table": "employee", "conditions": [{"field": "name", "cmp": "contains", "value": "Garcia"}]}
+{"nl": "employee salary ranking", "intent": "select", "table": "employee", "modifiers": [{"type": "order_by", "field": "salary", "descending": true}]}
+{"nl": "5 most recently hired employees", "intent": "select", "table": "employee", "modifiers": [{"type": "order_by", "field": "hired", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "show all enrollments", "intent": "select", "table": "enrollment"}
+{"nl": "list enrollment records", "intent": "select", "table": "enrollment"}
+{"nl": "enrollment grades", "intent": "select", "table": "enrollment", "projections": ["grade"]}
+{"nl": "completed enrollments", "intent": "select", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}]}
+{"nl": "enrollments with grade above 90", "intent": "select", "table": "enrollment", "conditions": [{"field": "grade", "cmp": "gt", "value": "90"}]}
+{"nl": "failing enrollments under 60", "intent": "select", "table": "enrollment", "conditions": [{"field": "grade", "cmp": "lt", "value": "60"}]}
+{"nl": "enrollments sorted by grade", "intent": "select", "table": "enrollment", "modifiers": [{"type": "order_by", "field": "grade", "descending": true}]}
+{"nl": "get all events", "intent": "select", "table": "event"}
+{"nl": "what events are coming up", "intent": "select", "table": "event"}
+{"nl": "show me all events", "intent": "select", "table": "event"}
+{"nl": "list scheduled events", "intent": "select", "table": "event"}
+{"nl": "event names and dates", "intent": "select", "table": "event", "projections": ["name", "scheduled"]}
+{"nl": "event capacities", "intent": "select", "table": "event", "projections": ["name", "capacity"]}
+{"nl": "event statuses", "intent": "select", "table": "event", "projections": ["name", "status"]}
+{"nl": "active events", "intent": "select", "table": "event", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}]}
+{"nl": "events with capacity over 500", "intent": "select", "table": "event", "conditions": [{"field": "capacity", "cmp": "gt", "value": "500"}]}
+{"nl": "events scheduled after 2024-09-01", "intent": "select", "table": "event", "conditions": [{"field": "scheduled", "cmp": "gt", "value": "2024-09-01"}]}
+{"nl": "events with name containing conference", "intent": "select", "table": "event", "conditions": [{"field": "name", "cmp": "contains", "value": "conference"}]}
+{"nl": "next events by date", "intent": "select", "table": "event", "modifiers": [{"type": "order_by", "field": "scheduled"}]}
+{"nl": "largest events", "intent": "select", "table": "event", "modifiers": [{"type": "order_by", "field": "capacity", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "get all expenses", "intent": "select", "table": "expense"}
+{"nl": "show me the expenses", "intent": "select", "table": "expense"}
+{"nl": "list expense reports", "intent": "select", "table": "expense"}
+{"nl": "expense amounts and descriptions", "intent": "select", "table": "expense", "projections": ["amount", "description"]}
+{"nl": "unapproved expenses", "intent": "select", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}]}
+{"nl": "approved expenses", "intent": "select", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "true"}]}
+{"nl": "expenses over 500", "intent": "select", "table": "expense", "conditions": [{"field": "amount", "cmp": "gt", "value": "500"}]}
+{"nl": "expenses containing travel in description", "intent": "select", "table": "expense", "conditions": [{"field": "description", "cmp": "contains", "value": "travel"}]}
+{"nl": "biggest expenses first", "intent": "select", "table": "expense", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "top 10 expenses", "intent": "select", "table": "expense", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "all instructors", "intent": "select", "table": "instructor"}
+{"nl": "list the instructors", "intent": "select", "table": "instructor"}
+{"nl": "show instructor names and emails", "intent": "select", "table": "instructor", "projections": ["name", "email"]}
+{"nl": "active instructors", "intent": "select", "table": "instructor", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "instructors sorted by name", "intent": "select", "table": "instructor", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "get all invoices", "intent": "select", "table": "invoice"}
+{"nl": "show the invoices", "intent": "select", "table": "invoice"}
+{"nl": "list every invoice", "intent": "select", "table": "invoice"}
+{"nl": "invoice amounts and payment status", "intent": "select", "table": "invoice", "projections": ["amount", "paid"]}
+{"nl": "unpaid invoices", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
+{"nl": "paid invoices", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "invoices above 5000", "intent": "select", "table": "invoice", "conditions": [{"field": "amount", "cmp": "gt", "value": "5000"}]}
+{"nl": "invoices under 100", "intent": "select", "table": "invoice", "conditions": [{"field": "amount", "cmp": "lt", "value": "100"}]}
+{"nl": "invoices sorted by amount descending", "intent": "select", "table": "invoice", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "most recent invoices", "intent": "select", "table": "invoice", "modifiers": [{"type": "order_by", "field": "issued", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "show all listings", "intent": "select", "table": "listing"}
+{"nl": "get the listings", "intent": "select", "table": "listing"}
+{"nl": "listing prices and statuses", "intent": "select", "table": "listing", "projections": ["price", "status"]}
+{"nl": "active listings", "intent": "select", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}]}
+{"nl": "sold listings", "intent": "select", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "listings over 300000", "intent": "select", "table": "listing", "conditions": [{"field": "price", "cmp": "gt", "value": "300000"}]}
+{"nl": "cheapest listings", "intent": "select", "table": "listing", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "show all orders", "intent": "select", "table": "order"}
+{"nl": "list every order", "intent": "select", "table": "order"}
+{"nl": "get all orders in the system", "intent": "select", "table": "order"}
+{"nl": "order statuses and totals", "intent": "select", "table": "order", "projections": ["status", "total"]}
+{"nl": "pending orders", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
+{"nl": "orders totalling more than 200", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "gt", "value": "200"}]}
+{"nl": "orders where total is under 25", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "lt", "value": "25"}]}
+{"nl": "shipped orders", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "shipped"}]}
+{"nl": "orders not yet delivered", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "neq", "value": "delivered"}]}
+{"nl": "orders by total descending", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "total", "descending": true}]}
+{"nl": "5 newest orders", "intent": "select", "table": "order", "modifiers": [{"type": "order_by", "field": "created", "descending": true}, {"type": "limit", "value": "5"}]}
+{"nl": "get all patients", "intent": "select", "table": "patient"}
+{"nl": "show the patient records", "intent": "select", "table": "patient"}
+{"nl": "list all patients", "intent": "select", "table": "patient"}
+{"nl": "patient names and emails", "intent": "select", "table": "patient", "projections": ["name", "email"]}
+{"nl": "patient phone numbers", "intent": "select", "table": "patient", "projections": ["phone"]}
+{"nl": "insured patients", "intent": "select", "table": "patient", "conditions": [{"field": "insured", "cmp": "eq", "value": "true"}]}
+{"nl": "uninsured patients", "intent": "select", "table": "patient", "conditions": [{"field": "insured", "cmp": "eq", "value": "false"}]}
+{"nl": "patients named Martinez", "intent": "select", "table": "patient", "conditions": [{"field": "name", "cmp": "eq", "value": "Martinez"}]}
+{"nl": "patients born before 1990", "intent": "select", "table": "patient", "conditions": [{"field": "dob", "cmp": "lt", "value": "1990-01-01"}]}
+{"nl": "patients sorted by name", "intent": "select", "table": "patient", "modifiers": [{"type": "order_by", "field": "name"}]}
+{"nl": "show all prescriptions", "intent": "select", "table": "prescription"}
+{"nl": "list the prescriptions", "intent": "select", "table": "prescription"}
+{"nl": "prescription drugs and dosages", "intent": "select", "table": "prescription", "projections": ["drug", "dosage"]}
+{"nl": "active prescriptions", "intent": "select", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "prescriptions for aspirin", "intent": "select", "table": "prescription", "conditions": [{"field": "drug", "cmp": "eq", "value": "aspirin"}]}
+{"nl": "prescriptions containing ibuprofen", "intent": "select", "table": "prescription", "conditions": [{"field": "drug", "cmp": "contains", "value": "ibuprofen"}]}
+{"nl": "newest prescriptions", "intent": "select", "table": "prescription", "modifiers": [{"type": "order_by", "field": "issued", "descending": true}]}
+{"nl": "get all products", "intent": "select", "table": "product"}
+{"nl": "show the product list", "intent": "select", "table": "product"}
+{"nl": "what do we sell", "intent": "select", "table": "product"}
+{"nl": "product names prices and stock", "intent": "select", "table": "product", "projections": ["name", "price", "stock"]}
+{"nl": "product SKUs", "intent": "select", "table": "product", "projections": ["sku", "name"]}
+{"nl": "products in stock", "intent": "select", "table": "product", "conditions": [{"field": "stock", "cmp": "gt", "value": "0"}]}
+{"nl": "out of stock products", "intent": "select", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
+{"nl": "products cheaper than 10", "intent": "select", "table": "product", "conditions": [{"field": "price", "cmp": "lt", "value": "10"}]}
+{"nl": "expensive products over 200", "intent": "select", "table": "product", "conditions": [{"field": "price", "cmp": "gt", "value": "200"}]}
+{"nl": "active products only", "intent": "select", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "products containing widget in the name", "intent": "select", "table": "product", "conditions": [{"field": "name", "cmp": "contains", "value": "widget"}]}
+{"nl": "products by price ascending", "intent": "select", "table": "product", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "most stocked products", "intent": "select", "table": "product", "modifiers": [{"type": "order_by", "field": "stock", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "show all properties", "intent": "select", "table": "property"}
+{"nl": "list the properties", "intent": "select", "table": "property"}
+{"nl": "property addresses and prices", "intent": "select", "table": "property", "projections": ["address", "price"]}
+{"nl": "bedroom and bathroom count", "intent": "select", "table": "property", "projections": ["bedrooms", "bathrooms"]}
+{"nl": "properties with 4 bedrooms", "intent": "select", "table": "property", "conditions": [{"field": "bedrooms", "cmp": "eq", "value": "4"}]}
+{"nl": "properties under 200000", "intent": "select", "table": "property", "conditions": [{"field": "price", "cmp": "lt", "value": "200000"}]}
+{"nl": "active property listings", "intent": "select", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "condos", "intent": "select", "table": "property", "conditions": [{"field": "type", "cmp": "eq", "value": "condo"}]}
+{"nl": "properties sorted by price", "intent": "select", "table": "property", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "get all reviews", "intent": "select", "table": "review"}
+{"nl": "show the reviews", "intent": "select", "table": "review"}
+{"nl": "review ratings and text", "intent": "select", "table": "review", "projections": ["rating", "body"]}
+{"nl": "5 star reviews", "intent": "select", "table": "review", "conditions": [{"field": "rating", "cmp": "eq", "value": "5"}]}
+{"nl": "reviews with rating below 3", "intent": "select", "table": "review", "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
+{"nl": "reviews containing great in the body", "intent": "select", "table": "review", "conditions": [{"field": "body", "cmp": "contains", "value": "great"}]}
+{"nl": "reviews sorted by rating", "intent": "select", "table": "review", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "latest reviews", "intent": "select", "table": "review", "modifiers": [{"type": "order_by", "field": "created", "descending": true}, {"type": "limit", "value": "10"}]}
+{"nl": "show all roles", "intent": "select", "table": "role"}
+{"nl": "list the roles", "intent": "select", "table": "role"}
+{"nl": "role titles and levels", "intent": "select", "table": "role", "projections": ["title", "level"]}
+{"nl": "active roles", "intent": "select", "table": "role", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "roles at level 3 or above", "intent": "select", "table": "role", "conditions": [{"field": "level", "cmp": "gte", "value": "3"}]}
+{"nl": "roles sorted by level", "intent": "select", "table": "role", "modifiers": [{"type": "order_by", "field": "level", "descending": true}]}
+{"nl": "show all shifts", "intent": "select", "table": "shift"}
+{"nl": "list employee shifts", "intent": "select", "table": "shift"}
+{"nl": "shift times and locations", "intent": "select", "table": "shift", "projections": ["start", "end", "location"]}
+{"nl": "paid shifts", "intent": "select", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "unpaid shifts", "intent": "select", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
+{"nl": "shifts at warehouse location", "intent": "select", "table": "shift", "conditions": [{"field": "location", "cmp": "eq", "value": "warehouse"}]}
+{"nl": "shifts sorted by start time", "intent": "select", "table": "shift", "modifiers": [{"type": "order_by", "field": "start"}]}
+{"nl": "show all shipments", "intent": "select", "table": "shipment"}
+{"nl": "list shipments", "intent": "select", "table": "shipment"}
+{"nl": "shipment carriers and statuses", "intent": "select", "table": "shipment", "projections": ["carrier", "status"]}
+{"nl": "shipment weights", "intent": "select", "table": "shipment", "projections": ["weight"]}
+{"nl": "shipments via DHL", "intent": "select", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq", "value": "DHL"}]}
+{"nl": "shipments in transit", "intent": "select", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "in_transit"}]}
+{"nl": "delivered shipments", "intent": "select", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "delivered"}]}
+{"nl": "shipments weighing over 100", "intent": "select", "table": "shipment", "conditions": [{"field": "weight", "cmp": "gt", "value": "100"}]}
+{"nl": "heaviest shipments", "intent": "select", "table": "shipment", "modifiers": [{"type": "order_by", "field": "weight", "descending": true}]}
+{"nl": "get all students", "intent": "select", "table": "student"}
+{"nl": "list the students", "intent": "select", "table": "student"}
+{"nl": "show every student", "intent": "select", "table": "student"}
+{"nl": "student names and GPAs", "intent": "select", "table": "student", "projections": ["name", "gpa"]}
+{"nl": "student email addresses", "intent": "select", "table": "student", "projections": ["email"]}
+{"nl": "enrolled students", "intent": "select", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "true"}]}
+{"nl": "students with GPA over 3.0", "intent": "select", "table": "student", "conditions": [{"field": "gpa", "cmp": "gt", "value": "3.0"}]}
+{"nl": "students with GPA under 2.5", "intent": "select", "table": "student", "conditions": [{"field": "gpa", "cmp": "lt", "value": "2.5"}]}
+{"nl": "students by GPA descending", "intent": "select", "table": "student", "modifiers": [{"type": "order_by", "field": "gpa", "descending": true}]}
+{"nl": "show all suppliers", "intent": "select", "table": "supplier"}
+{"nl": "list our suppliers", "intent": "select", "table": "supplier"}
+{"nl": "supplier names and countries", "intent": "select", "table": "supplier", "projections": ["name", "country"]}
+{"nl": "supplier ratings", "intent": "select", "table": "supplier", "projections": ["name", "rating"]}
+{"nl": "active suppliers", "intent": "select", "table": "supplier", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "suppliers from Germany", "intent": "select", "table": "supplier", "conditions": [{"field": "country", "cmp": "eq", "value": "Germany"}]}
+{"nl": "suppliers rated above 4", "intent": "select", "table": "supplier", "conditions": [{"field": "rating", "cmp": "gt", "value": "4"}]}
+{"nl": "suppliers sorted by rating", "intent": "select", "table": "supplier", "modifiers": [{"type": "order_by", "field": "rating", "descending": true}]}
+{"nl": "get all tickets", "intent": "select", "table": "ticket"}
+{"nl": "show the tickets", "intent": "select", "table": "ticket"}
+{"nl": "ticket prices and statuses", "intent": "select", "table": "ticket", "projections": ["price", "status"]}
+{"nl": "sold tickets", "intent": "select", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "available tickets", "intent": "select", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "available"}]}
+{"nl": "tickets over 150", "intent": "select", "table": "ticket", "conditions": [{"field": "price", "cmp": "gt", "value": "150"}]}
+{"nl": "cheapest tickets first", "intent": "select", "table": "ticket", "modifiers": [{"type": "order_by", "field": "price"}]}
+{"nl": "show all transactions", "intent": "select", "table": "transaction"}
+{"nl": "list the transactions", "intent": "select", "table": "transaction"}
+{"nl": "get every transaction", "intent": "select", "table": "transaction"}
+{"nl": "transaction amounts and types", "intent": "select", "table": "transaction", "projections": ["amount", "type"]}
+{"nl": "transaction statuses", "intent": "select", "table": "transaction", "projections": ["status"]}
+{"nl": "completed transactions", "intent": "select", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}]}
+{"nl": "pending transactions", "intent": "select", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
+{"nl": "deposits", "intent": "select", "table": "transaction", "conditions": [{"field": "type", "cmp": "eq", "value": "deposit"}]}
+{"nl": "withdrawals over 1000", "intent": "select", "table": "transaction", "conditions": [{"field": "type", "cmp": "eq", "value": "withdrawal"}]}
+{"nl": "transactions above 5000", "intent": "select", "table": "transaction", "conditions": [{"field": "amount", "cmp": "gt", "value": "5000"}]}
+{"nl": "largest transactions", "intent": "select", "table": "transaction", "modifiers": [{"type": "order_by", "field": "amount", "descending": true}]}
+{"nl": "most recent transactions", "intent": "select", "table": "transaction", "modifiers": [{"type": "order_by", "field": "created", "descending": true}, {"type": "limit", "value": "20"}]}
+{"nl": "show all venues", "intent": "select", "table": "venue"}
+{"nl": "list the venues", "intent": "select", "table": "venue"}
+{"nl": "venue names and addresses", "intent": "select", "table": "venue", "projections": ["name", "address"]}
+{"nl": "venue capacities", "intent": "select", "table": "venue", "projections": ["name", "capacity"]}
+{"nl": "active venues", "intent": "select", "table": "venue", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "venues with capacity over 1000", "intent": "select", "table": "venue", "conditions": [{"field": "capacity", "cmp": "gt", "value": "1000"}]}
+{"nl": "venues sorted by capacity", "intent": "select", "table": "venue", "modifiers": [{"type": "order_by", "field": "capacity", "descending": true}]}
+{"nl": "show all warehouses", "intent": "select", "table": "warehouse"}
+{"nl": "list the warehouses", "intent": "select", "table": "warehouse"}
+{"nl": "warehouse names and locations", "intent": "select", "table": "warehouse", "projections": ["name", "location"]}
+{"nl": "active warehouses", "intent": "select", "table": "warehouse", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "warehouses with capacity over 5000", "intent": "select", "table": "warehouse", "conditions": [{"field": "capacity", "cmp": "gt", "value": "5000"}]}
+{"nl": "warehouses in Chicago", "intent": "select", "table": "warehouse", "conditions": [{"field": "location", "cmp": "eq", "value": "Chicago"}]}
+{"nl": "largest warehouses", "intent": "select", "table": "warehouse", "modifiers": [{"type": "order_by", "field": "capacity", "descending": true}]}

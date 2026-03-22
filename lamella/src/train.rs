@@ -63,7 +63,7 @@ pub struct TrainConfig {
     pub epochs: usize,
     #[config(default = 1e-3)]
     pub learning_rate: f64,
-    #[config(default = 5)]
+    #[config(default = 8)]
     pub patience: usize,
     #[config(default = 32)]
     pub batch_size: usize,
@@ -347,6 +347,76 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let val_acc = if total > 0 { correct as f32 / total as f32 } else { 0.0 };
 
         Metrics { train_loss: 0.0, val_loss, val_acc, head_acc }
+    }
+
+    /// Print per-table assignment accuracy and top misclassifications.
+    pub fn diagnose_asgn(&self, data: &[&LamellaDatum]) {
+        let inner = self.model.valid();
+        let embs = inner.precompute_schema_embs(&self.catalog, &self.device);
+
+        // per-table: (correct, total, Vec<(actual_field, predicted_field)> misses)
+        let n_tables = self.catalog.tables.len();
+        let mut tbl_correct = vec![0usize; n_tables];
+        let mut tbl_total   = vec![0usize; n_tables];
+        let mut tbl_misses: Vec<Vec<(String, String)>> = vec![Vec::new(); n_tables];
+
+        for chunk in data.chunks(32) {
+            let chunk_tokens: Vec<Vec<String>> = chunk.iter()
+                .map(|d| tokenize(&d.nl).0)
+                .collect();
+            let pools = inner.encode_nl_batch(&chunk_tokens, self.config.token_buckets, &self.device);
+
+            for (ci, datum) in chunk.iter().enumerate() {
+                if datum.asgn_fields.is_empty() { continue; }
+                let pool = pools.clone()
+                    .slice([ci..ci+1, 0..self.config.d_model])
+                    .reshape([self.config.d_model]);
+                let slots = datum.slot_counts();
+                let logits = inner.head_scoring(
+                    pool, &slots, &self.catalog, datum.entity, &embs, &self.device,
+                );
+                let valid_fields = &self.catalog.table_field_indices[datum.entity];
+                let ti = datum.entity;
+
+                for (i, &global_idx) in datum.asgn_fields.iter().enumerate() {
+                    if i >= logits.assignment.len() { break; }
+                    let Some(local_target) = valid_fields.iter().position(|&f| f == global_idx) else { continue };
+                    tbl_total[ti] += 1;
+
+                    // argmax over local candidates
+                    use burn::tensor::ElementConversion;
+                    let pred_local = logits.assignment[i].clone().argmax(0).into_scalar().elem::<i32>() as usize;
+                    if pred_local == local_target {
+                        tbl_correct[ti] += 1;
+                    } else {
+                        let actual_field = self.catalog.fields[global_idx].1.clone();
+                        let pred_global  = valid_fields.get(pred_local).copied().unwrap_or(0);
+                        let pred_field   = self.catalog.fields[pred_global].1.clone();
+                        tbl_misses[ti].push((actual_field, pred_field));
+                    }
+                }
+            }
+        }
+
+        println!("\n=== asgn head per-table ===");
+        let mut rows: Vec<(usize, usize, usize)> = tbl_total.iter().enumerate()
+            .filter(|(_, t)| **t > 0)
+            .map(|(i, t)| (i, tbl_correct[i], *t))
+            .collect();
+        rows.sort_by(|a, b| {
+            let pa = a.1 as f32 / a.2 as f32;
+            let pb = b.1 as f32 / b.2 as f32;
+            pa.partial_cmp(&pb).unwrap()
+        });
+        for (ti, correct, total) in &rows {
+            let pct = *correct as f32 / *total as f32 * 100.0;
+            println!("  {:15}  {:2}/{:2}  ({:.0}%)", self.catalog.tables[*ti], correct, total, pct);
+            // Show up to 3 misses
+            for (actual, pred) in tbl_misses[*ti].iter().take(3) {
+                println!("      got {:?}  expected {:?}", pred, actual);
+            }
+        }
+        println!();
     }
 
     pub fn save(&self, path: &PathBuf) -> std::io::Result<()> {

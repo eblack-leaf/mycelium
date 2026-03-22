@@ -1,0 +1,111 @@
+{"nl": "delete accounts with zero balance", "intent": "delete", "table": "account", "conditions": [{"field": "balance", "cmp": "eq", "value": "0"}]}
+{"nl": "remove inactive accounts", "intent": "delete", "table": "account", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "delete accounts where type is temporary", "intent": "delete", "table": "account", "conditions": [{"field": "type", "cmp": "eq", "value": "temporary"}]}
+{"nl": "purge accounts with balance under negative 100", "intent": "delete", "table": "account", "conditions": [{"field": "balance", "cmp": "lt", "value": "-100"}]}
+{"nl": "remove agents with rating below 2", "intent": "delete", "table": "agent", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "delete inactive agents", "intent": "delete", "table": "agent", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove agent named Tom", "intent": "delete", "table": "agent", "conditions": [{"field": "name", "cmp": "eq", "value": "Tom"}]}
+{"nl": "delete agents with rating of 0", "intent": "delete", "table": "agent", "conditions": [{"field": "rating", "cmp": "eq", "value": "0"}]}
+{"nl": "delete cancelled appointments", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove appointments before 2023", "intent": "delete", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "lt", "value": "2023-01-01"}]}
+{"nl": "delete completed appointments", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}]}
+{"nl": "clear out old appointments where status is no-show", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "no-show"}]}
+{"nl": "remove attendee Dave", "intent": "delete", "table": "attendee", "conditions": [{"field": "name", "cmp": "eq", "value": "Dave"}]}
+{"nl": "delete attendees with email containing test", "intent": "delete", "table": "attendee", "conditions": [{"field": "email", "cmp": "contains", "value": "test"}]}
+{"nl": "remove attendees without phone numbers", "intent": "delete", "table": "attendee", "conditions": [{"field": "phone", "cmp": "eq", "value": ""}]}
+{"nl": "delete inactive budgets", "intent": "delete", "table": "budget", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove budgets with zero amount", "intent": "delete", "table": "budget", "conditions": [{"field": "amount", "cmp": "eq", "value": "0"}]}
+{"nl": "delete budget named Operations", "intent": "delete", "table": "budget", "conditions": [{"field": "name", "cmp": "eq", "value": "Operations"}]}
+{"nl": "remove category Food", "intent": "delete", "table": "category", "conditions": [{"field": "name", "cmp": "eq", "value": "Food"}]}
+{"nl": "delete categories with description containing deprecated", "intent": "delete", "table": "category", "conditions": [{"field": "description", "cmp": "contains", "value": "deprecated"}]}
+{"nl": "remove inactive courses", "intent": "delete", "table": "course", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "delete courses with zero capacity", "intent": "delete", "table": "course", "conditions": [{"field": "capacity", "cmp": "eq", "value": "0"}]}
+{"nl": "remove course Physics 101", "intent": "delete", "table": "course", "conditions": [{"field": "name", "cmp": "eq", "value": "Physics 101"}]}
+{"nl": "delete courses with less than 2 credits", "intent": "delete", "table": "course", "conditions": [{"field": "credits", "cmp": "lt", "value": "2"}]}
+{"nl": "delete customer named Priya", "intent": "delete", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "Priya"}]}
+{"nl": "remove customers with email containing spam", "intent": "delete", "table": "customer", "conditions": [{"field": "email", "cmp": "contains", "value": "spam"}]}
+{"nl": "delete customers created before 2020", "intent": "delete", "table": "customer", "conditions": [{"field": "created", "cmp": "lt", "value": "2020-01-01"}]}
+{"nl": "remove customer James", "intent": "delete", "table": "customer", "conditions": [{"field": "name", "cmp": "eq", "value": "James"}]}
+{"nl": "delete department HR", "intent": "delete", "table": "department", "conditions": [{"field": "name", "cmp": "eq", "value": "HR"}]}
+{"nl": "remove departments with budget under 50000", "intent": "delete", "table": "department", "conditions": [{"field": "budget", "cmp": "lt", "value": "50000"}]}
+{"nl": "delete inactive doctors", "intent": "delete", "table": "doctor", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove doctors with rating under 2", "intent": "delete", "table": "doctor", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "delete doctor Dr. Chen", "intent": "delete", "table": "doctor", "conditions": [{"field": "name", "cmp": "eq", "value": "Dr. Chen"}]}
+{"nl": "remove doctors specializing in retired fields", "intent": "delete", "table": "doctor", "conditions": [{"field": "specialty", "cmp": "eq", "value": "retired"}]}
+{"nl": "fire employee Raj", "intent": "delete", "table": "employee", "conditions": [{"field": "name", "cmp": "eq", "value": "Raj"}]}
+{"nl": "remove inactive employees", "intent": "delete", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "delete employees with salary 0", "intent": "delete", "table": "employee", "conditions": [{"field": "salary", "cmp": "eq", "value": "0"}]}
+{"nl": "remove employees hired before 2010", "intent": "delete", "table": "employee", "conditions": [{"field": "hired", "cmp": "lt", "value": "2010-01-01"}]}
+{"nl": "terminate employee named Chris", "intent": "delete", "table": "employee", "conditions": [{"field": "name", "cmp": "eq", "value": "Chris"}]}
+{"nl": "delete incomplete enrollments", "intent": "delete", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "false"}]}
+{"nl": "remove enrollments with grade below 50", "intent": "delete", "table": "enrollment", "conditions": [{"field": "grade", "cmp": "lt", "value": "50"}]}
+{"nl": "delete completed enrollments", "intent": "delete", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}]}
+{"nl": "delete cancelled events", "intent": "delete", "table": "event", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove past events before 2023", "intent": "delete", "table": "event", "conditions": [{"field": "scheduled", "cmp": "lt", "value": "2023-01-01"}]}
+{"nl": "delete event Workshop", "intent": "delete", "table": "event", "conditions": [{"field": "name", "cmp": "eq", "value": "Workshop"}]}
+{"nl": "remove events with zero capacity", "intent": "delete", "table": "event", "conditions": [{"field": "capacity", "cmp": "eq", "value": "0"}]}
+{"nl": "delete unapproved expenses", "intent": "delete", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}]}
+{"nl": "remove expenses under 10 dollars", "intent": "delete", "table": "expense", "conditions": [{"field": "amount", "cmp": "lt", "value": "10"}]}
+{"nl": "delete expenses containing duplicate in description", "intent": "delete", "table": "expense", "conditions": [{"field": "description", "cmp": "contains", "value": "duplicate"}]}
+{"nl": "remove old approved expenses", "intent": "delete", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "true"}]}
+{"nl": "delete inactive instructors", "intent": "delete", "table": "instructor", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove instructor Prof. Adams", "intent": "delete", "table": "instructor", "conditions": [{"field": "name", "cmp": "eq", "value": "Prof. Adams"}]}
+{"nl": "delete paid invoices", "intent": "delete", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "remove invoices under 50 dollars", "intent": "delete", "table": "invoice", "conditions": [{"field": "amount", "cmp": "lt", "value": "50"}]}
+{"nl": "delete invoices where amount is 0", "intent": "delete", "table": "invoice", "conditions": [{"field": "amount", "cmp": "eq", "value": "0"}]}
+{"nl": "remove sold listings", "intent": "delete", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "delete expired listings", "intent": "delete", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "expired"}]}
+{"nl": "remove listings with price 0", "intent": "delete", "table": "listing", "conditions": [{"field": "price", "cmp": "eq", "value": "0"}]}
+{"nl": "delete cancelled orders", "intent": "delete", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove orders with zero total", "intent": "delete", "table": "order", "conditions": [{"field": "total", "cmp": "eq", "value": "0"}]}
+{"nl": "delete orders older than 2022", "intent": "delete", "table": "order", "conditions": [{"field": "created", "cmp": "lt", "value": "2022-01-01"}]}
+{"nl": "purge delivered orders from before 2023", "intent": "delete", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "delivered"}]}
+{"nl": "remove orders with total under 5", "intent": "delete", "table": "order", "conditions": [{"field": "total", "cmp": "lt", "value": "5"}]}
+{"nl": "delete uninsured patients", "intent": "delete", "table": "patient", "conditions": [{"field": "insured", "cmp": "eq", "value": "false"}]}
+{"nl": "remove patient Yuki", "intent": "delete", "table": "patient", "conditions": [{"field": "name", "cmp": "eq", "value": "Yuki"}]}
+{"nl": "delete patients created before 2020", "intent": "delete", "table": "patient", "conditions": [{"field": "created", "cmp": "lt", "value": "2020-01-01"}]}
+{"nl": "remove patient record for Omar", "intent": "delete", "table": "patient", "conditions": [{"field": "name", "cmp": "eq", "value": "Omar"}]}
+{"nl": "delete inactive prescriptions", "intent": "delete", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove prescriptions for aspirin", "intent": "delete", "table": "prescription", "conditions": [{"field": "drug", "cmp": "eq", "value": "aspirin"}]}
+{"nl": "delete expired prescriptions", "intent": "delete", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "delete discontinued products", "intent": "delete", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove products with zero stock", "intent": "delete", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
+{"nl": "delete product USB Cable", "intent": "delete", "table": "product", "conditions": [{"field": "name", "cmp": "eq", "value": "USB Cable"}]}
+{"nl": "remove products priced at 0", "intent": "delete", "table": "product", "conditions": [{"field": "price", "cmp": "eq", "value": "0"}]}
+{"nl": "delete inactive properties", "intent": "delete", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove property at 55 River Rd", "intent": "delete", "table": "property", "conditions": [{"field": "address", "cmp": "eq", "value": "55 River Rd"}]}
+{"nl": "delete properties with zero bedrooms", "intent": "delete", "table": "property", "conditions": [{"field": "bedrooms", "cmp": "eq", "value": "0"}]}
+{"nl": "delete 1-star reviews", "intent": "delete", "table": "review", "conditions": [{"field": "rating", "cmp": "eq", "value": "1"}]}
+{"nl": "remove reviews with rating below 2", "intent": "delete", "table": "review", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "delete reviews containing spam in body", "intent": "delete", "table": "review", "conditions": [{"field": "body", "cmp": "contains", "value": "spam"}]}
+{"nl": "remove old reviews before 2022", "intent": "delete", "table": "review", "conditions": [{"field": "created", "cmp": "lt", "value": "2022-01-01"}]}
+{"nl": "delete inactive roles", "intent": "delete", "table": "role", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove roles at level 0", "intent": "delete", "table": "role", "conditions": [{"field": "level", "cmp": "eq", "value": "0"}]}
+{"nl": "delete role Junior Developer", "intent": "delete", "table": "role", "conditions": [{"field": "title", "cmp": "eq", "value": "Junior Developer"}]}
+{"nl": "delete unpaid shifts", "intent": "delete", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
+{"nl": "remove shifts at location warehouse", "intent": "delete", "table": "shift", "conditions": [{"field": "location", "cmp": "eq", "value": "warehouse"}]}
+{"nl": "delete old shifts before 2023", "intent": "delete", "table": "shift", "conditions": [{"field": "start", "cmp": "lt", "value": "2023-01-01"}]}
+{"nl": "delete delivered shipments", "intent": "delete", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "delivered"}]}
+{"nl": "remove shipments with weight 0", "intent": "delete", "table": "shipment", "conditions": [{"field": "weight", "cmp": "eq", "value": "0"}]}
+{"nl": "delete DHL shipments", "intent": "delete", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq", "value": "DHL"}]}
+{"nl": "purge old shipments before 2022", "intent": "delete", "table": "shipment", "conditions": [{"field": "created", "cmp": "lt", "value": "2022-01-01"}]}
+{"nl": "delete unenrolled students", "intent": "delete", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "false"}]}
+{"nl": "remove student Leo", "intent": "delete", "table": "student", "conditions": [{"field": "name", "cmp": "eq", "value": "Leo"}]}
+{"nl": "delete students with GPA below 1.0", "intent": "delete", "table": "student", "conditions": [{"field": "gpa", "cmp": "lt", "value": "1.0"}]}
+{"nl": "remove students created before 2021", "intent": "delete", "table": "student", "conditions": [{"field": "created", "cmp": "lt", "value": "2021-01-01"}]}
+{"nl": "delete inactive suppliers", "intent": "delete", "table": "supplier", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove suppliers with rating under 2", "intent": "delete", "table": "supplier", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "delete supplier GlobalShip", "intent": "delete", "table": "supplier", "conditions": [{"field": "name", "cmp": "eq", "value": "GlobalShip"}]}
+{"nl": "delete cancelled tickets", "intent": "delete", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove sold tickets", "intent": "delete", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "delete tickets with price 0", "intent": "delete", "table": "ticket", "conditions": [{"field": "price", "cmp": "eq", "value": "0"}]}
+{"nl": "delete completed transactions", "intent": "delete", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}]}
+{"nl": "remove cancelled transactions", "intent": "delete", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "delete transactions with amount 0", "intent": "delete", "table": "transaction", "conditions": [{"field": "amount", "cmp": "eq", "value": "0"}]}
+{"nl": "remove old transactions before 2022", "intent": "delete", "table": "transaction", "conditions": [{"field": "created", "cmp": "lt", "value": "2022-01-01"}]}
+{"nl": "delete inactive venues", "intent": "delete", "table": "venue", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove venue Conference Room A", "intent": "delete", "table": "venue", "conditions": [{"field": "name", "cmp": "eq", "value": "Conference Room A"}]}
+{"nl": "delete venues with capacity under 10", "intent": "delete", "table": "venue", "conditions": [{"field": "capacity", "cmp": "lt", "value": "10"}]}
+{"nl": "delete inactive warehouses", "intent": "delete", "table": "warehouse", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove warehouse North Facility", "intent": "delete", "table": "warehouse", "conditions": [{"field": "name", "cmp": "eq", "value": "North Facility"}]}
+{"nl": "delete warehouses with zero capacity", "intent": "delete", "table": "warehouse", "conditions": [{"field": "capacity", "cmp": "eq", "value": "0"}]}

@@ -25,13 +25,15 @@ fn main() {
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
 
     match cmd {
-        "train" => cmd_train(),
-        "eval" => cmd_eval(),
-        "infer" => cmd_infer(&args[2..]),
+        "train"    => cmd_train(),
+        "eval"     => cmd_eval(),
+        "diagnose" => cmd_diagnose(),
+        "infer"    => cmd_infer(&args[2..]),
         _ => {
-            eprintln!("Usage: lamella <train|eval|infer>");
+            eprintln!("Usage: lamella <train|eval|diagnose|infer>");
             eprintln!("  train                 — train the model");
             eprintln!("  eval                  — evaluate on held-out schema");
+            eprintln!("  diagnose              — per-table asgn accuracy on val split");
             eprintln!("  infer --schema DIR NL — infer SurrealQL from NL");
         }
     }
@@ -87,6 +89,31 @@ fn cmd_eval() {
 
     println!("Eval: loss={:.4} acc={:.1}%", metrics.val_loss, metrics.val_acc * 100.0);
     println!("  {}", metrics.head_acc.display());
+}
+
+fn cmd_diagnose() {
+    let schema = Schema::from_dir(Path::new(SCHEMA_DIR)).expect("Failed to load schema");
+    let config = LamellaConfig::new();
+    let catalog = SchemaCatalog::from_schema(&schema, config.schema_buckets);
+
+    let (_, val_data) = load_dataset(DATASET_DIR, &catalog, 0.1);
+    println!("Val datums: {}", val_data.len());
+
+    let device = WgpuDevice::default();
+    let mut ctx = LamellaTrainCtx::<MyAutodiffBackend>::new(config, catalog, 1e-3, 1, &device);
+
+    let weights = std::path::PathBuf::from(WEIGHTS_FILE);
+    ctx.load(&weights).expect("Failed to load weights");
+
+    let val_refs: Vec<&LamellaDatum> = val_data.iter().collect();
+    let bar = indicatif::ProgressBar::new(((val_refs.len() + 31) / 32) as u64);
+    let metrics = ctx.evaluate(&val_refs, &bar);
+    bar.finish_and_clear();
+
+    println!("Val: loss={:.4} acc={:.1}%", metrics.val_loss, metrics.val_acc * 100.0);
+    println!("  {}", metrics.head_acc.display());
+
+    ctx.diagnose_asgn(&val_refs);
 }
 
 fn cmd_infer(args: &[String]) {
