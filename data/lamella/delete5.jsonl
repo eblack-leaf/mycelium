@@ -93,7 +93,7 @@
 {"nl": "delete department with name <val>", "intent": "delete", "table": "department", "conditions": [{"field": "name", "cmp": "eq"}]}
 {"nl": "remove departments with budget below <val>", "intent": "delete", "table": "department", "conditions": [{"field": "budget", "cmp": "lt"}]}
 // property
-{"nl": "delete sold properties", "intent": "delete", "table": "property", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "delete inactive properties", "intent": "delete", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
 {"nl": "remove properties with price above <val>", "intent": "delete", "table": "property", "conditions": [{"field": "price", "cmp": "gt"}]}
 {"nl": "delete properties with address containing <val>", "intent": "delete", "table": "property", "conditions": [{"field": "address", "cmp": "contains"}]}
 // agent

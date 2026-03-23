@@ -86,7 +86,7 @@
 {"nl": "set budget to 200000 for the Engineering department", "intent": "update", "table": "department", "assignments": [{"field": "budget", "value": "200000"}], "conditions": [{"field": "name", "cmp": "eq", "value": "Engineering"}]}
 {"nl": "update department head to <val1> where name is <val2>", "intent": "update", "table": "department", "assignments": [{"field": "head"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // property
-{"nl": "mark all properties above 1000000 as sold", "intent": "update", "table": "property", "assignments": [{"field": "status", "value": "sold"}], "conditions": [{"field": "price", "cmp": "gt", "value": "1000000"}]}
+{"nl": "deactivate properties above 1000000", "intent": "update", "table": "property", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "price", "cmp": "gt", "value": "1000000"}]}
 {"nl": "update property price to <val1> where address is <val2>", "intent": "update", "table": "property", "assignments": [{"field": "price"}], "conditions": [{"field": "address", "cmp": "eq"}]}
 // agent
 {"nl": "deactivate agents with rating below 3", "intent": "update", "table": "agent", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
