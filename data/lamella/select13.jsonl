@@ -2,7 +2,7 @@
 // employee
 {"nl": "get top 10 employees by salary descending", "intent": "select", "table": "employee", "projections": ["name", "salary"], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}, {"type": "limit", "value": "10"}]}
 {"nl": "show active employees name and salary sorted by salary descending limit 20", "intent": "select", "table": "employee", "projections": ["name", "salary"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}, {"type": "limit", "value": "20"}]}
-{"nl": "list employees in department <val> sorted by name limit 5", "intent": "select", "table": "employee", "projections": ["name", "role"], "conditions": [{"field": "department"}], "modifiers": [{"type": "order_by", "field": "name"}, {"type": "limit", "value": "5"}]}
+{"nl": "list employees in department <val> sorted by name limit 5", "intent": "select", "table": "employee", "projections": ["name", "role"], "conditions": [{"field": "department", "cmp": "eq"}], "modifiers": [{"type": "order_by", "field": "name"}, {"type": "limit", "value": "5"}]}
 {"nl": "find top 5 highest paid employees sorted by salary descending", "intent": "select", "table": "employee", "projections": ["name", "salary", "department"], "modifiers": [{"type": "order_by", "field": "salary", "descending": true}, {"type": "limit", "value": "5"}]}
 // product
 {"nl": "get top 10 products by price descending", "intent": "select", "table": "product", "projections": ["name", "price"], "modifiers": [{"type": "order_by", "field": "price", "descending": true}, {"type": "limit", "value": "10"}]}
@@ -46,7 +46,7 @@
 {"nl": "get cheapest 5 tickets", "intent": "select", "table": "ticket", "projections": ["price", "status"], "modifiers": [{"type": "order_by", "field": "price"}, {"type": "limit", "value": "5"}]}
 // shift
 {"nl": "show paid shifts sorted by start limit 20", "intent": "select", "table": "shift", "projections": ["start", "location"], "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "start"}, {"type": "limit", "value": "20"}]}
-{"nl": "get shifts at location <val> sorted by start limit 10", "intent": "select", "table": "shift", "projections": ["start", "end", "location"], "conditions": [{"field": "location"}], "modifiers": [{"type": "order_by", "field": "start"}, {"type": "limit", "value": "10"}]}
+{"nl": "get shifts at location <val> sorted by start limit 10", "intent": "select", "table": "shift", "projections": ["start", "end", "location"], "conditions": [{"field": "location", "cmp": "eq"}], "modifiers": [{"type": "order_by", "field": "start"}, {"type": "limit", "value": "10"}]}
 // shipment
 {"nl": "show pending shipments sorted by weight descending limit 10", "intent": "select", "table": "shipment", "projections": ["carrier", "status", "weight"], "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "modifiers": [{"type": "order_by", "field": "weight", "descending": true}, {"type": "limit", "value": "10"}]}
 {"nl": "get heaviest 5 shipments", "intent": "select", "table": "shipment", "projections": ["carrier", "weight"], "modifiers": [{"type": "order_by", "field": "weight", "descending": true}, {"type": "limit", "value": "5"}]}
@@ -64,7 +64,7 @@
 {"nl": "get top 5 most expensive properties", "intent": "select", "table": "property", "projections": ["address", "price"], "modifiers": [{"type": "order_by", "field": "price", "descending": true}, {"type": "limit", "value": "5"}]}
 // enrollment
 {"nl": "show completed enrollments sorted by grade limit 20", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "grade"}, {"type": "limit", "value": "20"}]}
-{"nl": "get enrollments where grade is <val> sorted by grade limit 10", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "conditions": [{"field": "grade"}], "modifiers": [{"type": "order_by", "field": "grade"}, {"type": "limit", "value": "10"}]}
+{"nl": "get enrollments where grade is <val> sorted by grade limit 10", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "conditions": [{"field": "grade", "cmp": "eq"}], "modifiers": [{"type": "order_by", "field": "grade"}, {"type": "limit", "value": "10"}]}
 // prescription
 {"nl": "show active prescriptions sorted by drug limit 15", "intent": "select", "table": "prescription", "projections": ["drug", "dosage"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "drug"}, {"type": "limit", "value": "15"}]}
 // appointment

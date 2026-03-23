@@ -2,35 +2,35 @@
 // employee
 {"nl": "set all employees in engineering to active", "intent": "update", "table": "employee", "assignments": [{"field": "active", "value": "true"}], "conditions": [{"field": "department", "cmp": "eq", "value": "Engineering"}]}
 {"nl": "update salary to <val> for employees in sales", "intent": "update", "table": "employee", "assignments": [{"field": "salary"}], "conditions": [{"field": "department", "cmp": "eq", "value": "Sales"}]}
-{"nl": "mark employee with name <val> as inactive", "intent": "update", "table": "employee", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "name"}]}
+{"nl": "mark employee with name <val> as inactive", "intent": "update", "table": "employee", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 {"nl": "change the role of all managers to senior manager", "intent": "update", "table": "employee", "assignments": [{"field": "role", "value": "Senior Manager"}], "conditions": [{"field": "role", "cmp": "eq", "value": "Manager"}]}
-{"nl": "update department to <val1> for employee with name <val2>", "intent": "update", "table": "employee", "assignments": [{"field": "department"}], "conditions": [{"field": "name"}]}
+{"nl": "update department to <val1> for employee with name <val2>", "intent": "update", "table": "employee", "assignments": [{"field": "department"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 {"nl": "give all HR employees a salary of <val>", "intent": "update", "table": "employee", "assignments": [{"field": "salary"}], "conditions": [{"field": "department", "cmp": "eq", "value": "HR"}]}
 // product
 {"nl": "mark all products with stock 0 as inactive", "intent": "update", "table": "product", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
-{"nl": "update price to <val> for product with sku <val>", "intent": "update", "table": "product", "assignments": [{"field": "price"}], "conditions": [{"field": "sku"}]}
+{"nl": "update price to <val1> for product with sku <val2>", "intent": "update", "table": "product", "assignments": [{"field": "price"}], "conditions": [{"field": "sku", "cmp": "eq"}]}
 {"nl": "set stock to 100 for all active products", "intent": "update", "table": "product", "assignments": [{"field": "stock", "value": "100"}], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
-{"nl": "update product sku to <val1> where name is <val2>", "intent": "update", "table": "product", "assignments": [{"field": "sku"}], "conditions": [{"field": "name"}]}
+{"nl": "update product sku to <val1> where name is <val2>", "intent": "update", "table": "product", "assignments": [{"field": "sku"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // customer
-{"nl": "update phone to <val> for customer with name <val>", "intent": "update", "table": "customer", "assignments": [{"field": "phone"}], "conditions": [{"field": "name"}]}
-{"nl": "set email to <val1> for customer with phone <val2>", "intent": "update", "table": "customer", "assignments": [{"field": "email"}], "conditions": [{"field": "phone"}]}
+{"nl": "update phone to <val1> for customer with name <val2>", "intent": "update", "table": "customer", "assignments": [{"field": "phone"}], "conditions": [{"field": "name", "cmp": "eq"}]}
+{"nl": "set email to <val1> for customer with phone <val2>", "intent": "update", "table": "customer", "assignments": [{"field": "email"}], "conditions": [{"field": "phone", "cmp": "eq"}]}
 {"nl": "update customer name to Acme Corp where email is acme@example.com", "intent": "update", "table": "customer", "assignments": [{"field": "name", "value": "Acme Corp"}], "conditions": [{"field": "email", "cmp": "eq", "value": "acme@example.com"}]}
 // order
 {"nl": "mark all pending orders as processing", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "processing"}], "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
 {"nl": "update total to <val> for orders with status pending", "intent": "update", "table": "order", "assignments": [{"field": "total"}], "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
 {"nl": "set order status to shipped where total is greater than 200", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "shipped"}], "conditions": [{"field": "total", "cmp": "gt", "value": "200"}]}
-{"nl": "update order status to <val> where total is greater than <val>", "intent": "update", "table": "order", "assignments": [{"field": "status"}], "conditions": [{"field": "total", "cmp": "gt"}]}
+{"nl": "update order status to <val1> where total is greater than <val2>", "intent": "update", "table": "order", "assignments": [{"field": "status"}], "conditions": [{"field": "total", "cmp": "gt"}]}
 // appointment
 {"nl": "cancel all pending appointments", "intent": "update", "table": "appointment", "assignments": [{"field": "status", "value": "cancelled"}], "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
 {"nl": "update appointment notes to <val> where status is confirmed", "intent": "update", "table": "appointment", "assignments": [{"field": "notes"}], "conditions": [{"field": "status", "cmp": "eq", "value": "confirmed"}]}
-{"nl": "confirm appointment where notes is <val>", "intent": "update", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}], "conditions": [{"field": "notes"}]}
+{"nl": "confirm appointment where notes is <val>", "intent": "update", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}], "conditions": [{"field": "notes", "cmp": "eq"}]}
 // invoice
 {"nl": "mark all invoices above 1000 as paid", "intent": "update", "table": "invoice", "assignments": [{"field": "paid", "value": "true"}], "conditions": [{"field": "amount", "cmp": "gt", "value": "1000"}]}
 {"nl": "update invoice amount to <val> where paid is false", "intent": "update", "table": "invoice", "assignments": [{"field": "amount"}], "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
 {"nl": "set paid to false for invoices with amount less than 100", "intent": "update", "table": "invoice", "assignments": [{"field": "paid", "value": "false"}], "conditions": [{"field": "amount", "cmp": "lt", "value": "100"}]}
 // expense
 {"nl": "approve all expenses under 100 dollars", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "true"}], "conditions": [{"field": "amount", "cmp": "lt", "value": "100"}]}
-{"nl": "update expense description to <val> where amount is <val>", "intent": "update", "table": "expense", "assignments": [{"field": "description"}], "conditions": [{"field": "amount"}]}
+{"nl": "update expense description to <val1> where amount is <val2>", "intent": "update", "table": "expense", "assignments": [{"field": "description"}], "conditions": [{"field": "amount", "cmp": "eq"}]}
 {"nl": "reject expenses with description containing travel", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "false"}], "conditions": [{"field": "description", "cmp": "contains", "value": "travel"}]}
 {"nl": "update approved to <val> for expenses with amount greater than 500", "intent": "update", "table": "expense", "assignments": [{"field": "approved"}], "conditions": [{"field": "amount", "cmp": "gt", "value": "500"}]}
 // shipment
@@ -39,7 +39,7 @@
 {"nl": "set status to in-transit for UPS shipments", "intent": "update", "table": "shipment", "assignments": [{"field": "status", "value": "in-transit"}], "conditions": [{"field": "carrier", "cmp": "eq", "value": "UPS"}]}
 // review
 {"nl": "update all 1-star reviews body to requires improvement", "intent": "update", "table": "review", "assignments": [{"field": "body", "value": "requires improvement"}], "conditions": [{"field": "rating", "cmp": "eq", "value": "1"}]}
-{"nl": "set rating to <val> for review by author <val>", "intent": "update", "table": "review", "assignments": [{"field": "rating"}], "conditions": [{"field": "author"}]}
+{"nl": "set rating to <val1> for review by author <val2>", "intent": "update", "table": "review", "assignments": [{"field": "rating"}], "conditions": [{"field": "author", "cmp": "eq"}]}
 {"nl": "update review body to <val> where rating is less than 3", "intent": "update", "table": "review", "assignments": [{"field": "body"}], "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
 // ticket
 {"nl": "mark all available tickets as sold", "intent": "update", "table": "ticket", "assignments": [{"field": "status", "value": "sold"}], "conditions": [{"field": "status", "cmp": "eq", "value": "available"}]}
@@ -55,7 +55,7 @@
 {"nl": "set price to <val> for active listings", "intent": "update", "table": "listing", "assignments": [{"field": "price"}], "conditions": [{"field": "status", "cmp": "eq", "value": "active"}]}
 // prescription
 {"nl": "deactivate all prescriptions for Ibuprofen", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "drug", "cmp": "eq", "value": "Ibuprofen"}]}
-{"nl": "update dosage to <val> for prescriptions for drug <val>", "intent": "update", "table": "prescription", "assignments": [{"field": "dosage"}], "conditions": [{"field": "drug"}]}
+{"nl": "update dosage to <val1> for prescriptions for drug <val2>", "intent": "update", "table": "prescription", "assignments": [{"field": "dosage"}], "conditions": [{"field": "drug", "cmp": "eq"}]}
 {"nl": "activate all Amoxicillin prescriptions", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "true"}], "conditions": [{"field": "drug", "cmp": "eq", "value": "Amoxicillin"}]}
 // enrollment
 {"nl": "mark all grade A enrollments as completed", "intent": "update", "table": "enrollment", "assignments": [{"field": "completed", "value": "true"}], "conditions": [{"field": "grade", "cmp": "eq", "value": "A"}]}
@@ -68,50 +68,50 @@
 // account
 {"nl": "set balance to 0 for closed accounts", "intent": "update", "table": "account", "assignments": [{"field": "balance", "value": "0"}], "conditions": [{"field": "type", "cmp": "eq", "value": "closed"}]}
 {"nl": "update account type to premium where balance is greater than <val>", "intent": "update", "table": "account", "assignments": [{"field": "type", "value": "premium"}], "conditions": [{"field": "balance", "cmp": "gt"}]}
-{"nl": "set balance to <val> for account with name <val>", "intent": "update", "table": "account", "assignments": [{"field": "balance"}], "conditions": [{"field": "name"}]}
+{"nl": "set balance to <val1> for account with name <val2>", "intent": "update", "table": "account", "assignments": [{"field": "balance"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // patient
-{"nl": "mark all patients with email <val> as insured", "intent": "update", "table": "patient", "assignments": [{"field": "insured", "value": "true"}], "conditions": [{"field": "email"}]}
-{"nl": "update patient phone to <val> where name is <val>", "intent": "update", "table": "patient", "assignments": [{"field": "phone"}], "conditions": [{"field": "name"}]}
+{"nl": "mark all patients with email <val> as insured", "intent": "update", "table": "patient", "assignments": [{"field": "insured", "value": "true"}], "conditions": [{"field": "email", "cmp": "eq"}]}
+{"nl": "update patient phone to <val1> where name is <val2>", "intent": "update", "table": "patient", "assignments": [{"field": "phone"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // doctor
 {"nl": "set all orthopedic doctors to active", "intent": "update", "table": "doctor", "assignments": [{"field": "active", "value": "true"}], "conditions": [{"field": "specialty", "cmp": "eq", "value": "Orthopedics"}]}
-{"nl": "update doctor rating to <val> where name is <val>", "intent": "update", "table": "doctor", "assignments": [{"field": "rating"}], "conditions": [{"field": "name"}]}
-{"nl": "set specialty to <val> for doctor with email <val>", "intent": "update", "table": "doctor", "assignments": [{"field": "specialty"}], "conditions": [{"field": "email"}]}
+{"nl": "update doctor rating to <val1> where name is <val2>", "intent": "update", "table": "doctor", "assignments": [{"field": "rating"}], "conditions": [{"field": "name", "cmp": "eq"}]}
+{"nl": "set specialty to <val1> for doctor with email <val2>", "intent": "update", "table": "doctor", "assignments": [{"field": "specialty"}], "conditions": [{"field": "email", "cmp": "eq"}]}
 // student
 {"nl": "mark all students with gpa above 3.5 as enrolled", "intent": "update", "table": "student", "assignments": [{"field": "enrolled", "value": "true"}], "conditions": [{"field": "gpa", "cmp": "gt", "value": "3.5"}]}
-{"nl": "update student gpa to <val> where name is <val>", "intent": "update", "table": "student", "assignments": [{"field": "gpa"}], "conditions": [{"field": "name"}]}
+{"nl": "update student gpa to <val1> where name is <val2>", "intent": "update", "table": "student", "assignments": [{"field": "gpa"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // supplier
 {"nl": "activate all suppliers from Germany", "intent": "update", "table": "supplier", "assignments": [{"field": "active", "value": "true"}], "conditions": [{"field": "country", "cmp": "eq", "value": "Germany"}]}
-{"nl": "update supplier rating to <val> where name is <val>", "intent": "update", "table": "supplier", "assignments": [{"field": "rating"}], "conditions": [{"field": "name"}]}
+{"nl": "update supplier rating to <val1> where name is <val2>", "intent": "update", "table": "supplier", "assignments": [{"field": "rating"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // department
 {"nl": "set budget to 200000 for the Engineering department", "intent": "update", "table": "department", "assignments": [{"field": "budget", "value": "200000"}], "conditions": [{"field": "name", "cmp": "eq", "value": "Engineering"}]}
-{"nl": "update department head to <val> where name is <val>", "intent": "update", "table": "department", "assignments": [{"field": "head"}], "conditions": [{"field": "name"}]}
+{"nl": "update department head to <val1> where name is <val2>", "intent": "update", "table": "department", "assignments": [{"field": "head"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // property
 {"nl": "mark all properties above 1000000 as sold", "intent": "update", "table": "property", "assignments": [{"field": "status", "value": "sold"}], "conditions": [{"field": "price", "cmp": "gt", "value": "1000000"}]}
-{"nl": "update property price to <val> where address is <val>", "intent": "update", "table": "property", "assignments": [{"field": "price"}], "conditions": [{"field": "address"}]}
+{"nl": "update property price to <val1> where address is <val2>", "intent": "update", "table": "property", "assignments": [{"field": "price"}], "conditions": [{"field": "address", "cmp": "eq"}]}
 // agent
 {"nl": "deactivate agents with rating below 3", "intent": "update", "table": "agent", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
-{"nl": "update agent phone to <val> where name is <val>", "intent": "update", "table": "agent", "assignments": [{"field": "phone"}], "conditions": [{"field": "name"}]}
+{"nl": "update agent phone to <val1> where name is <val2>", "intent": "update", "table": "agent", "assignments": [{"field": "phone"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // budget
-{"nl": "set spent to <val> for budget with name <val>", "intent": "update", "table": "budget", "assignments": [{"field": "spent"}], "conditions": [{"field": "name"}]}
+{"nl": "set spent to <val1> for budget with name <val2>", "intent": "update", "table": "budget", "assignments": [{"field": "spent"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 {"nl": "update budget amount to 100000 for Q2 Budget", "intent": "update", "table": "budget", "assignments": [{"field": "amount", "value": "100000"}], "conditions": [{"field": "name", "cmp": "eq", "value": "Q2 Budget"}]}
 // warehouse
 {"nl": "set all warehouses in Los Angeles to active", "intent": "update", "table": "warehouse", "assignments": [{"field": "active", "value": "true"}], "conditions": [{"field": "location", "cmp": "eq", "value": "Los Angeles"}]}
-{"nl": "update warehouse capacity to <val> where name is <val>", "intent": "update", "table": "warehouse", "assignments": [{"field": "capacity"}], "conditions": [{"field": "name"}]}
+{"nl": "update warehouse capacity to <val1> where name is <val2>", "intent": "update", "table": "warehouse", "assignments": [{"field": "capacity"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // course
 {"nl": "deactivate all courses with 0 capacity", "intent": "update", "table": "course", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "capacity", "cmp": "eq", "value": "0"}]}
-{"nl": "update course credits to <val> where name is <val>", "intent": "update", "table": "course", "assignments": [{"field": "credits"}], "conditions": [{"field": "name"}]}
+{"nl": "update course credits to <val1> where name is <val2>", "intent": "update", "table": "course", "assignments": [{"field": "credits"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // venue
 {"nl": "update venue capacity to 1000 for Grand Hall", "intent": "update", "table": "venue", "assignments": [{"field": "capacity", "value": "1000"}], "conditions": [{"field": "name", "cmp": "eq", "value": "Grand Hall"}]}
-{"nl": "set address to <val> for venue with name <val>", "intent": "update", "table": "venue", "assignments": [{"field": "address"}], "conditions": [{"field": "name"}]}
+{"nl": "set address to <val1> for venue with name <val2>", "intent": "update", "table": "venue", "assignments": [{"field": "address"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // role
 {"nl": "deactivate all roles with level 1", "intent": "update", "table": "role", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "level", "cmp": "eq", "value": "1"}]}
-{"nl": "update role level to <val> where title is <val>", "intent": "update", "table": "role", "assignments": [{"field": "level"}], "conditions": [{"field": "title"}]}
+{"nl": "update role level to <val1> where title is <val2>", "intent": "update", "table": "role", "assignments": [{"field": "level"}], "conditions": [{"field": "title", "cmp": "eq"}]}
 // attendee
-{"nl": "update attendee email to <val> where name is <val>", "intent": "update", "table": "attendee", "assignments": [{"field": "email"}], "conditions": [{"field": "name"}]}
-{"nl": "set phone to <val> for attendee with email <val>", "intent": "update", "table": "attendee", "assignments": [{"field": "phone"}], "conditions": [{"field": "email"}]}
+{"nl": "update attendee email to <val1> where name is <val2>", "intent": "update", "table": "attendee", "assignments": [{"field": "email"}], "conditions": [{"field": "name", "cmp": "eq"}]}
+{"nl": "set phone to <val1> for attendee with email <val2>", "intent": "update", "table": "attendee", "assignments": [{"field": "phone"}], "conditions": [{"field": "email", "cmp": "eq"}]}
 // instructor
-{"nl": "update instructor department to <val> where name is <val>", "intent": "update", "table": "instructor", "assignments": [{"field": "department"}], "conditions": [{"field": "name"}]}
-{"nl": "set email to <val> for instructor with name <val>", "intent": "update", "table": "instructor", "assignments": [{"field": "email"}], "conditions": [{"field": "name"}]}
+{"nl": "update instructor department to <val1> where name is <val2>", "intent": "update", "table": "instructor", "assignments": [{"field": "department"}], "conditions": [{"field": "name", "cmp": "eq"}]}
+{"nl": "set email to <val1> for instructor with name <val2>", "intent": "update", "table": "instructor", "assignments": [{"field": "email"}], "conditions": [{"field": "name", "cmp": "eq"}]}
 // category
-{"nl": "update category description to <val> where name is <val>", "intent": "update", "table": "category", "assignments": [{"field": "description"}], "conditions": [{"field": "name"}]}
-{"nl": "set name to <val> for category with description containing <val>", "intent": "update", "table": "category", "assignments": [{"field": "name"}], "conditions": [{"field": "description", "cmp": "contains"}]}
+{"nl": "update category description to <val1> where name is <val2>", "intent": "update", "table": "category", "assignments": [{"field": "description"}], "conditions": [{"field": "name", "cmp": "eq"}]}
+{"nl": "set name to <val1> for category with description containing <val2>", "intent": "update", "table": "category", "assignments": [{"field": "name"}], "conditions": [{"field": "description", "cmp": "contains"}]}

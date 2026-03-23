@@ -8,14 +8,14 @@
 {"nl": "list appointments where notes contains follow", "intent": "select", "table": "appointment", "conditions": [{"field": "notes", "cmp": "contains", "value": "follow"}]}
 {"nl": "get cancelled appointment scheduled dates", "intent": "select", "table": "appointment", "projections": ["scheduled"], "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
 {"nl": "show appointment status and notes sorted by scheduled", "intent": "select", "table": "appointment", "projections": ["status", "notes"], "modifiers": [{"type": "order_by", "field": "scheduled"}]}
-{"nl": "get appointments where status is <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "status"}]}
+{"nl": "get appointments where status is <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq"}]}
 {"nl": "list appointment scheduled date and status where notes contains <val>", "intent": "select", "table": "appointment", "projections": ["scheduled", "status"], "conditions": [{"field": "notes", "cmp": "contains"}]}
 // attendee
 {"nl": "show all attendees", "intent": "select", "table": "attendee"}
 {"nl": "list attendee name and email", "intent": "select", "table": "attendee", "projections": ["name", "email"]}
 {"nl": "get attendee name phone and email", "intent": "select", "table": "attendee", "projections": ["name", "phone", "email"]}
-{"nl": "find attendees where email is <val>", "intent": "select", "table": "attendee", "conditions": [{"field": "email"}]}
-{"nl": "show attendee name where phone is <val>", "intent": "select", "table": "attendee", "projections": ["name"], "conditions": [{"field": "phone"}]}
+{"nl": "find attendees where email is <val>", "intent": "select", "table": "attendee", "conditions": [{"field": "email", "cmp": "eq"}]}
+{"nl": "show attendee name where phone is <val>", "intent": "select", "table": "attendee", "projections": ["name"], "conditions": [{"field": "phone", "cmp": "eq"}]}
 {"nl": "list attendees sorted by name", "intent": "select", "table": "attendee", "projections": ["name", "email"], "modifiers": [{"type": "order_by", "field": "name"}]}
 {"nl": "get attendee name email and created date", "intent": "select", "table": "attendee", "projections": ["name", "email", "created"]}
 // enrollment
@@ -23,10 +23,10 @@
 {"nl": "list enrollment grade and completed status", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"]}
 {"nl": "get completed enrollments", "intent": "select", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}]}
 {"nl": "find enrollments with grade A", "intent": "select", "table": "enrollment", "conditions": [{"field": "grade", "cmp": "eq", "value": "A"}]}
-{"nl": "show grade and completed where grade is <val>", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "conditions": [{"field": "grade"}]}
+{"nl": "show grade and completed where grade is <val>", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "conditions": [{"field": "grade", "cmp": "eq"}]}
 {"nl": "list incomplete enrollments grade and created", "intent": "select", "table": "enrollment", "projections": ["grade", "created"], "conditions": [{"field": "completed", "cmp": "eq", "value": "false"}]}
 {"nl": "get enrollments sorted by grade", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "modifiers": [{"type": "order_by", "field": "grade"}]}
-{"nl": "show enrollment grade where completed is <val>", "intent": "select", "table": "enrollment", "projections": ["grade"], "conditions": [{"field": "completed"}]}
+{"nl": "show enrollment grade where completed is <val>", "intent": "select", "table": "enrollment", "projections": ["grade"], "conditions": [{"field": "completed", "cmp": "eq"}]}
 // expense
 {"nl": "show all expenses", "intent": "select", "table": "expense"}
 {"nl": "list expense amount and description", "intent": "select", "table": "expense", "projections": ["amount", "description"]}
@@ -49,7 +49,7 @@
 {"nl": "list listing price and status", "intent": "select", "table": "listing", "projections": ["price", "status"]}
 {"nl": "get active listings", "intent": "select", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}]}
 {"nl": "find listings with price below 200000", "intent": "select", "table": "listing", "conditions": [{"field": "price", "cmp": "lt", "value": "200000"}]}
-{"nl": "show listing price where status is <val>", "intent": "select", "table": "listing", "projections": ["price"], "conditions": [{"field": "status"}]}
+{"nl": "show listing price where status is <val>", "intent": "select", "table": "listing", "projections": ["price"], "conditions": [{"field": "status", "cmp": "eq"}]}
 {"nl": "get active listings price sorted by price", "intent": "select", "table": "listing", "projections": ["price", "status"], "conditions": [{"field": "status", "cmp": "eq", "value": "active"}], "modifiers": [{"type": "order_by", "field": "price"}]}
 {"nl": "list listings where price is less than <val>", "intent": "select", "table": "listing", "conditions": [{"field": "price", "cmp": "lt"}]}
 // prescription
@@ -58,8 +58,8 @@
 {"nl": "get active prescriptions", "intent": "select", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
 {"nl": "find prescriptions for drug Amoxicillin", "intent": "select", "table": "prescription", "conditions": [{"field": "drug", "cmp": "eq", "value": "Amoxicillin"}]}
 {"nl": "show drug and dosage for active prescriptions", "intent": "select", "table": "prescription", "projections": ["drug", "dosage"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}]}
-{"nl": "list prescriptions where drug is <val>", "intent": "select", "table": "prescription", "conditions": [{"field": "drug"}]}
-{"nl": "get prescription drug dosage and issued where active is <val>", "intent": "select", "table": "prescription", "projections": ["drug", "dosage", "issued"], "conditions": [{"field": "active"}]}
+{"nl": "list prescriptions where drug is <val>", "intent": "select", "table": "prescription", "conditions": [{"field": "drug", "cmp": "eq"}]}
+{"nl": "get prescription drug dosage and issued where active is <val>", "intent": "select", "table": "prescription", "projections": ["drug", "dosage", "issued"], "conditions": [{"field": "active", "cmp": "eq"}]}
 // review
 {"nl": "show all reviews", "intent": "select", "table": "review"}
 {"nl": "list review rating and body", "intent": "select", "table": "review", "projections": ["rating", "body"]}
@@ -75,14 +75,14 @@
 {"nl": "find shifts at location Downtown", "intent": "select", "table": "shift", "conditions": [{"field": "location", "cmp": "eq", "value": "Downtown"}]}
 {"nl": "show shift start end and location", "intent": "select", "table": "shift", "projections": ["start", "end", "location"]}
 {"nl": "list paid shifts sorted by start", "intent": "select", "table": "shift", "projections": ["start", "location"], "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "order_by", "field": "start"}]}
-{"nl": "get shifts where location is <val>", "intent": "select", "table": "shift", "conditions": [{"field": "location"}]}
+{"nl": "get shifts where location is <val>", "intent": "select", "table": "shift", "conditions": [{"field": "location", "cmp": "eq"}]}
 // shipment
 {"nl": "show all shipments", "intent": "select", "table": "shipment"}
 {"nl": "list shipment carrier and status", "intent": "select", "table": "shipment", "projections": ["carrier", "status"]}
 {"nl": "get pending shipments", "intent": "select", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
 {"nl": "find shipments with carrier FedEx", "intent": "select", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq", "value": "FedEx"}]}
 {"nl": "show shipment weight and carrier where status is delivered", "intent": "select", "table": "shipment", "projections": ["weight", "carrier"], "conditions": [{"field": "status", "cmp": "eq", "value": "delivered"}]}
-{"nl": "list shipments where carrier is <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "carrier"}]}
+{"nl": "list shipments where carrier is <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "carrier", "cmp": "eq"}]}
 {"nl": "get shipment carrier status and weight sorted by weight", "intent": "select", "table": "shipment", "projections": ["carrier", "status", "weight"], "modifiers": [{"type": "order_by", "field": "weight", "descending": true}]}
 // ticket
 {"nl": "show all tickets", "intent": "select", "table": "ticket"}
@@ -97,7 +97,7 @@
 {"nl": "list order status and total", "intent": "select", "table": "order", "projections": ["status", "total"]}
 {"nl": "get pending orders", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}]}
 {"nl": "find orders with total above 100", "intent": "select", "table": "order", "conditions": [{"field": "total", "cmp": "gt", "value": "100"}]}
-{"nl": "show order total and created where status is <val>", "intent": "select", "table": "order", "projections": ["total", "created"], "conditions": [{"field": "status"}]}
+{"nl": "show order total and created where status is <val>", "intent": "select", "table": "order", "projections": ["total", "created"], "conditions": [{"field": "status", "cmp": "eq"}]}
 {"nl": "list shipped orders total sorted by total descending", "intent": "select", "table": "order", "projections": ["total", "status"], "conditions": [{"field": "status", "cmp": "eq", "value": "shipped"}], "modifiers": [{"type": "order_by", "field": "total", "descending": true}]}
 // agent
 {"nl": "find active agents with rating above 4.5", "intent": "select", "table": "agent", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}, {"field": "rating", "cmp": "gt", "value": "4.5"}]}
@@ -111,4 +111,4 @@
 {"nl": "show all roles", "intent": "select", "table": "role"}
 {"nl": "list role title and level", "intent": "select", "table": "role", "projections": ["title", "level"]}
 {"nl": "get active roles with level above 3", "intent": "select", "table": "role", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}, {"field": "level", "cmp": "gt", "value": "3"}]}
-{"nl": "find roles where title is <val>", "intent": "select", "table": "role", "conditions": [{"field": "title"}]}
+{"nl": "find roles where title is <val>", "intent": "select", "table": "role", "conditions": [{"field": "title", "cmp": "eq"}]}
