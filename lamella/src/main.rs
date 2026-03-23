@@ -3,7 +3,9 @@ use lamella::LamellaDatum;
 use lamella::catalog::SchemaCatalog;
 use lamella::embed::tokenize;
 use lamella::load_dataset;
+use lamella::load_raw_dataset;
 use lamella::model::{LamellaConfig, SlotCounts, ResolveValues};
+use lamella::temporal::extract_temporal_values;
 use lamella::schema::Schema;
 use lamella::train::{LamellaTrainCtx, TrainConfig, train_loop};
 
@@ -28,12 +30,14 @@ fn main() {
         "train"    => cmd_train(),
         "eval"     => cmd_eval(),
         "diagnose" => cmd_diagnose(),
+        "stats"    => cmd_stats(),
         "infer"    => cmd_infer(&args[2..]),
         _ => {
-            eprintln!("Usage: lamella <train|eval|diagnose|infer>");
+            eprintln!("Usage: lamella <train|eval|diagnose|stats|infer>");
             eprintln!("  train                 — train the model");
             eprintln!("  eval                  — evaluate on held-out schema");
             eprintln!("  diagnose              — per-table asgn accuracy on val split");
+            eprintln!("  stats                 — field distribution in training data");
             eprintln!("  infer --schema DIR NL — infer SurrealQL from NL");
         }
     }
@@ -116,6 +120,55 @@ fn cmd_diagnose() {
     ctx.diagnose_asgn(&val_refs);
 }
 
+fn cmd_stats() {
+    use std::collections::HashMap;
+
+    let datums = load_raw_dataset(DATASET_DIR);
+    println!("Total datums: {}", datums.len());
+
+    // Per table: count how many times each field appears in asgn / cond / proj
+    let mut asgn:  HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut cond:  HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut proj:  HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut total: HashMap<String, usize> = HashMap::new();
+
+    for d in &datums {
+        *total.entry(d.table.clone()).or_default() += 1;
+        for a in &d.assignments {
+            *asgn.entry(d.table.clone()).or_default().entry(a.field.clone()).or_default() += 1;
+        }
+        for c in &d.conditions {
+            *cond.entry(d.table.clone()).or_default().entry(c.field.clone()).or_default() += 1;
+        }
+        for f in &d.projections {
+            *proj.entry(d.table.clone()).or_default().entry(f.clone()).or_default() += 1;
+        }
+    }
+
+    let mut tables: Vec<String> = total.keys().cloned().collect();
+    tables.sort();
+
+    let print_dist = |label: &str, map: &HashMap<String, HashMap<String, usize>>, table: &str| {
+        if let Some(fields) = map.get(table) {
+            let total: usize = fields.values().sum();
+            if total == 0 { return; }
+            let mut pairs: Vec<_> = fields.iter().collect();
+            pairs.sort_by(|a, b| b.1.cmp(a.1));
+            let parts: Vec<String> = pairs.iter()
+                .map(|(f, n)| format!("{}:{} ({:.0}%)", f, n, **n as f64 / total as f64 * 100.0))
+                .collect();
+            println!("    {label}: {}", parts.join("  "));
+        }
+    };
+
+    for table in &tables {
+        println!("\n{} ({} datums)", table, total[table]);
+        print_dist("asgn", &asgn, table);
+        print_dist("cond", &cond, table);
+        print_dist("proj", &proj, table);
+    }
+}
+
 fn cmd_infer(args: &[String]) {
     let mut schema_dir = SCHEMA_DIR;
     let mut nl_parts: Vec<&str> = Vec::new();
@@ -179,10 +232,11 @@ fn cmd_infer(args: &[String]) {
     println!("Intent: {:?}", catalog.ops[logits.intent.clone().argmax(0).into_scalar().elem::<i32>() as usize]);
     println!("Entity: {}", catalog.tables[entity_idx]);
 
+    let temporal_vals = extract_temporal_values(&nl);
     let resolve_vals = ResolveValues {
         record_id: None,
-        cond_values: vec![],
-        asgn_values: vec![],
+        cond_values: temporal_vals.clone(),
+        asgn_values: temporal_vals,
         mod_values: vec![],
         mod_descending: vec![],
     };

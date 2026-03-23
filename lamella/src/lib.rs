@@ -4,6 +4,7 @@ pub mod embed;
 pub mod catalog;
 pub mod model;
 pub mod train;
+pub mod temporal;
 
 use catalog::SchemaCatalog;
 use model::SlotCounts;
@@ -208,6 +209,31 @@ pub fn resolve_raw(raw: &RawDatum, catalog: &SchemaCatalog) -> Result<LamellaDat
     })
 }
 
+/// Load all raw datums from a directory without catalog resolution.
+pub fn load_raw_dataset(dir: &str) -> Vec<RawDatum> {
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
+        .unwrap_or_else(|_| panic!("Failed to read directory {dir}"))
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "jsonl"))
+        .collect();
+    files.sort();
+
+    let mut out = Vec::new();
+    for file in &files {
+        let text = std::fs::read_to_string(file)
+            .unwrap_or_else(|_| panic!("Failed to read {}", file.display()));
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with("//") { continue; }
+            if let Ok(r) = serde_json::from_str::<RawDatum>(line) {
+                out.push(r);
+            }
+        }
+    }
+    out
+}
+
 /// Load all .jsonl files from a directory, resolve against catalog,
 /// stratified split by table.
 pub fn load_dataset(
@@ -292,6 +318,71 @@ pub fn load_dataset(
     }
 
     (train, val)
+}
+
+// =============================================================================
+// Side-panel value parsing
+// =============================================================================
+
+/// Parse a single side-panel entry into one or more ValueRefs.
+///
+/// Returns a Vec because JSON objects/arrays decompose into multiple values.
+///
+/// Resolution order:
+///   `@path`        — read file, then parse the contents with the same rules
+///   JSON array     — recursively parse each element
+///   JSON object    — recursively parse each field value, in key order
+///   JSON scalar    — the inner value as a Literal (or Temporal if it matches)
+///   temporal text  — "today", "yesterday", "7 days ago", "last week", "2024-01-15"
+///   plain text     — Literal(s)
+///
+/// Backends flatten the vecs from each side-panel entry to build the ordered
+/// cond_values / asgn_values for ResolveValues.
+pub fn parse_side_value(s: &str) -> Vec<ValueRef> {
+    let s = s.trim();
+
+    // @path — read file then re-parse its contents
+    if let Some(path) = s.strip_prefix('@') {
+        return match std::fs::read_to_string(path.trim()) {
+            Ok(contents) => parse_side_value(contents.trim()),
+            Err(_) => vec![ValueRef::Literal(s.to_string())],
+        };
+    }
+
+    // JSON — try to parse and decompose
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+        return json_to_values(&v);
+    }
+
+    // Temporal phrase
+    let results = temporal::extract_temporal_values(s);
+    if results.len() == 1 {
+        return results;
+    }
+
+    vec![ValueRef::Literal(s.to_string())]
+}
+
+fn json_to_values(v: &serde_json::Value) -> Vec<ValueRef> {
+    match v {
+        serde_json::Value::Array(arr) => {
+            arr.iter().flat_map(json_to_values).collect()
+        }
+        serde_json::Value::Object(map) => {
+            map.values().flat_map(json_to_values).collect()
+        }
+        serde_json::Value::String(s) => {
+            let results = temporal::extract_temporal_values(s);
+            if results.len() == 1 {
+                results
+            } else {
+                vec![ValueRef::Literal(s.clone())]
+            }
+        }
+        serde_json::Value::Number(n) => vec![ValueRef::Literal(n.to_string())],
+        serde_json::Value::Bool(b)   => vec![ValueRef::Literal(b.to_string())],
+        serde_json::Value::Null      => vec![ValueRef::Literal("null".to_string())],
+    }
 }
 
 // =============================================================================

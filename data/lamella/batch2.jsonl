@@ -1,0 +1,245 @@
+// ── appointment — patient/doctor in asgn (4% each), scheduled temporal ──
+{"nl": "book appointment for patient <val>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}]}
+{"nl": "schedule appointment with doctor <val>", "intent": "create", "table": "appointment", "assignments": [{"field": "doctor"}]}
+{"nl": "assign appointment to patient <val>", "intent": "update", "table": "appointment", "assignments": [{"field": "patient"}]}
+{"nl": "reassign appointment to doctor <val>", "intent": "update", "table": "appointment", "assignments": [{"field": "doctor"}]}
+{"nl": "create appointment for patient <val1> with doctor <val2>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}, {"field": "doctor"}]}
+{"nl": "book a follow-up for patient <val1> with doctor <val2> on <val3>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}, {"field": "doctor"}, {"field": "scheduled"}]}
+{"nl": "schedule appointment for patient <val1> on <val2>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}, {"field": "scheduled"}]}
+{"nl": "find appointments for patient <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "patient", "cmp": "eq"}]}
+{"nl": "show appointments with doctor <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "doctor", "cmp": "eq"}]}
+{"nl": "list appointments scheduled after <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "gt"}]}
+{"nl": "find appointments scheduled before <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "lt"}]}
+{"nl": "show appointments scheduled for <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "eq"}]}
+{"nl": "get upcoming appointments for patient <val1> after <val2>", "intent": "select", "table": "appointment", "conditions": [{"field": "patient", "cmp": "eq"}, {"field": "scheduled", "cmp": "gt"}]}
+{"nl": "cancel appointments scheduled before <val>", "intent": "update", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "lt"}], "assignments": [{"field": "status", "value": "cancelled"}]}
+{"nl": "reschedule appointment for patient <val1> to <val2>", "intent": "update", "table": "appointment", "conditions": [{"field": "patient", "cmp": "eq"}], "assignments": [{"field": "scheduled"}]}
+{"nl": "update doctor and notes for appointment", "intent": "update", "table": "appointment", "conditions": [{"field": "patient", "cmp": "eq"}], "assignments": [{"field": "doctor"}, {"field": "notes"}]}
+
+// ── attendee — event FK in asgn (5%) ──
+{"nl": "register attendee for event <val>", "intent": "create", "table": "attendee", "assignments": [{"field": "event"}]}
+{"nl": "add attendee to event <val>", "intent": "update", "table": "attendee", "assignments": [{"field": "event"}]}
+{"nl": "link attendee <val1> to event <val2>", "intent": "update", "table": "attendee", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "event"}]}
+{"nl": "sign up attendee for event <val>", "intent": "create", "table": "attendee", "assignments": [{"field": "event"}]}
+{"nl": "create attendee with name <val1> email <val2> for event <val3>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "event"}]}
+{"nl": "show attendees for event <val>", "intent": "select", "table": "attendee", "conditions": [{"field": "event", "cmp": "eq"}]}
+{"nl": "count attendees at event <val>", "intent": "select", "table": "attendee", "conditions": [{"field": "event", "cmp": "eq"}]}
+{"nl": "move attendee to a different event", "intent": "update", "table": "attendee", "conditions": [{"field": "email", "cmp": "eq"}], "assignments": [{"field": "event"}]}
+
+// ── budget — department FK in asgn (5%), temporal created ──
+{"nl": "create budget for department <val>", "intent": "create", "table": "budget", "assignments": [{"field": "department"}]}
+{"nl": "assign budget to department <val>", "intent": "update", "table": "budget", "assignments": [{"field": "department"}]}
+{"nl": "link budget to department <val>", "intent": "update", "table": "budget", "assignments": [{"field": "department"}]}
+{"nl": "add budget of <val1> for department <val2>", "intent": "create", "table": "budget", "assignments": [{"field": "amount"}, {"field": "department"}]}
+{"nl": "set budget amount <val1> and department <val2>", "intent": "create", "table": "budget", "assignments": [{"field": "amount"}, {"field": "department"}]}
+{"nl": "show budgets for department <val>", "intent": "select", "table": "budget", "conditions": [{"field": "department", "cmp": "eq"}]}
+{"nl": "find active budgets for department <val>", "intent": "select", "table": "budget", "conditions": [{"field": "department", "cmp": "eq"}, {"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "show budgets created after <val>", "intent": "select", "table": "budget", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "find budgets created before <val>", "intent": "select", "table": "budget", "conditions": [{"field": "created", "cmp": "lt"}]}
+
+// ── enrollment — course/student FK (9%, 6%) ──
+{"nl": "enroll student <val> in a course", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}]}
+{"nl": "register student <val1> for course <val2>", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}, {"field": "course"}]}
+{"nl": "assign enrollment to course <val>", "intent": "update", "table": "enrollment", "assignments": [{"field": "course"}]}
+{"nl": "link enrollment to student <val>", "intent": "update", "table": "enrollment", "assignments": [{"field": "student"}]}
+{"nl": "create enrollment for course <val>", "intent": "create", "table": "enrollment", "assignments": [{"field": "course"}]}
+{"nl": "show enrollments for student <val>", "intent": "select", "table": "enrollment", "conditions": [{"field": "student", "cmp": "eq"}]}
+{"nl": "find enrollments for course <val>", "intent": "select", "table": "enrollment", "conditions": [{"field": "course", "cmp": "eq"}]}
+{"nl": "list completed enrollments for student <val>", "intent": "select", "table": "enrollment", "conditions": [{"field": "student", "cmp": "eq"}, {"field": "completed", "cmp": "eq", "value": "true"}]}
+{"nl": "update course and grade for enrollment", "intent": "update", "table": "enrollment", "conditions": [{"field": "student", "cmp": "eq"}], "assignments": [{"field": "course"}, {"field": "grade"}]}
+
+// ── listing — agent/property FK (7%, 5%) ──
+{"nl": "assign listing to agent <val>", "intent": "update", "table": "listing", "assignments": [{"field": "agent"}]}
+{"nl": "create listing for property <val>", "intent": "create", "table": "listing", "assignments": [{"field": "property"}]}
+{"nl": "link listing to property <val>", "intent": "update", "table": "listing", "assignments": [{"field": "property"}]}
+{"nl": "add listing with agent <val>", "intent": "create", "table": "listing", "assignments": [{"field": "agent"}]}
+{"nl": "create listing for property <val1> handled by agent <val2>", "intent": "create", "table": "listing", "assignments": [{"field": "property"}, {"field": "agent"}]}
+{"nl": "reassign listing to agent <val>", "intent": "update", "table": "listing", "assignments": [{"field": "agent"}]}
+{"nl": "show listings for agent <val>", "intent": "select", "table": "listing", "conditions": [{"field": "agent", "cmp": "eq"}]}
+{"nl": "find listings for property <val>", "intent": "select", "table": "listing", "conditions": [{"field": "property", "cmp": "eq"}]}
+{"nl": "update price and agent for listing", "intent": "update", "table": "listing", "conditions": [{"field": "property", "cmp": "eq"}], "assignments": [{"field": "price"}, {"field": "agent"}]}
+{"nl": "show active listings created after <val>", "intent": "select", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}, {"field": "created", "cmp": "gt"}]}
+
+// ── product — category FK (1%!) ──
+{"nl": "assign product to category <val>", "intent": "update", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "create product in category <val>", "intent": "create", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "set category for product to <val>", "intent": "update", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "add product named <val1> in category <val2>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "category"}]}
+{"nl": "create product <val1> category <val2> price <val3>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "category"}, {"field": "price"}]}
+{"nl": "update product category to <val>", "intent": "update", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "move product to category <val>", "intent": "update", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "recategorize product to <val>", "intent": "update", "table": "product", "assignments": [{"field": "category"}]}
+{"nl": "show products in category <val>", "intent": "select", "table": "product", "conditions": [{"field": "category", "cmp": "eq"}]}
+{"nl": "find active products in category <val>", "intent": "select", "table": "product", "conditions": [{"field": "category", "cmp": "eq"}, {"field": "active", "cmp": "eq", "value": "true"}]}
+{"nl": "list products in category <val1> with price below <val2>", "intent": "select", "table": "product", "conditions": [{"field": "category", "cmp": "eq"}, {"field": "price", "cmp": "lt"}]}
+{"nl": "add product <val1> sku <val2> category <val3> price <val4> stock <val5>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "sku"}, {"field": "category"}, {"field": "price"}, {"field": "stock"}]}
+{"nl": "create product with sku <val1> in category <val2>", "intent": "create", "table": "product", "assignments": [{"field": "sku"}, {"field": "category"}]}
+
+// ── review — product/author FK (4%, 8%) ──
+{"nl": "post review for product <val>", "intent": "create", "table": "review", "assignments": [{"field": "product"}]}
+{"nl": "create review by author <val>", "intent": "create", "table": "review", "assignments": [{"field": "author"}]}
+{"nl": "assign review to product <val>", "intent": "update", "table": "review", "assignments": [{"field": "product"}]}
+{"nl": "link review to product <val>", "intent": "update", "table": "review", "assignments": [{"field": "product"}]}
+{"nl": "add review from author <val1> for product <val2>", "intent": "create", "table": "review", "assignments": [{"field": "author"}, {"field": "product"}]}
+{"nl": "create review for product <val1> by author <val2> rating <val3>", "intent": "create", "table": "review", "assignments": [{"field": "product"}, {"field": "author"}, {"field": "rating"}]}
+{"nl": "show reviews for product <val>", "intent": "select", "table": "review", "conditions": [{"field": "product", "cmp": "eq"}]}
+{"nl": "find reviews by author <val>", "intent": "select", "table": "review", "conditions": [{"field": "author", "cmp": "eq"}]}
+{"nl": "show reviews for product <val1> with rating above <val2>", "intent": "select", "table": "review", "conditions": [{"field": "product", "cmp": "eq"}, {"field": "rating", "cmp": "gt"}]}
+{"nl": "delete reviews by author <val>", "intent": "delete", "table": "review", "conditions": [{"field": "author", "cmp": "eq"}]}
+
+// ── shift — employee/start/end FK and temporal (4%, 6%, 7%) ──
+{"nl": "create shift for employee <val>", "intent": "create", "table": "shift", "assignments": [{"field": "employee"}]}
+{"nl": "assign shift to employee <val>", "intent": "update", "table": "shift", "assignments": [{"field": "employee"}]}
+{"nl": "schedule shift starting <val>", "intent": "create", "table": "shift", "assignments": [{"field": "start"}]}
+{"nl": "set shift start time to <val>", "intent": "update", "table": "shift", "assignments": [{"field": "start"}]}
+{"nl": "set shift end time to <val>", "intent": "update", "table": "shift", "assignments": [{"field": "end"}]}
+{"nl": "create shift from <val1> to <val2>", "intent": "create", "table": "shift", "assignments": [{"field": "start"}, {"field": "end"}]}
+{"nl": "add shift for employee <val1> starting <val2>", "intent": "create", "table": "shift", "assignments": [{"field": "employee"}, {"field": "start"}]}
+{"nl": "schedule shift for employee <val1> from <val2> to <val3>", "intent": "create", "table": "shift", "assignments": [{"field": "employee"}, {"field": "start"}, {"field": "end"}]}
+{"nl": "find shifts starting after <val>", "intent": "select", "table": "shift", "conditions": [{"field": "start", "cmp": "gt"}]}
+{"nl": "show shifts ending before <val>", "intent": "select", "table": "shift", "conditions": [{"field": "end", "cmp": "lt"}]}
+{"nl": "get shifts for employee <val>", "intent": "select", "table": "shift", "conditions": [{"field": "employee", "cmp": "eq"}]}
+{"nl": "find unpaid shifts starting after <val>", "intent": "select", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}, {"field": "start", "cmp": "gt"}]}
+{"nl": "list shifts between <val1> and <val2>", "intent": "select", "table": "shift", "conditions": [{"field": "start", "cmp": "gte"}, {"field": "end", "cmp": "lte"}]}
+{"nl": "update start and end time for the shift", "intent": "update", "table": "shift", "conditions": [{"field": "employee", "cmp": "eq"}], "assignments": [{"field": "start"}, {"field": "end"}]}
+
+// ── ticket — attendee/event FK (4%, 4%) ──
+{"nl": "issue ticket for attendee <val>", "intent": "create", "table": "ticket", "assignments": [{"field": "attendee"}]}
+{"nl": "create ticket for event <val>", "intent": "create", "table": "ticket", "assignments": [{"field": "event"}]}
+{"nl": "assign ticket to attendee <val>", "intent": "update", "table": "ticket", "assignments": [{"field": "attendee"}]}
+{"nl": "link ticket to event <val>", "intent": "update", "table": "ticket", "assignments": [{"field": "event"}]}
+{"nl": "create ticket for attendee <val1> at event <val2>", "intent": "create", "table": "ticket", "assignments": [{"field": "attendee"}, {"field": "event"}]}
+{"nl": "issue ticket for event <val1> at price <val2>", "intent": "create", "table": "ticket", "assignments": [{"field": "event"}, {"field": "price"}]}
+{"nl": "show tickets for event <val>", "intent": "select", "table": "ticket", "conditions": [{"field": "event", "cmp": "eq"}]}
+{"nl": "find tickets for attendee <val>", "intent": "select", "table": "ticket", "conditions": [{"field": "attendee", "cmp": "eq"}]}
+{"nl": "list available tickets for event <val>", "intent": "select", "table": "ticket", "conditions": [{"field": "event", "cmp": "eq"}, {"field": "status", "cmp": "eq", "value": "available"}]}
+{"nl": "cancel tickets for event <val>", "intent": "update", "table": "ticket", "conditions": [{"field": "event", "cmp": "eq"}], "assignments": [{"field": "status", "value": "cancelled"}]}
+
+// ── temporal patterns — employee.hired ──
+{"nl": "show employees hired after <val>", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "gt"}]}
+{"nl": "find employees hired before <val>", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "lt"}]}
+{"nl": "list employees hired since <val>", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "gte"}]}
+{"nl": "find active employees hired after <val>", "intent": "select", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}, {"field": "hired", "cmp": "gt"}]}
+{"nl": "show employees hired between <val1> and <val2>", "intent": "select", "table": "employee", "conditions": [{"field": "hired", "cmp": "gte"}, {"field": "hired", "cmp": "lte"}]}
+{"nl": "set hire date to <val>", "intent": "update", "table": "employee", "assignments": [{"field": "hired"}]}
+{"nl": "create employee with hire date <val>", "intent": "create", "table": "employee", "assignments": [{"field": "hired"}]}
+{"nl": "add employee named <val1> hired on <val2>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "hired"}]}
+{"nl": "delete employees hired before <val>", "intent": "delete", "table": "employee", "conditions": [{"field": "hired", "cmp": "lt"}]}
+
+// ── temporal patterns — prescription.issued ──
+{"nl": "find prescriptions issued after <val>", "intent": "select", "table": "prescription", "conditions": [{"field": "issued", "cmp": "gt"}]}
+{"nl": "show prescriptions issued before <val>", "intent": "select", "table": "prescription", "conditions": [{"field": "issued", "cmp": "lt"}]}
+{"nl": "list active prescriptions issued since <val>", "intent": "select", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}, {"field": "issued", "cmp": "gte"}]}
+{"nl": "set issued date on prescription to <val>", "intent": "update", "table": "prescription", "assignments": [{"field": "issued"}]}
+{"nl": "create prescription issued on <val>", "intent": "create", "table": "prescription", "assignments": [{"field": "issued"}]}
+{"nl": "deactivate prescriptions issued before <val>", "intent": "update", "table": "prescription", "conditions": [{"field": "issued", "cmp": "lt"}], "assignments": [{"field": "active", "value": "false"}]}
+
+// ── temporal patterns — event.scheduled ──
+{"nl": "list events scheduled after <val>", "intent": "select", "table": "event", "conditions": [{"field": "scheduled", "cmp": "gt"}]}
+{"nl": "find events scheduled before <val>", "intent": "select", "table": "event", "conditions": [{"field": "scheduled", "cmp": "lt"}]}
+{"nl": "show open events scheduled after <val>", "intent": "select", "table": "event", "conditions": [{"field": "status", "cmp": "eq", "value": "open"}, {"field": "scheduled", "cmp": "gt"}]}
+{"nl": "get events scheduled between <val1> and <val2>", "intent": "select", "table": "event", "conditions": [{"field": "scheduled", "cmp": "gte"}, {"field": "scheduled", "cmp": "lte"}]}
+{"nl": "cancel events scheduled before <val>", "intent": "update", "table": "event", "conditions": [{"field": "scheduled", "cmp": "lt"}], "assignments": [{"field": "status", "value": "cancelled"}]}
+
+// ── temporal patterns — shipment.estimated ──
+{"nl": "show shipments arriving after <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "estimated", "cmp": "gt"}]}
+{"nl": "find shipments due before <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "estimated", "cmp": "lt"}]}
+{"nl": "list overdue shipments estimated before <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "estimated", "cmp": "lt"}, {"field": "status", "cmp": "neq", "value": "delivered"}]}
+{"nl": "update estimated delivery to <val>", "intent": "update", "table": "shipment", "assignments": [{"field": "estimated"}]}
+{"nl": "set estimated arrival for shipment to <val>", "intent": "create", "table": "shipment", "assignments": [{"field": "estimated"}]}
+
+// ── temporal patterns — invoice.issued ──
+{"nl": "show invoices issued after <val>", "intent": "select", "table": "invoice", "conditions": [{"field": "issued", "cmp": "gt"}]}
+{"nl": "find unpaid invoices issued before <val>", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}, {"field": "issued", "cmp": "lt"}]}
+{"nl": "list invoices issued between <val1> and <val2>", "intent": "select", "table": "invoice", "conditions": [{"field": "issued", "cmp": "gte"}, {"field": "issued", "cmp": "lte"}]}
+{"nl": "mark overdue invoices issued before <val> as paid", "intent": "update", "table": "invoice", "conditions": [{"field": "issued", "cmp": "lt"}], "assignments": [{"field": "paid", "value": "true"}]}
+
+// ── temporal patterns — shift.start and shift.end ──
+{"nl": "find shifts that started after <val>", "intent": "select", "table": "shift", "conditions": [{"field": "start", "cmp": "gt"}]}
+{"nl": "show shifts ending after <val>", "intent": "select", "table": "shift", "conditions": [{"field": "end", "cmp": "gt"}]}
+{"nl": "list shifts starting before <val>", "intent": "select", "table": "shift", "conditions": [{"field": "start", "cmp": "lt"}]}
+
+// ── temporal patterns — patient.dob ──
+{"nl": "find patients born before <val>", "intent": "select", "table": "patient", "conditions": [{"field": "dob", "cmp": "lt"}]}
+{"nl": "show patients born after <val>", "intent": "select", "table": "patient", "conditions": [{"field": "dob", "cmp": "gt"}]}
+{"nl": "list insured patients born before <val>", "intent": "select", "table": "patient", "conditions": [{"field": "insured", "cmp": "eq", "value": "true"}, {"field": "dob", "cmp": "lt"}]}
+{"nl": "set patient date of birth to <val>", "intent": "update", "table": "patient", "assignments": [{"field": "dob"}]}
+{"nl": "register patient with dob <val>", "intent": "create", "table": "patient", "assignments": [{"field": "dob"}]}
+{"nl": "create patient named <val1> with dob <val2>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "dob"}]}
+
+// ── temporal patterns — created across tables ──
+{"nl": "show accounts created after <val>", "intent": "select", "table": "account", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "find customers created before <val>", "intent": "select", "table": "customer", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "list orders created after <val>", "intent": "select", "table": "order", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "show products added after <val>", "intent": "select", "table": "product", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "find reviews created after <val>", "intent": "select", "table": "review", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "list students enrolled after <val>", "intent": "select", "table": "student", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "show expenses created before <val>", "intent": "select", "table": "expense", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "find transactions created after <val>", "intent": "select", "table": "transaction", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "list courses created before <val>", "intent": "select", "table": "course", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "show suppliers added before <val>", "intent": "select", "table": "supplier", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "find shipments created after <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "list properties listed after <val>", "intent": "select", "table": "property", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "show venues added after <val>", "intent": "select", "table": "venue", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "find warehouses created before <val>", "intent": "select", "table": "warehouse", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "get recent appointments scheduled after <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "gt"}]}
+{"nl": "delete old transactions created before <val>", "intent": "delete", "table": "transaction", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "delete expired listings created before <val>", "intent": "delete", "table": "listing", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "show invoices issued this month after <val>", "intent": "select", "table": "invoice", "conditions": [{"field": "issued", "cmp": "gte"}]}
+{"nl": "find doctors added after <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "created", "cmp": "gt"}]}
+
+// ── more product.category variety ──
+{"nl": "show all products in category <val>", "intent": "select", "table": "product", "conditions": [{"field": "category", "cmp": "eq"}], "projections": ["name", "price", "stock"]}
+{"nl": "update category and price for product <val>", "intent": "update", "table": "product", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "category"}, {"field": "price"}]}
+{"nl": "create product named <val1> in category <val2> with sku <val3> and price <val4>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "category"}, {"field": "sku"}, {"field": "price"}]}
+
+// ── doctor — all fields need more varied single-target datums ──
+{"nl": "update email address for doctor <val1> to <val2>", "intent": "update", "table": "doctor", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "email"}]}
+{"nl": "change specialty of doctor <val1> to <val2>", "intent": "update", "table": "doctor", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "specialty"}]}
+{"nl": "update rating for doctor <val1> to <val2>", "intent": "update", "table": "doctor", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "rating"}]}
+{"nl": "find doctors with email <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "email", "cmp": "eq"}]}
+{"nl": "get doctors specializing in <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "specialty", "cmp": "eq"}]}
+{"nl": "list doctors with rating above <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "rating", "cmp": "gt"}]}
+{"nl": "create doctor with name <val1> specialty <val2> email <val3>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "specialty"}, {"field": "email"}]}
+{"nl": "add a doctor named <val1> with email <val2> and rating <val3>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "rating"}]}
+
+// ── agent — keep asgn balanced, more NL variety ──
+{"nl": "update agent phone number to <val>", "intent": "update", "table": "agent", "assignments": [{"field": "phone"}]}
+{"nl": "change agent email to <val>", "intent": "update", "table": "agent", "assignments": [{"field": "email"}]}
+{"nl": "set agent name to <val>", "intent": "update", "table": "agent", "assignments": [{"field": "name"}]}
+{"nl": "update rating for agent <val1> to <val2>", "intent": "update", "table": "agent", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "rating"}]}
+{"nl": "deactivate agent <val>", "intent": "update", "table": "agent", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "add a new agent with phone <val1> and email <val2>", "intent": "create", "table": "agent", "assignments": [{"field": "phone"}, {"field": "email"}]}
+{"nl": "create agent with name <val1> email <val2> phone <val3>", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "phone"}]}
+
+// ── course — more instructor variety ──
+{"nl": "list courses by instructor <val>", "intent": "select", "table": "course", "conditions": [{"field": "instructor", "cmp": "eq"}]}
+{"nl": "create course named <val1> credits <val2> instructor <val3>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "credits"}, {"field": "instructor"}]}
+{"nl": "update instructor for course <val1> to <val2>", "intent": "update", "table": "course", "conditions": [{"field": "name", "cmp": "eq"}], "assignments": [{"field": "instructor"}]}
+{"nl": "find courses with capacity above <val> taught by instructor <val1>", "intent": "select", "table": "course", "conditions": [{"field": "instructor", "cmp": "eq"}, {"field": "capacity", "cmp": "gt"}]}
+
+// ── expense — more employee variety and temporal ──
+{"nl": "show expenses submitted by employee <val>", "intent": "select", "table": "expense", "conditions": [{"field": "employee", "cmp": "eq"}]}
+{"nl": "approve all expenses for employee <val>", "intent": "update", "table": "expense", "conditions": [{"field": "employee", "cmp": "eq"}], "assignments": [{"field": "approved", "value": "true"}]}
+{"nl": "find unapproved expenses created after <val>", "intent": "select", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}, {"field": "created", "cmp": "gt"}]}
+{"nl": "show expenses over <val1> created after <val2>", "intent": "select", "table": "expense", "conditions": [{"field": "amount", "cmp": "gt"}, {"field": "created", "cmp": "gt"}]}
+
+// ── order — customer and temporal ──
+{"nl": "show orders from customer <val1> created after <val2>", "intent": "select", "table": "order", "conditions": [{"field": "customer", "cmp": "eq"}, {"field": "created", "cmp": "gt"}]}
+{"nl": "find pending orders for customer <val>", "intent": "select", "table": "order", "conditions": [{"field": "customer", "cmp": "eq"}, {"field": "status", "cmp": "eq", "value": "pending"}]}
+{"nl": "list orders created before <val>", "intent": "select", "table": "order", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "delete old orders created before <val>", "intent": "delete", "table": "order", "conditions": [{"field": "created", "cmp": "lt"}]}
+
+// ── transaction — account and temporal ──
+{"nl": "find transactions on account <val1> after <val2>", "intent": "select", "table": "transaction", "conditions": [{"field": "account", "cmp": "eq"}, {"field": "created", "cmp": "gt"}]}
+{"nl": "show completed transactions on account <val>", "intent": "select", "table": "transaction", "conditions": [{"field": "account", "cmp": "eq"}, {"field": "status", "cmp": "eq", "value": "completed"}]}
+{"nl": "list debit transactions created after <val>", "intent": "select", "table": "transaction", "conditions": [{"field": "type", "cmp": "eq", "value": "debit"}, {"field": "created", "cmp": "gt"}]}
+
+// ── invoice — order/issued and temporal ──
+{"nl": "find invoices for order <val1> issued after <val2>", "intent": "select", "table": "invoice", "conditions": [{"field": "order", "cmp": "eq"}, {"field": "issued", "cmp": "gt"}]}
+{"nl": "show unpaid invoices for order <val>", "intent": "select", "table": "invoice", "conditions": [{"field": "order", "cmp": "eq"}, {"field": "paid", "cmp": "eq", "value": "false"}]}
+
+// ── shipment — order and temporal ──
+{"nl": "find shipments for order <val1> arriving before <val2>", "intent": "select", "table": "shipment", "conditions": [{"field": "order", "cmp": "eq"}, {"field": "estimated", "cmp": "lt"}]}
+{"nl": "show pending shipments for order <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "order", "cmp": "eq"}, {"field": "status", "cmp": "eq", "value": "pending"}]}
+{"nl": "create shipment for order <val1> carrier <val2> estimated <val3>", "intent": "create", "table": "shipment", "assignments": [{"field": "order"}, {"field": "carrier"}, {"field": "estimated"}]}
