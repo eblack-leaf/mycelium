@@ -1,0 +1,102 @@
+// select8.jsonl — NL diversity for projections: varied sentence structures beyond clean lists
+// The model needs to see field names embedded in non-list NL patterns
+// employee
+{"nl": "what is each employee's name and how much is their salary", "intent": "select", "table": "employee", "projections": ["name", "salary"]}
+{"nl": "I'd like to see the name and role of every employee", "intent": "select", "table": "employee", "projections": ["name", "role"]}
+{"nl": "can you tell me each employee's email and what department they work in", "intent": "select", "table": "employee", "projections": ["email", "department"]}
+{"nl": "I need each employee's name along with their email", "intent": "select", "table": "employee", "projections": ["name", "email"]}
+{"nl": "show the salary and role for everyone in the company", "intent": "select", "table": "employee", "projections": ["salary", "role"]}
+{"nl": "what names and departments do we have in employees", "intent": "select", "table": "employee", "projections": ["name", "department"]}
+{"nl": "employee name email and hire date please", "intent": "select", "table": "employee", "projections": ["name", "email", "hired"]}
+{"nl": "return the name salary and active status of employees", "intent": "select", "table": "employee", "projections": ["name", "salary", "active"]}
+// product
+{"nl": "what's the name and price of each product", "intent": "select", "table": "product", "projections": ["name", "price"]}
+{"nl": "I want to know the name sku and stock for products", "intent": "select", "table": "product", "projections": ["name", "sku", "stock"]}
+{"nl": "can you show me each product's name and how much it costs", "intent": "select", "table": "product", "projections": ["name", "price"]}
+{"nl": "return product names along with their current stock level", "intent": "select", "table": "product", "projections": ["name", "stock"]}
+{"nl": "I need the sku and price for all our products", "intent": "select", "table": "product", "projections": ["sku", "price"]}
+{"nl": "what name price and sku do products have", "intent": "select", "table": "product", "projections": ["name", "price", "sku"]}
+{"nl": "product name and whether they're active please", "intent": "select", "table": "product", "projections": ["name", "active"]}
+// student
+{"nl": "what's each student's name and their current gpa", "intent": "select", "table": "student", "projections": ["name", "gpa"]}
+{"nl": "I'd like the name and email for all students", "intent": "select", "table": "student", "projections": ["name", "email"]}
+{"nl": "return student names along with whether they are enrolled", "intent": "select", "table": "student", "projections": ["name", "enrolled"]}
+{"nl": "can you pull each student's name gpa and enrollment status", "intent": "select", "table": "student", "projections": ["name", "gpa", "enrolled"]}
+{"nl": "I need student email and gpa information", "intent": "select", "table": "student", "projections": ["email", "gpa"]}
+// doctor
+{"nl": "what's each doctor's name and their specialty", "intent": "select", "table": "doctor", "projections": ["name", "specialty"]}
+{"nl": "I want the name and rating for every doctor", "intent": "select", "table": "doctor", "projections": ["name", "rating"]}
+{"nl": "return doctor names along with their email", "intent": "select", "table": "doctor", "projections": ["name", "email"]}
+{"nl": "can you show me each doctor's specialty and rating", "intent": "select", "table": "doctor", "projections": ["specialty", "rating"]}
+{"nl": "doctor name email and specialty please", "intent": "select", "table": "doctor", "projections": ["name", "email", "specialty"]}
+// account
+{"nl": "what name and balance does each account have", "intent": "select", "table": "account", "projections": ["name", "balance"]}
+{"nl": "I need the name type and balance of all accounts", "intent": "select", "table": "account", "projections": ["name", "type", "balance"]}
+{"nl": "return account names along with their owner", "intent": "select", "table": "account", "projections": ["name", "owner"]}
+{"nl": "can you show the balance and type for each account", "intent": "select", "table": "account", "projections": ["balance", "type"]}
+// property
+{"nl": "what is the address and price of each property", "intent": "select", "table": "property", "projections": ["address", "price"]}
+{"nl": "I'd like to see each property's address and how many bedrooms it has", "intent": "select", "table": "property", "projections": ["address", "bedrooms"]}
+{"nl": "return property addresses along with their type and price", "intent": "select", "table": "property", "projections": ["address", "type", "price"]}
+{"nl": "I need the address bedrooms and bathrooms for all properties", "intent": "select", "table": "property", "projections": ["address", "bedrooms", "bathrooms"]}
+// patient
+{"nl": "what's each patient's name and phone number", "intent": "select", "table": "patient", "projections": ["name", "phone"]}
+{"nl": "I need the name and email of all patients", "intent": "select", "table": "patient", "projections": ["name", "email"]}
+{"nl": "return patient names along with their date of birth", "intent": "select", "table": "patient", "projections": ["name", "dob"]}
+{"nl": "show me each patient's name phone and insured status", "intent": "select", "table": "patient", "projections": ["name", "phone", "insured"]}
+// supplier
+{"nl": "what name and rating does each supplier have", "intent": "select", "table": "supplier", "projections": ["name", "rating"]}
+{"nl": "I want the name country and email for all suppliers", "intent": "select", "table": "supplier", "projections": ["name", "country", "email"]}
+{"nl": "return supplier names and their country of origin", "intent": "select", "table": "supplier", "projections": ["name", "country"]}
+{"nl": "can you pull supplier name rating and active status", "intent": "select", "table": "supplier", "projections": ["name", "rating", "active"]}
+// customer
+{"nl": "what is each customer's name and email", "intent": "select", "table": "customer", "projections": ["name", "email"]}
+{"nl": "return customer names along with their phone number", "intent": "select", "table": "customer", "projections": ["name", "phone"]}
+{"nl": "I need the name phone and email for every customer", "intent": "select", "table": "customer", "projections": ["name", "phone", "email"]}
+// venue
+{"nl": "what's each venue's name and how many people it holds", "intent": "select", "table": "venue", "projections": ["name", "capacity"]}
+{"nl": "return venue names along with their address", "intent": "select", "table": "venue", "projections": ["name", "address"]}
+{"nl": "I'd like name address and capacity for all venues", "intent": "select", "table": "venue", "projections": ["name", "address", "capacity"]}
+// warehouse
+{"nl": "what is each warehouse's name and location", "intent": "select", "table": "warehouse", "projections": ["name", "location"]}
+{"nl": "return warehouse names along with their capacity", "intent": "select", "table": "warehouse", "projections": ["name", "capacity"]}
+{"nl": "show me warehouse name location and active status", "intent": "select", "table": "warehouse", "projections": ["name", "location", "active"]}
+// transaction
+{"nl": "what's the amount and type of each transaction", "intent": "select", "table": "transaction", "projections": ["amount", "type"]}
+{"nl": "I need the amount status and type for all transactions", "intent": "select", "table": "transaction", "projections": ["amount", "status", "type"]}
+{"nl": "return transaction amounts along with their status", "intent": "select", "table": "transaction", "projections": ["amount", "status"]}
+// review
+{"nl": "what rating and body text does each review have", "intent": "select", "table": "review", "projections": ["rating", "body"]}
+{"nl": "return review ratings along with the author", "intent": "select", "table": "review", "projections": ["rating", "author"]}
+{"nl": "I need the body and rating for every review", "intent": "select", "table": "review", "projections": ["body", "rating"]}
+// budget
+{"nl": "what is each budget's name and total amount", "intent": "select", "table": "budget", "projections": ["name", "amount"]}
+{"nl": "return budget names along with how much has been spent", "intent": "select", "table": "budget", "projections": ["name", "spent"]}
+{"nl": "I'd like name amount and spent for all budgets", "intent": "select", "table": "budget", "projections": ["name", "amount", "spent"]}
+// agent
+{"nl": "what is each agent's name and their rating", "intent": "select", "table": "agent", "projections": ["name", "rating"]}
+{"nl": "return agent names along with their email", "intent": "select", "table": "agent", "projections": ["name", "email"]}
+{"nl": "I need name phone and rating for all agents", "intent": "select", "table": "agent", "projections": ["name", "phone", "rating"]}
+// course
+{"nl": "what is each course's name and how many credits it has", "intent": "select", "table": "course", "projections": ["name", "credits"]}
+{"nl": "return course names along with their capacity", "intent": "select", "table": "course", "projections": ["name", "capacity"]}
+{"nl": "I need name credits and active status for all courses", "intent": "select", "table": "course", "projections": ["name", "credits", "active"]}
+// instructor
+{"nl": "what name and department does each instructor have", "intent": "select", "table": "instructor", "projections": ["name", "department"]}
+{"nl": "return instructor names along with their email", "intent": "select", "table": "instructor", "projections": ["name", "email"]}
+{"nl": "show me each instructor's name email and department", "intent": "select", "table": "instructor", "projections": ["name", "email", "department"]}
+// department
+{"nl": "what is each department's name and budget", "intent": "select", "table": "department", "projections": ["name", "budget"]}
+{"nl": "return department names along with their head", "intent": "select", "table": "department", "projections": ["name", "head"]}
+{"nl": "I need the name head and budget for every department", "intent": "select", "table": "department", "projections": ["name", "head", "budget"]}
+// event
+{"nl": "what is each event's name and its capacity", "intent": "select", "table": "event", "projections": ["name", "capacity"]}
+{"nl": "return event names along with their status", "intent": "select", "table": "event", "projections": ["name", "status"]}
+{"nl": "I'd like name capacity and status for all events", "intent": "select", "table": "event", "projections": ["name", "capacity", "status"]}
+// expense
+{"nl": "what amount and description does each expense have", "intent": "select", "table": "expense", "projections": ["amount", "description"]}
+{"nl": "return expense amounts along with whether they're approved", "intent": "select", "table": "expense", "projections": ["amount", "approved"]}
+// shift
+{"nl": "what is each shift's start time and location", "intent": "select", "table": "shift", "projections": ["start", "location"]}
+{"nl": "return shift locations along with whether they're paid", "intent": "select", "table": "shift", "projections": ["location", "paid"]}
+{"nl": "I need start end and location for all shifts", "intent": "select", "table": "shift", "projections": ["start", "end", "location"]}

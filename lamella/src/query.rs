@@ -100,12 +100,29 @@ pub enum ResolvedModifier {
 
 pub struct Query {
     pub surql: String,
+    /// Runtime parameters in render order: (param_name, field_name).
+    /// e.g. [("param1", "salary"), ("param2", "name")]
+    /// Populated for every "?" value slot — caller binds these before executing.
+    pub params: Vec<(String, String)>,
 }
 
 impl QueryIr {
     pub fn render(&self, values: &[String]) -> Query {
-        let resolve_value = |v: &ValueRef| -> String {
+        // Track runtime params: each "?" literal emits $param1, $param2, …
+        // and records which field it belongs to.
+        let param_n = std::cell::Cell::new(1usize);
+        let params: std::cell::RefCell<Vec<(String, String)>> = std::cell::RefCell::new(Vec::new());
+
+        // Resolve a value, recording a param entry when field context is known.
+        let resolve_value_for = |v: &ValueRef, field: &str| -> String {
             match v {
+                ValueRef::Literal(s) if s == "?" => {
+                    let n = param_n.get();
+                    param_n.set(n + 1);
+                    let name = format!("param{n}");
+                    params.borrow_mut().push((name.clone(), field.to_string()));
+                    format!("${name}")
+                }
                 ValueRef::Literal(s) => {
                     if s.parse::<f64>().is_ok() || s == "true" || s == "false" {
                         s.clone()
@@ -115,7 +132,7 @@ impl QueryIr {
                 }
                 ValueRef::Slot(n) => {
                     if *n < values.len() { values[*n].clone() }
-                    else { format!("${}", n) }
+                    else { format!("${n}") }
                 }
                 ValueRef::Temporal(t) => render_temporal(t),
             }
@@ -131,12 +148,12 @@ impl QueryIr {
                 };
                 let mut q = format!("SELECT {proj} FROM {table}");
                 if let Some(ref rid) = self.record_id {
-                    q = format!("SELECT {proj} FROM {table}:{}", resolve_value(rid));
+                    q = format!("SELECT {proj} FROM {table}:{}", resolve_value_for(rid, "id"));
                 }
                 if !self.conditions.is_empty() {
                     q.push_str(" WHERE ");
                     let conds: Vec<String> = self.conditions.iter().map(|c| {
-                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value_for(&c.value, &c.field))
                     }).collect();
                     q.push_str(&conds.join(" AND "));
                 }
@@ -147,7 +164,7 @@ impl QueryIr {
                             if *descending { q.push_str(" DESC"); }
                         }
                         ResolvedModifier::Limit { value } => {
-                            q.push_str(&format!(" LIMIT {}", resolve_value(value)));
+                            q.push_str(&format!(" LIMIT {}", resolve_value_for(value, "limit")));
                         }
                         ResolvedModifier::Fetch { field } => {
                             q.push_str(&format!(" FETCH {field}"));
@@ -156,14 +173,15 @@ impl QueryIr {
                 }
                 q
             }
+            // CREATE and UPDATE always use SET — no CONTENT branch.
             Intent::Create => {
                 let mut q = format!("CREATE {table}");
-                if self.assignments.len() == 1 && self.assignments[0].field.is_none() {
-                    q.push_str(&format!(" CONTENT {}", resolve_value(&self.assignments[0].value)));
-                } else if !self.assignments.is_empty() {
+                if !self.assignments.is_empty() {
                     q.push_str(" SET ");
                     let sets: Vec<String> = self.assignments.iter()
-                        .filter_map(|a| a.field.as_ref().map(|f| format!("{f} = {}", resolve_value(&a.value))))
+                        .filter_map(|a| a.field.as_ref().map(|f| {
+                            format!("{f} = {}", resolve_value_for(&a.value, f))
+                        }))
                         .collect();
                     q.push_str(&sets.join(", "));
                 }
@@ -171,19 +189,19 @@ impl QueryIr {
             }
             Intent::Update => {
                 let mut q = format!("UPDATE {table}");
-                if self.assignments.len() == 1 && self.assignments[0].field.is_none() {
-                    q.push_str(&format!(" CONTENT {}", resolve_value(&self.assignments[0].value)));
-                } else if !self.assignments.is_empty() {
+                if !self.assignments.is_empty() {
                     q.push_str(" SET ");
                     let sets: Vec<String> = self.assignments.iter()
-                        .filter_map(|a| a.field.as_ref().map(|f| format!("{f} = {}", resolve_value(&a.value))))
+                        .filter_map(|a| a.field.as_ref().map(|f| {
+                            format!("{f} = {}", resolve_value_for(&a.value, f))
+                        }))
                         .collect();
                     q.push_str(&sets.join(", "));
                 }
                 if !self.conditions.is_empty() {
                     q.push_str(" WHERE ");
                     let conds: Vec<String> = self.conditions.iter().map(|c| {
-                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value_for(&c.value, &c.field))
                     }).collect();
                     q.push_str(&conds.join(" AND "));
                 }
@@ -194,7 +212,7 @@ impl QueryIr {
                 if !self.conditions.is_empty() {
                     q.push_str(" WHERE ");
                     let conds: Vec<String> = self.conditions.iter().map(|c| {
-                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value(&c.value))
+                        format!("{} {} {}", c.field, render_comparator(&c.comparator), resolve_value_for(&c.value, &c.field))
                     }).collect();
                     q.push_str(&conds.join(" AND "));
                 }
@@ -202,7 +220,7 @@ impl QueryIr {
             }
         };
 
-        Query { surql }
+        Query { surql, params: params.into_inner() }
     }
 }
 

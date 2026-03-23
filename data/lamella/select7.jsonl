@@ -1,0 +1,79 @@
+// select7.jsonl — FETCH modifier (record link expansion) — completely missing from training data
+// product → category
+{"nl": "select products and include their category details", "intent": "select", "table": "product", "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "get all products and fetch the category", "intent": "select", "table": "product", "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "list products with category information", "intent": "select", "table": "product", "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "show products and load category data", "intent": "select", "table": "product", "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "fetch all products expanding category", "intent": "select", "table": "product", "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "show active products with category details", "intent": "select", "table": "product", "projections": ["name", "price"], "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "fetch", "field": "category"}]}
+{"nl": "list product names and prices including category", "intent": "select", "table": "product", "projections": ["name", "price"], "modifiers": [{"type": "fetch", "field": "category"}]}
+// listing → property, agent
+{"nl": "get all listings and include property details", "intent": "select", "table": "listing", "modifiers": [{"type": "fetch", "field": "property"}]}
+{"nl": "show listings with agent information", "intent": "select", "table": "listing", "modifiers": [{"type": "fetch", "field": "agent"}]}
+{"nl": "list listings and load the property data", "intent": "select", "table": "listing", "modifiers": [{"type": "fetch", "field": "property"}]}
+{"nl": "get active listings with agent details", "intent": "select", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}], "modifiers": [{"type": "fetch", "field": "agent"}]}
+{"nl": "show listing price and status fetching property", "intent": "select", "table": "listing", "projections": ["price", "status"], "modifiers": [{"type": "fetch", "field": "property"}]}
+// order → customer
+{"nl": "get all orders and include customer details", "intent": "select", "table": "order", "modifiers": [{"type": "fetch", "field": "customer"}]}
+{"nl": "show orders with customer information", "intent": "select", "table": "order", "modifiers": [{"type": "fetch", "field": "customer"}]}
+{"nl": "list orders and load customer data", "intent": "select", "table": "order", "modifiers": [{"type": "fetch", "field": "customer"}]}
+{"nl": "get pending orders including customer details", "intent": "select", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "modifiers": [{"type": "fetch", "field": "customer"}]}
+{"nl": "show order total and status fetching customer", "intent": "select", "table": "order", "projections": ["total", "status"], "modifiers": [{"type": "fetch", "field": "customer"}]}
+// enrollment → student, course
+{"nl": "get all enrollments and include student details", "intent": "select", "table": "enrollment", "modifiers": [{"type": "fetch", "field": "student"}]}
+{"nl": "show enrollments with course information", "intent": "select", "table": "enrollment", "modifiers": [{"type": "fetch", "field": "course"}]}
+{"nl": "list enrollments and load student data", "intent": "select", "table": "enrollment", "modifiers": [{"type": "fetch", "field": "student"}]}
+{"nl": "get completed enrollments including course details", "intent": "select", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "fetch", "field": "course"}]}
+{"nl": "show enrollment grade fetching student", "intent": "select", "table": "enrollment", "projections": ["grade", "completed"], "modifiers": [{"type": "fetch", "field": "student"}]}
+// prescription → patient, doctor
+{"nl": "get all prescriptions and include patient details", "intent": "select", "table": "prescription", "modifiers": [{"type": "fetch", "field": "patient"}]}
+{"nl": "show prescriptions with doctor information", "intent": "select", "table": "prescription", "modifiers": [{"type": "fetch", "field": "doctor"}]}
+{"nl": "list active prescriptions including patient data", "intent": "select", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "fetch", "field": "patient"}]}
+{"nl": "get prescriptions and load doctor details", "intent": "select", "table": "prescription", "modifiers": [{"type": "fetch", "field": "doctor"}]}
+{"nl": "show prescription drug and dosage fetching patient", "intent": "select", "table": "prescription", "projections": ["drug", "dosage"], "modifiers": [{"type": "fetch", "field": "patient"}]}
+// ticket → event, attendee
+{"nl": "get all tickets and include event details", "intent": "select", "table": "ticket", "modifiers": [{"type": "fetch", "field": "event"}]}
+{"nl": "show tickets with attendee information", "intent": "select", "table": "ticket", "modifiers": [{"type": "fetch", "field": "attendee"}]}
+{"nl": "list available tickets including event data", "intent": "select", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "available"}], "modifiers": [{"type": "fetch", "field": "event"}]}
+{"nl": "get tickets and load attendee details", "intent": "select", "table": "ticket", "modifiers": [{"type": "fetch", "field": "attendee"}]}
+{"nl": "show ticket price and status fetching event", "intent": "select", "table": "ticket", "projections": ["price", "status"], "modifiers": [{"type": "fetch", "field": "event"}]}
+// shipment → order
+{"nl": "get all shipments and include order details", "intent": "select", "table": "shipment", "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "show shipments with order information", "intent": "select", "table": "shipment", "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "list pending shipments and load order data", "intent": "select", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "show shipment carrier and status fetching order", "intent": "select", "table": "shipment", "projections": ["carrier", "status"], "modifiers": [{"type": "fetch", "field": "order"}]}
+// course → instructor
+{"nl": "get all courses and include instructor details", "intent": "select", "table": "course", "modifiers": [{"type": "fetch", "field": "instructor"}]}
+{"nl": "show courses with instructor information", "intent": "select", "table": "course", "modifiers": [{"type": "fetch", "field": "instructor"}]}
+{"nl": "list active courses and load instructor data", "intent": "select", "table": "course", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "fetch", "field": "instructor"}]}
+{"nl": "show course name and credits fetching instructor", "intent": "select", "table": "course", "projections": ["name", "credits"], "modifiers": [{"type": "fetch", "field": "instructor"}]}
+// appointment → patient, doctor
+{"nl": "get all appointments and include patient details", "intent": "select", "table": "appointment", "modifiers": [{"type": "fetch", "field": "patient"}]}
+{"nl": "show appointments with doctor information", "intent": "select", "table": "appointment", "modifiers": [{"type": "fetch", "field": "doctor"}]}
+{"nl": "list confirmed appointments and load patient data", "intent": "select", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "confirmed"}], "modifiers": [{"type": "fetch", "field": "patient"}]}
+{"nl": "get appointments and fetch doctor details", "intent": "select", "table": "appointment", "modifiers": [{"type": "fetch", "field": "doctor"}]}
+// expense → employee
+{"nl": "get all expenses and include employee details", "intent": "select", "table": "expense", "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "show expenses with employee information", "intent": "select", "table": "expense", "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "list approved expenses and load employee data", "intent": "select", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "true"}], "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "show expense amount and description fetching employee", "intent": "select", "table": "expense", "projections": ["amount", "description"], "modifiers": [{"type": "fetch", "field": "employee"}]}
+// review → product
+{"nl": "get all reviews and include product details", "intent": "select", "table": "review", "modifiers": [{"type": "fetch", "field": "product"}]}
+{"nl": "show reviews with product information", "intent": "select", "table": "review", "modifiers": [{"type": "fetch", "field": "product"}]}
+{"nl": "list high-rated reviews and load product data", "intent": "select", "table": "review", "conditions": [{"field": "rating", "cmp": "gte", "value": "4"}], "modifiers": [{"type": "fetch", "field": "product"}]}
+{"nl": "show review rating and body fetching product", "intent": "select", "table": "review", "projections": ["rating", "body"], "modifiers": [{"type": "fetch", "field": "product"}]}
+// transaction → account
+{"nl": "get all transactions and include account details", "intent": "select", "table": "transaction", "modifiers": [{"type": "fetch", "field": "account"}]}
+{"nl": "show transactions with account information", "intent": "select", "table": "transaction", "modifiers": [{"type": "fetch", "field": "account"}]}
+{"nl": "list completed transactions and load account data", "intent": "select", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}], "modifiers": [{"type": "fetch", "field": "account"}]}
+{"nl": "show transaction amount and type fetching account", "intent": "select", "table": "transaction", "projections": ["amount", "type"], "modifiers": [{"type": "fetch", "field": "account"}]}
+// shift → employee
+{"nl": "get all shifts and include employee details", "intent": "select", "table": "shift", "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "show shifts with employee information", "intent": "select", "table": "shift", "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "list unpaid shifts and load employee data", "intent": "select", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}], "modifiers": [{"type": "fetch", "field": "employee"}]}
+{"nl": "show shift location and start time fetching employee", "intent": "select", "table": "shift", "projections": ["location", "start"], "modifiers": [{"type": "fetch", "field": "employee"}]}
+// invoice → order
+{"nl": "get all invoices and include order details", "intent": "select", "table": "invoice", "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "show invoices with order information", "intent": "select", "table": "invoice", "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "list unpaid invoices and load order data", "intent": "select", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}], "modifiers": [{"type": "fetch", "field": "order"}]}
+{"nl": "show invoice amount and paid status fetching order", "intent": "select", "table": "invoice", "projections": ["amount", "paid"], "modifiers": [{"type": "fetch", "field": "order"}]}

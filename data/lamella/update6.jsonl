@@ -1,0 +1,108 @@
+// update6.jsonl — UPDATE across underrepresented tables
+// invoice
+{"nl": "mark invoice as paid", "intent": "update", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}], "assignments": [{"field": "paid", "value": "true"}]}
+{"nl": "update invoice amount to 500 where it is unpaid", "intent": "update", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}], "assignments": [{"field": "amount", "value": "500"}]}
+{"nl": "set invoice paid to true and amount to 200", "intent": "update", "table": "invoice", "assignments": [{"field": "paid", "value": "true"}, {"field": "amount", "value": "200"}]}
+// listing
+{"nl": "set listing price to 300000 where status is active", "intent": "update", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "active"}], "assignments": [{"field": "price", "value": "300000"}]}
+{"nl": "update listing status to sold", "intent": "update", "table": "listing", "assignments": [{"field": "status", "value": "sold"}]}
+{"nl": "change listing price to 450000 and status to pending", "intent": "update", "table": "listing", "assignments": [{"field": "price", "value": "450000"}, {"field": "status", "value": "pending"}]}
+{"nl": "set listing price to 200000 where status is pending", "intent": "update", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "price", "value": "200000"}]}
+// order
+{"nl": "update order status to shipped", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "shipped"}]}
+{"nl": "set order total to 150 where status is pending", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "total", "value": "150"}]}
+{"nl": "change order status to cancelled and total to 0", "intent": "update", "table": "order", "assignments": [{"field": "status", "value": "cancelled"}, {"field": "total", "value": "0"}]}
+{"nl": "update pending orders total to 99", "intent": "update", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "total", "value": "99"}]}
+// shipment
+{"nl": "update shipment status to delivered", "intent": "update", "table": "shipment", "assignments": [{"field": "status", "value": "delivered"}]}
+{"nl": "set shipment carrier to FedEx where status is pending", "intent": "update", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "carrier", "value": "FedEx"}]}
+{"nl": "change shipment weight to 5.2 and carrier to UPS", "intent": "update", "table": "shipment", "assignments": [{"field": "weight", "value": "5.2"}, {"field": "carrier", "value": "UPS"}]}
+{"nl": "mark shipment as in transit with carrier DHL", "intent": "update", "table": "shipment", "assignments": [{"field": "status", "value": "in_transit"}, {"field": "carrier", "value": "DHL"}]}
+// ticket
+{"nl": "update ticket status to cancelled", "intent": "update", "table": "ticket", "assignments": [{"field": "status", "value": "cancelled"}]}
+{"nl": "set ticket price to 50 where status is available", "intent": "update", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "available"}], "assignments": [{"field": "price", "value": "50"}]}
+{"nl": "change ticket price to 25 and status to sold", "intent": "update", "table": "ticket", "assignments": [{"field": "price", "value": "25"}, {"field": "status", "value": "sold"}]}
+{"nl": "update available tickets price to 75", "intent": "update", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "available"}], "assignments": [{"field": "price", "value": "75"}]}
+// shift
+{"nl": "mark shift as paid", "intent": "update", "table": "shift", "assignments": [{"field": "paid", "value": "true"}]}
+{"nl": "set shift location to Downtown for unpaid shifts", "intent": "update", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}], "assignments": [{"field": "location", "value": "Downtown"}]}
+{"nl": "update shift paid to false and location to Remote", "intent": "update", "table": "shift", "assignments": [{"field": "paid", "value": "false"}, {"field": "location", "value": "Remote"}]}
+{"nl": "change shift location to Main Office where paid is true", "intent": "update", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}], "assignments": [{"field": "location", "value": "Main Office"}]}
+// prescription
+{"nl": "deactivate a prescription", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update prescription dosage to 500mg where it is active", "intent": "update", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "dosage", "value": "500mg"}]}
+{"nl": "change prescription drug to Amoxicillin and dosage to 250mg", "intent": "update", "table": "prescription", "assignments": [{"field": "drug", "value": "Amoxicillin"}, {"field": "dosage", "value": "250mg"}]}
+{"nl": "set prescription active to true and drug to Ibuprofen", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "true"}, {"field": "drug", "value": "Ibuprofen"}]}
+// enrollment
+{"nl": "mark enrollment as completed", "intent": "update", "table": "enrollment", "assignments": [{"field": "completed", "value": "true"}]}
+{"nl": "set enrollment grade to A where completed is true", "intent": "update", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}], "assignments": [{"field": "grade", "value": "A"}]}
+{"nl": "update enrollment grade to B and completed to true", "intent": "update", "table": "enrollment", "assignments": [{"field": "grade", "value": "B"}, {"field": "completed", "value": "true"}]}
+{"nl": "change enrollment grade to C where completed is false", "intent": "update", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "false"}], "assignments": [{"field": "grade", "value": "C"}]}
+// appointment
+{"nl": "update appointment status to confirmed", "intent": "update", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}]}
+{"nl": "set appointment status to cancelled where it is pending", "intent": "update", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "status", "value": "cancelled"}]}
+{"nl": "change appointment notes to Follow up needed", "intent": "update", "table": "appointment", "assignments": [{"field": "notes", "value": "Follow up needed"}]}
+{"nl": "update appointment status to completed and add notes Done", "intent": "update", "table": "appointment", "assignments": [{"field": "status", "value": "completed"}, {"field": "notes", "value": "Done"}]}
+// expense
+{"nl": "approve an expense", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "true"}]}
+{"nl": "set expense amount to 200 where not approved", "intent": "update", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}], "assignments": [{"field": "amount", "value": "200"}]}
+{"nl": "update expense approved to false and description to Rejected", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "false"}, {"field": "description", "value": "Rejected"}]}
+{"nl": "approve all expenses with amount below 100", "intent": "update", "table": "expense", "conditions": [{"field": "amount", "cmp": "lt", "value": "100"}], "assignments": [{"field": "approved", "value": "true"}]}
+// transaction
+{"nl": "update transaction status to completed", "intent": "update", "table": "transaction", "assignments": [{"field": "status", "value": "completed"}]}
+{"nl": "set transaction status to failed where pending", "intent": "update", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "pending"}], "assignments": [{"field": "status", "value": "failed"}]}
+{"nl": "change transaction amount to 999 and type to transfer", "intent": "update", "table": "transaction", "assignments": [{"field": "amount", "value": "999"}, {"field": "type", "value": "transfer"}]}
+{"nl": "update transaction type to refund and status to pending", "intent": "update", "table": "transaction", "assignments": [{"field": "type", "value": "refund"}, {"field": "status", "value": "pending"}]}
+// category
+{"nl": "rename category to Electronics", "intent": "update", "table": "category", "assignments": [{"field": "name", "value": "Electronics"}]}
+{"nl": "update category description to Home and Garden items", "intent": "update", "table": "category", "assignments": [{"field": "description", "value": "Home and Garden items"}]}
+{"nl": "set category name to Apparel and description to Clothing and accessories", "intent": "update", "table": "category", "assignments": [{"field": "name", "value": "Apparel"}, {"field": "description", "value": "Clothing and accessories"}]}
+// role
+{"nl": "deactivate a role", "intent": "update", "table": "role", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update role level to 4 where active", "intent": "update", "table": "role", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "level", "value": "4"}]}
+{"nl": "set role title to Lead and level to 6", "intent": "update", "table": "role", "assignments": [{"field": "title", "value": "Lead"}, {"field": "level", "value": "6"}]}
+{"nl": "change role active to true and level to 3", "intent": "update", "table": "role", "assignments": [{"field": "active", "value": "true"}, {"field": "level", "value": "3"}]}
+// department
+{"nl": "update department budget to 100000", "intent": "update", "table": "department", "assignments": [{"field": "budget", "value": "100000"}]}
+{"nl": "change department head to Diana", "intent": "update", "table": "department", "assignments": [{"field": "head", "value": "Diana"}]}
+{"nl": "set department name to Finance and budget to 75000", "intent": "update", "table": "department", "assignments": [{"field": "name", "value": "Finance"}, {"field": "budget", "value": "75000"}]}
+{"nl": "update department head to Sam and budget to 120000", "intent": "update", "table": "department", "assignments": [{"field": "head", "value": "Sam"}, {"field": "budget", "value": "120000"}]}
+// review
+{"nl": "update review rating to 5", "intent": "update", "table": "review", "assignments": [{"field": "rating", "value": "5"}]}
+{"nl": "set review body to Excellent product where rating is above 4", "intent": "update", "table": "review", "conditions": [{"field": "rating", "cmp": "gt", "value": "4"}], "assignments": [{"field": "body", "value": "Excellent product"}]}
+{"nl": "change review rating to 3 and body to Average", "intent": "update", "table": "review", "assignments": [{"field": "rating", "value": "3"}, {"field": "body", "value": "Average"}]}
+// attendee
+{"nl": "update attendee email to new@event.com", "intent": "update", "table": "attendee", "assignments": [{"field": "email", "value": "new@event.com"}]}
+{"nl": "set attendee name to Jordan and phone to 555-7777", "intent": "update", "table": "attendee", "assignments": [{"field": "name", "value": "Jordan"}, {"field": "phone", "value": "555-7777"}]}
+{"nl": "change attendee phone to 555-8888 where email is old@test.com", "intent": "update", "table": "attendee", "conditions": [{"field": "email", "cmp": "eq", "value": "old@test.com"}], "assignments": [{"field": "phone", "value": "555-8888"}]}
+// event
+{"nl": "update event status to cancelled", "intent": "update", "table": "event", "assignments": [{"field": "status", "value": "cancelled"}]}
+{"nl": "set event capacity to 500 where status is open", "intent": "update", "table": "event", "conditions": [{"field": "status", "cmp": "eq", "value": "open"}], "assignments": [{"field": "capacity", "value": "500"}]}
+{"nl": "change event name to Grand Opening and capacity to 1000", "intent": "update", "table": "event", "assignments": [{"field": "name", "value": "Grand Opening"}, {"field": "capacity", "value": "1000"}]}
+{"nl": "update event status to open and name to Spring Fair", "intent": "update", "table": "event", "assignments": [{"field": "status", "value": "open"}, {"field": "name", "value": "Spring Fair"}]}
+// budget
+{"nl": "update budget spent to 25000", "intent": "update", "table": "budget", "assignments": [{"field": "spent", "value": "25000"}]}
+{"nl": "set budget active to false where spent exceeds amount", "intent": "update", "table": "budget", "conditions": [{"field": "spent", "cmp": "gt", "value": "50000"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "change budget amount to 80000 and spent to 10000", "intent": "update", "table": "budget", "assignments": [{"field": "amount", "value": "80000"}, {"field": "spent", "value": "10000"}]}
+{"nl": "update budget name to Q3 Ops and amount to 60000", "intent": "update", "table": "budget", "assignments": [{"field": "name", "value": "Q3 Ops"}, {"field": "amount", "value": "60000"}]}
+// student
+{"nl": "update student gpa to 3.9 where enrolled", "intent": "update", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "true"}], "assignments": [{"field": "gpa", "value": "3.9"}]}
+{"nl": "set student enrolled to false and gpa to 0.0", "intent": "update", "table": "student", "assignments": [{"field": "enrolled", "value": "false"}, {"field": "gpa", "value": "0.0"}]}
+{"nl": "change student email to updated@school.edu where gpa is above 3.5", "intent": "update", "table": "student", "conditions": [{"field": "gpa", "cmp": "gt", "value": "3.5"}], "assignments": [{"field": "email", "value": "updated@school.edu"}]}
+{"nl": "update student name to Alex and email to alex@uni.edu", "intent": "update", "table": "student", "assignments": [{"field": "name", "value": "Alex"}, {"field": "email", "value": "alex@uni.edu"}]}
+// instructor
+{"nl": "deactivate instructor", "intent": "update", "table": "instructor", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "set instructor department to biology where active", "intent": "update", "table": "instructor", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "department", "value": "biology"}]}
+{"nl": "change instructor email to new@uni.edu and department to history", "intent": "update", "table": "instructor", "assignments": [{"field": "email", "value": "new@uni.edu"}, {"field": "department", "value": "history"}]}
+// course
+{"nl": "set course active to false where capacity is 0", "intent": "update", "table": "course", "conditions": [{"field": "capacity", "cmp": "eq", "value": "0"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "update course capacity to 40 and credits to 3", "intent": "update", "table": "course", "assignments": [{"field": "capacity", "value": "40"}, {"field": "credits", "value": "3"}]}
+{"nl": "change course name to Modern Physics and credits to 4", "intent": "update", "table": "course", "assignments": [{"field": "name", "value": "Modern Physics"}, {"field": "credits", "value": "4"}]}
+// venue
+{"nl": "update venue capacity to 750", "intent": "update", "table": "venue", "assignments": [{"field": "capacity", "value": "750"}]}
+{"nl": "set venue active to false where capacity is less than 50", "intent": "update", "table": "venue", "conditions": [{"field": "capacity", "cmp": "lt", "value": "50"}], "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "change venue name to Riverside Hall and capacity to 300", "intent": "update", "table": "venue", "assignments": [{"field": "name", "value": "Riverside Hall"}, {"field": "capacity", "value": "300"}]}
+// warehouse
+{"nl": "deactivate warehouse", "intent": "update", "table": "warehouse", "assignments": [{"field": "active", "value": "false"}]}
+{"nl": "set warehouse capacity to 8000 where active", "intent": "update", "table": "warehouse", "conditions": [{"field": "active", "cmp": "eq", "value": "true"}], "assignments": [{"field": "capacity", "value": "8000"}]}
+{"nl": "change warehouse name to West Hub and location to Seattle", "intent": "update", "table": "warehouse", "assignments": [{"field": "name", "value": "West Hub"}, {"field": "location", "value": "Seattle"}]}

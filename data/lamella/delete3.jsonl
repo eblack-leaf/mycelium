@@ -1,0 +1,105 @@
+// delete3.jsonl — DELETE across all tables with varied conditions
+// product
+{"nl": "delete inactive products", "intent": "delete", "table": "product", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove products with price above 1000", "intent": "delete", "table": "product", "conditions": [{"field": "price", "cmp": "gt", "value": "1000"}]}
+{"nl": "delete products with zero stock", "intent": "delete", "table": "product", "conditions": [{"field": "stock", "cmp": "eq", "value": "0"}]}
+{"nl": "remove product with sku W001", "intent": "delete", "table": "product", "conditions": [{"field": "sku", "cmp": "eq", "value": "W001"}]}
+// employee
+{"nl": "delete inactive employees", "intent": "delete", "table": "employee", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove employees with salary below 30000", "intent": "delete", "table": "employee", "conditions": [{"field": "salary", "cmp": "lt", "value": "30000"}]}
+{"nl": "delete employees in the hr department", "intent": "delete", "table": "employee", "conditions": [{"field": "department", "cmp": "eq", "value": "hr"}]}
+{"nl": "remove employee with role intern", "intent": "delete", "table": "employee", "conditions": [{"field": "role", "cmp": "eq", "value": "intern"}]}
+// student
+{"nl": "delete students who are not enrolled", "intent": "delete", "table": "student", "conditions": [{"field": "enrolled", "cmp": "eq", "value": "false"}]}
+{"nl": "remove students with gpa below 1.5", "intent": "delete", "table": "student", "conditions": [{"field": "gpa", "cmp": "lt", "value": "1.5"}]}
+{"nl": "delete student with email test@school.edu", "intent": "delete", "table": "student", "conditions": [{"field": "email", "cmp": "eq", "value": "test@school.edu"}]}
+// doctor
+{"nl": "delete inactive doctors", "intent": "delete", "table": "doctor", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove doctors with rating below 3", "intent": "delete", "table": "doctor", "conditions": [{"field": "rating", "cmp": "lt", "value": "3"}]}
+{"nl": "delete doctor with specialty dermatology", "intent": "delete", "table": "doctor", "conditions": [{"field": "specialty", "cmp": "eq", "value": "dermatology"}]}
+// patient
+{"nl": "delete uninsured patients", "intent": "delete", "table": "patient", "conditions": [{"field": "insured", "cmp": "eq", "value": "false"}]}
+{"nl": "remove patient with phone 555-0000", "intent": "delete", "table": "patient", "conditions": [{"field": "phone", "cmp": "eq", "value": "555-0000"}]}
+{"nl": "delete patients with email test@mail.com", "intent": "delete", "table": "patient", "conditions": [{"field": "email", "cmp": "eq", "value": "test@mail.com"}]}
+// account
+{"nl": "delete inactive accounts", "intent": "delete", "table": "account", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove accounts with balance below 10", "intent": "delete", "table": "account", "conditions": [{"field": "balance", "cmp": "lt", "value": "10"}]}
+{"nl": "delete accounts of type checking", "intent": "delete", "table": "account", "conditions": [{"field": "type", "cmp": "eq", "value": "checking"}]}
+// customer
+{"nl": "delete customer with email old@shop.com", "intent": "delete", "table": "customer", "conditions": [{"field": "email", "cmp": "eq", "value": "old@shop.com"}]}
+{"nl": "remove customers with phone 555-9999", "intent": "delete", "table": "customer", "conditions": [{"field": "phone", "cmp": "eq", "value": "555-9999"}]}
+// supplier
+{"nl": "delete inactive suppliers", "intent": "delete", "table": "supplier", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove suppliers with rating below 2", "intent": "delete", "table": "supplier", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "delete suppliers from country Russia", "intent": "delete", "table": "supplier", "conditions": [{"field": "country", "cmp": "eq", "value": "Russia"}]}
+// property
+{"nl": "delete inactive properties", "intent": "delete", "table": "property", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove properties priced below 50000", "intent": "delete", "table": "property", "conditions": [{"field": "price", "cmp": "lt", "value": "50000"}]}
+{"nl": "delete properties of type land", "intent": "delete", "table": "property", "conditions": [{"field": "type", "cmp": "eq", "value": "land"}]}
+// order
+{"nl": "delete cancelled orders", "intent": "delete", "table": "order", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove orders with total below 5", "intent": "delete", "table": "order", "conditions": [{"field": "total", "cmp": "lt", "value": "5"}]}
+// transaction
+{"nl": "delete failed transactions", "intent": "delete", "table": "transaction", "conditions": [{"field": "status", "cmp": "eq", "value": "failed"}]}
+{"nl": "remove transactions with amount below 1", "intent": "delete", "table": "transaction", "conditions": [{"field": "amount", "cmp": "lt", "value": "1"}]}
+{"nl": "delete transactions of type test", "intent": "delete", "table": "transaction", "conditions": [{"field": "type", "cmp": "eq", "value": "test"}]}
+// review
+{"nl": "delete reviews with rating below 2", "intent": "delete", "table": "review", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+{"nl": "remove reviews with rating of 1", "intent": "delete", "table": "review", "conditions": [{"field": "rating", "cmp": "eq", "value": "1"}]}
+// invoice
+{"nl": "delete unpaid invoices", "intent": "delete", "table": "invoice", "conditions": [{"field": "paid", "cmp": "eq", "value": "false"}]}
+{"nl": "remove invoices with amount above 10000", "intent": "delete", "table": "invoice", "conditions": [{"field": "amount", "cmp": "gt", "value": "10000"}]}
+// listing
+{"nl": "delete sold listings", "intent": "delete", "table": "listing", "conditions": [{"field": "status", "cmp": "eq", "value": "sold"}]}
+{"nl": "remove listings with price below 1000", "intent": "delete", "table": "listing", "conditions": [{"field": "price", "cmp": "lt", "value": "1000"}]}
+// shipment
+{"nl": "delete delivered shipments", "intent": "delete", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "delivered"}]}
+{"nl": "remove cancelled shipments", "intent": "delete", "table": "shipment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+// ticket
+{"nl": "delete cancelled tickets", "intent": "delete", "table": "ticket", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove tickets with price below 5", "intent": "delete", "table": "ticket", "conditions": [{"field": "price", "cmp": "lt", "value": "5"}]}
+// shift
+{"nl": "delete paid shifts", "intent": "delete", "table": "shift", "conditions": [{"field": "paid", "cmp": "eq", "value": "true"}]}
+{"nl": "remove shifts at location Remote", "intent": "delete", "table": "shift", "conditions": [{"field": "location", "cmp": "eq", "value": "Remote"}]}
+// prescription
+{"nl": "delete inactive prescriptions", "intent": "delete", "table": "prescription", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove prescriptions for drug Paracetamol", "intent": "delete", "table": "prescription", "conditions": [{"field": "drug", "cmp": "eq", "value": "Paracetamol"}]}
+// enrollment
+{"nl": "delete completed enrollments", "intent": "delete", "table": "enrollment", "conditions": [{"field": "completed", "cmp": "eq", "value": "true"}]}
+{"nl": "remove enrollments with grade F", "intent": "delete", "table": "enrollment", "conditions": [{"field": "grade", "cmp": "eq", "value": "F"}]}
+// appointment
+{"nl": "delete cancelled appointments", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove completed appointments", "intent": "delete", "table": "appointment", "conditions": [{"field": "status", "cmp": "eq", "value": "completed"}]}
+// expense
+{"nl": "delete rejected expenses", "intent": "delete", "table": "expense", "conditions": [{"field": "approved", "cmp": "eq", "value": "false"}]}
+{"nl": "remove expenses with amount above 5000", "intent": "delete", "table": "expense", "conditions": [{"field": "amount", "cmp": "gt", "value": "5000"}]}
+// event
+{"nl": "delete cancelled events", "intent": "delete", "table": "event", "conditions": [{"field": "status", "cmp": "eq", "value": "cancelled"}]}
+{"nl": "remove events with capacity below 10", "intent": "delete", "table": "event", "conditions": [{"field": "capacity", "cmp": "lt", "value": "10"}]}
+// budget
+{"nl": "delete inactive budgets", "intent": "delete", "table": "budget", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove budgets with amount below 1000", "intent": "delete", "table": "budget", "conditions": [{"field": "amount", "cmp": "lt", "value": "1000"}]}
+// course
+{"nl": "delete inactive courses", "intent": "delete", "table": "course", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove courses with capacity below 5", "intent": "delete", "table": "course", "conditions": [{"field": "capacity", "cmp": "lt", "value": "5"}]}
+// instructor
+{"nl": "delete inactive instructors", "intent": "delete", "table": "instructor", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove instructor with department unknown", "intent": "delete", "table": "instructor", "conditions": [{"field": "department", "cmp": "eq", "value": "unknown"}]}
+// venue
+{"nl": "delete inactive venues", "intent": "delete", "table": "venue", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove venues with capacity below 20", "intent": "delete", "table": "venue", "conditions": [{"field": "capacity", "cmp": "lt", "value": "20"}]}
+// warehouse
+{"nl": "delete inactive warehouses", "intent": "delete", "table": "warehouse", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove warehouses with capacity below 100", "intent": "delete", "table": "warehouse", "conditions": [{"field": "capacity", "cmp": "lt", "value": "100"}]}
+// category
+{"nl": "delete category with name Deprecated", "intent": "delete", "table": "category", "conditions": [{"field": "name", "cmp": "eq", "value": "Deprecated"}]}
+// role
+{"nl": "delete inactive roles", "intent": "delete", "table": "role", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove roles with level below 2", "intent": "delete", "table": "role", "conditions": [{"field": "level", "cmp": "lt", "value": "2"}]}
+// department
+{"nl": "delete department with budget below 1000", "intent": "delete", "table": "department", "conditions": [{"field": "budget", "cmp": "lt", "value": "1000"}]}
+// agent
+{"nl": "delete inactive agents", "intent": "delete", "table": "agent", "conditions": [{"field": "active", "cmp": "eq", "value": "false"}]}
+{"nl": "remove agents with rating below 2", "intent": "delete", "table": "agent", "conditions": [{"field": "rating", "cmp": "lt", "value": "2"}]}
+// attendee
+{"nl": "delete attendee with email old@event.com", "intent": "delete", "table": "attendee", "conditions": [{"field": "email", "cmp": "eq", "value": "old@event.com"}]}

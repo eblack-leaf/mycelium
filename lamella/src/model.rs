@@ -28,7 +28,7 @@ pub struct LamellaConfig {
     pub n_heads: usize,
     #[config(default = 4)]
     pub n_layers: usize,
-    #[config(default = 0.1)]
+    #[config(default = 0.2)]
     pub dropout: f64,
     #[config(default = 10_000)]
     pub token_buckets: usize,
@@ -538,27 +538,41 @@ impl<B: Backend> Lamella<B> {
         ).squeeze::<1>();
         let intent = self.score(intent_q, &self.bi_intent, embs.op_embs.clone());
 
-        // Per-slot NL attention for field heads: query = pool_2 + type_emb + pos_emb.
-        // Attends over NL tokens to find which ones name the schema element for this slot.
-        let slot_nl_score = |head: &Linear<B>, bi: &Linear<B>, type_emb: Tensor<B, 1>, i: usize| -> Tensor<B, 1> {
-            let q = head.forward(
-                (pool_2.clone() + type_emb + self.slot(i, device)).unsqueeze::<2>()
+        // Per-slot NL attention for field heads: query = pool_2 + type_emb + pos_emb,
+        // attends over NL tokens to find which name the schema element for this slot.
+        //
+        // Coverage: after slot i attends to tokens, those positions are penalised for slot i+1
+        // so each slot is pushed toward a *different* NL token. Without this, every slot for
+        // "show name salary role" collapses to the same peak token and proj/asgn plateau at ~50%.
+        let seq_len = nl_seq.dims()[0];
+
+        // -- Projection: NL attention with coverage --
+        let mut proj_cov: Tensor<B, 2> = Tensor::zeros([seq_len, 1], device);
+        let mut projection = Vec::with_capacity(slots.projections);
+        for i in 0..slots.projections {
+            let q = self.head_proj.forward(
+                (pool_2.clone() + st[T_PROJ].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
-            let attn_scores = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
-            let attn_w = activation::softmax(attn_scores, 0); // [seq_len, 1]
+            let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale; // [seq_len, 1]
+            let attn_w = activation::softmax(raw - proj_cov.clone(), 0);
+            proj_cov = proj_cov + attn_w.clone();
             let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
-            self.score(ctx, bi, masked_field_embs.clone())
-        };
+            projection.push(self.score(ctx, &self.bi_proj, masked_field_embs.clone()));
+        }
 
-        // Projection — NL attention (field names appear in NL: "show X and Y")
-        let projection: Vec<Tensor<B, 1>> = (0..slots.projections)
-            .map(|i| slot_nl_score(&self.head_proj, &self.bi_proj, st[T_PROJ].clone(), i))
-            .collect();
-
-        // Condition field — NL attention ("where X > 5", X is named in NL)
-        let cond_field: Vec<Tensor<B, 1>> = (0..slots.conditions)
-            .map(|i| slot_nl_score(&self.head_cond_f, &self.bi_cond_f, st[T_COND_FIELD].clone(), i))
-            .collect();
+        // -- Condition field: NL attention with coverage --
+        let mut cond_cov: Tensor<B, 2> = Tensor::zeros([seq_len, 1], device);
+        let mut cond_field = Vec::with_capacity(slots.conditions);
+        for i in 0..slots.conditions {
+            let q = self.head_cond_f.forward(
+                (pool_2.clone() + st[T_COND_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
+            let attn_w = activation::softmax(raw - cond_cov.clone(), 0);
+            cond_cov = cond_cov + attn_w.clone();
+            let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
+            cond_field.push(self.score(ctx, &self.bi_cond_f, masked_field_embs.clone()));
+        }
 
         // Condition comparator — pool only; comparators are structural SurrealQL choices.
         let cond_cmp: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
@@ -568,10 +582,19 @@ impl<B: Backend> Lamella<B> {
             self.score(q, &self.bi_cond_c, embs.cmp_embs.clone())
         }).collect();
 
-        // Assignment field — NL attention ("set X to Y", X is named in NL)
-        let assignment: Vec<Tensor<B, 1>> = (0..slots.assignments)
-            .map(|i| slot_nl_score(&self.head_asgn, &self.bi_asgn, st[T_ASGN].clone(), i))
-            .collect();
+        // -- Assignment field: NL attention with coverage --
+        let mut asgn_cov: Tensor<B, 2> = Tensor::zeros([seq_len, 1], device);
+        let mut assignment = Vec::with_capacity(slots.assignments);
+        for i in 0..slots.assignments {
+            let q = self.head_asgn.forward(
+                (pool_2.clone() + st[T_ASGN].clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
+            let attn_w = activation::softmax(raw - asgn_cov.clone(), 0);
+            asgn_cov = asgn_cov + attn_w.clone();
+            let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
+            assignment.push(self.score(ctx, &self.bi_asgn, masked_field_embs.clone()));
+        }
 
         // Modifier type — pool only; ORDER BY / LIMIT / FETCH are structural choices.
         let mod_type: Vec<Tensor<B, 1>> = (0..slots.mod_types).map(|i| {
@@ -581,10 +604,16 @@ impl<B: Backend> Lamella<B> {
             self.score(q, &self.bi_mod_t, embs.mod_embs.clone())
         }).collect();
 
-        // Modifier field — NL attention ("order by X", X is named in NL)
-        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields)
-            .map(|i| slot_nl_score(&self.head_mod_f, &self.bi_mod_f, st[T_MOD_FIELD].clone(), i))
-            .collect();
+        // Modifier field — usually 1 slot, no coverage needed
+        let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields).map(|i| {
+            let q = self.head_mod_f.forward(
+                (pool_2.clone() + st[T_MOD_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
+            ).squeeze::<1>();
+            let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
+            let attn_w = activation::softmax(raw, 0);
+            let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
+            self.score(ctx, &self.bi_mod_f, masked_field_embs.clone())
+        }).collect();
 
         LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
     }

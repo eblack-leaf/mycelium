@@ -1,0 +1,106 @@
+// update9.jsonl — UPDATE with neq/contains/gte/lte comparators + multi-field assignments
+// employee
+{"nl": "update employee salary to <val1> where name is not <val2>", "intent": "update", "table": "employee", "assignments": [{"field": "salary"}], "conditions": [{"field": "name", "cmp": "neq"}]}
+{"nl": "set employee active to false where department contains <val>", "intent": "update", "table": "employee", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "department", "cmp": "contains"}]}
+{"nl": "update employee role and salary where name contains <val>", "intent": "update", "table": "employee", "assignments": [{"field": "role"}, {"field": "salary"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set employee department to <val1> where salary is greater than or equal to <val2>", "intent": "update", "table": "employee", "assignments": [{"field": "department"}], "conditions": [{"field": "salary", "cmp": "gte"}]}
+{"nl": "update employees where salary is less than or equal to <val> set active to false", "intent": "update", "table": "employee", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "salary", "cmp": "lte"}]}
+// product
+{"nl": "update product price to <val1> where name contains <val2>", "intent": "update", "table": "product", "assignments": [{"field": "price"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set product stock to <val1> where sku is not <val2>", "intent": "update", "table": "product", "assignments": [{"field": "stock"}], "conditions": [{"field": "sku", "cmp": "neq"}]}
+{"nl": "update product name and price where stock is less than or equal to <val>", "intent": "update", "table": "product", "assignments": [{"field": "name"}, {"field": "price"}], "conditions": [{"field": "stock", "cmp": "lte"}]}
+{"nl": "mark products inactive where price is greater than or equal to <val>", "intent": "update", "table": "product", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "price", "cmp": "gte"}]}
+// customer
+{"nl": "update customer email to <val1> where name contains <val2>", "intent": "update", "table": "customer", "assignments": [{"field": "email"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set customer phone to <val1> where email is not <val2>", "intent": "update", "table": "customer", "assignments": [{"field": "phone"}], "conditions": [{"field": "email", "cmp": "neq"}]}
+{"nl": "update customer name and phone where email contains <val>", "intent": "update", "table": "customer", "assignments": [{"field": "name"}, {"field": "phone"}], "conditions": [{"field": "email", "cmp": "contains"}]}
+// order
+{"nl": "update order status to <val1> where total is greater than or equal to <val2>", "intent": "update", "table": "order", "assignments": [{"field": "status"}], "conditions": [{"field": "total", "cmp": "gte"}]}
+{"nl": "set order total to <val1> where status is not <val2>", "intent": "update", "table": "order", "assignments": [{"field": "total"}], "conditions": [{"field": "status", "cmp": "neq"}]}
+{"nl": "update order status and total where total is less than or equal to <val>", "intent": "update", "table": "order", "assignments": [{"field": "status"}, {"field": "total"}], "conditions": [{"field": "total", "cmp": "lte"}]}
+// appointment
+{"nl": "update appointment status to <val1> where notes contains <val2>", "intent": "update", "table": "appointment", "assignments": [{"field": "status"}], "conditions": [{"field": "notes", "cmp": "contains"}]}
+{"nl": "set appointment notes to <val1> where status is not <val2>", "intent": "update", "table": "appointment", "assignments": [{"field": "notes"}], "conditions": [{"field": "status", "cmp": "neq"}]}
+{"nl": "update appointment status and notes where notes contains <val>", "intent": "update", "table": "appointment", "assignments": [{"field": "status"}, {"field": "notes"}], "conditions": [{"field": "notes", "cmp": "contains"}]}
+// invoice
+{"nl": "update invoice amount to <val1> where paid is not true", "intent": "update", "table": "invoice", "assignments": [{"field": "amount"}], "conditions": [{"field": "paid", "cmp": "neq", "value": "true"}]}
+{"nl": "set invoice paid to true where amount is greater than or equal to <val>", "intent": "update", "table": "invoice", "assignments": [{"field": "paid", "value": "true"}], "conditions": [{"field": "amount", "cmp": "gte"}]}
+{"nl": "update invoice amount and paid where amount is less than or equal to <val>", "intent": "update", "table": "invoice", "assignments": [{"field": "amount"}, {"field": "paid"}], "conditions": [{"field": "amount", "cmp": "lte"}]}
+// expense
+{"nl": "approve expenses where amount is less than or equal to <val>", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "true"}], "conditions": [{"field": "amount", "cmp": "lte"}]}
+{"nl": "update expense description to <val1> where description contains <val2>", "intent": "update", "table": "expense", "assignments": [{"field": "description"}], "conditions": [{"field": "description", "cmp": "contains"}]}
+{"nl": "set expense approved to false where amount is greater than or equal to <val>", "intent": "update", "table": "expense", "assignments": [{"field": "approved", "value": "false"}], "conditions": [{"field": "amount", "cmp": "gte"}]}
+{"nl": "update expense amount and approved where description contains <val>", "intent": "update", "table": "expense", "assignments": [{"field": "amount"}, {"field": "approved"}], "conditions": [{"field": "description", "cmp": "contains"}]}
+// shipment
+{"nl": "update shipment status to <val1> where carrier is not <val2>", "intent": "update", "table": "shipment", "assignments": [{"field": "status"}], "conditions": [{"field": "carrier", "cmp": "neq"}]}
+{"nl": "set shipment carrier to <val1> where weight is greater than or equal to <val2>", "intent": "update", "table": "shipment", "assignments": [{"field": "carrier"}], "conditions": [{"field": "weight", "cmp": "gte"}]}
+{"nl": "update shipment carrier and status where weight is less than or equal to <val>", "intent": "update", "table": "shipment", "assignments": [{"field": "carrier"}, {"field": "status"}], "conditions": [{"field": "weight", "cmp": "lte"}]}
+// review
+{"nl": "update review body where body contains <val>", "intent": "update", "table": "review", "assignments": [{"field": "body"}], "conditions": [{"field": "body", "cmp": "contains"}]}
+{"nl": "set review rating to <val1> where author is not <val2>", "intent": "update", "table": "review", "assignments": [{"field": "rating"}], "conditions": [{"field": "author", "cmp": "neq"}]}
+{"nl": "update review rating and body where rating is less than or equal to <val>", "intent": "update", "table": "review", "assignments": [{"field": "rating"}, {"field": "body"}], "conditions": [{"field": "rating", "cmp": "lte"}]}
+// ticket
+{"nl": "update ticket price to <val1> where status is not <val2>", "intent": "update", "table": "ticket", "assignments": [{"field": "price"}], "conditions": [{"field": "status", "cmp": "neq"}]}
+{"nl": "set ticket status to sold where price is less than or equal to <val>", "intent": "update", "table": "ticket", "assignments": [{"field": "status", "value": "sold"}], "conditions": [{"field": "price", "cmp": "lte"}]}
+{"nl": "update ticket price and status where price is greater than or equal to <val>", "intent": "update", "table": "ticket", "assignments": [{"field": "price"}, {"field": "status"}], "conditions": [{"field": "price", "cmp": "gte"}]}
+// shift
+{"nl": "update shift location to <val1> where location contains <val2>", "intent": "update", "table": "shift", "assignments": [{"field": "location"}], "conditions": [{"field": "location", "cmp": "contains"}]}
+{"nl": "mark shifts paid where location is not <val>", "intent": "update", "table": "shift", "assignments": [{"field": "paid", "value": "true"}], "conditions": [{"field": "location", "cmp": "neq"}]}
+{"nl": "update shift location and paid where location contains <val>", "intent": "update", "table": "shift", "assignments": [{"field": "location"}, {"field": "paid"}], "conditions": [{"field": "location", "cmp": "contains"}]}
+// listing
+{"nl": "update listing price to <val1> where status is not <val2>", "intent": "update", "table": "listing", "assignments": [{"field": "price"}], "conditions": [{"field": "status", "cmp": "neq"}]}
+{"nl": "set listing status to sold where price is less than or equal to <val>", "intent": "update", "table": "listing", "assignments": [{"field": "status", "value": "sold"}], "conditions": [{"field": "price", "cmp": "lte"}]}
+{"nl": "update listing price and status where price is greater than or equal to <val>", "intent": "update", "table": "listing", "assignments": [{"field": "price"}, {"field": "status"}], "conditions": [{"field": "price", "cmp": "gte"}]}
+// prescription
+{"nl": "update prescription dosage to <val1> where drug contains <val2>", "intent": "update", "table": "prescription", "assignments": [{"field": "dosage"}], "conditions": [{"field": "drug", "cmp": "contains"}]}
+{"nl": "set prescription active to false where drug is not <val>", "intent": "update", "table": "prescription", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "drug", "cmp": "neq"}]}
+{"nl": "update prescription drug and dosage where drug contains <val>", "intent": "update", "table": "prescription", "assignments": [{"field": "drug"}, {"field": "dosage"}], "conditions": [{"field": "drug", "cmp": "contains"}]}
+// enrollment
+{"nl": "update enrollment grade to <val1> where grade is not <val2>", "intent": "update", "table": "enrollment", "assignments": [{"field": "grade"}], "conditions": [{"field": "grade", "cmp": "neq"}]}
+{"nl": "mark enrollment completed where grade is not <val>", "intent": "update", "table": "enrollment", "assignments": [{"field": "completed", "value": "true"}], "conditions": [{"field": "grade", "cmp": "neq"}]}
+{"nl": "update enrollment grade and completed where completed is not true", "intent": "update", "table": "enrollment", "assignments": [{"field": "grade"}, {"field": "completed"}], "conditions": [{"field": "completed", "cmp": "neq", "value": "true"}]}
+// transaction
+{"nl": "update transaction status to <val1> where type contains <val2>", "intent": "update", "table": "transaction", "assignments": [{"field": "status"}], "conditions": [{"field": "type", "cmp": "contains"}]}
+{"nl": "set transaction amount to <val1> where amount is greater than or equal to <val2>", "intent": "update", "table": "transaction", "assignments": [{"field": "amount"}], "conditions": [{"field": "amount", "cmp": "gte"}]}
+{"nl": "update transaction amount and type where amount is less than or equal to <val>", "intent": "update", "table": "transaction", "assignments": [{"field": "amount"}, {"field": "type"}], "conditions": [{"field": "amount", "cmp": "lte"}]}
+// account
+{"nl": "update account balance to <val1> where type is not <val2>", "intent": "update", "table": "account", "assignments": [{"field": "balance"}], "conditions": [{"field": "type", "cmp": "neq"}]}
+{"nl": "set account owner to <val1> where name contains <val2>", "intent": "update", "table": "account", "assignments": [{"field": "owner"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "update account balance and type where balance is greater than or equal to <val>", "intent": "update", "table": "account", "assignments": [{"field": "balance"}, {"field": "type"}], "conditions": [{"field": "balance", "cmp": "gte"}]}
+// patient
+{"nl": "update patient phone to <val1> where name contains <val2>", "intent": "update", "table": "patient", "assignments": [{"field": "phone"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set patient insured to false where email is not <val>", "intent": "update", "table": "patient", "assignments": [{"field": "insured", "value": "false"}], "conditions": [{"field": "email", "cmp": "neq"}]}
+// doctor
+{"nl": "update doctor specialty to <val1> where name contains <val2>", "intent": "update", "table": "doctor", "assignments": [{"field": "specialty"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set doctor rating to <val1> where specialty is not <val2>", "intent": "update", "table": "doctor", "assignments": [{"field": "rating"}], "conditions": [{"field": "specialty", "cmp": "neq"}]}
+{"nl": "update doctor name and rating where rating is less than or equal to <val>", "intent": "update", "table": "doctor", "assignments": [{"field": "name"}, {"field": "rating"}], "conditions": [{"field": "rating", "cmp": "lte"}]}
+// student
+{"nl": "update student gpa to <val1> where name contains <val2>", "intent": "update", "table": "student", "assignments": [{"field": "gpa"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set student enrolled to false where gpa is less than or equal to <val>", "intent": "update", "table": "student", "assignments": [{"field": "enrolled", "value": "false"}], "conditions": [{"field": "gpa", "cmp": "lte"}]}
+{"nl": "update student name and gpa where gpa is greater than or equal to <val>", "intent": "update", "table": "student", "assignments": [{"field": "name"}, {"field": "gpa"}], "conditions": [{"field": "gpa", "cmp": "gte"}]}
+// supplier
+{"nl": "update supplier rating to <val1> where country is not <val2>", "intent": "update", "table": "supplier", "assignments": [{"field": "rating"}], "conditions": [{"field": "country", "cmp": "neq"}]}
+{"nl": "set supplier active to false where name contains <val>", "intent": "update", "table": "supplier", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+// department
+{"nl": "update department budget to <val1> where name contains <val2>", "intent": "update", "table": "department", "assignments": [{"field": "budget"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set department head to <val1> where budget is less than or equal to <val2>", "intent": "update", "table": "department", "assignments": [{"field": "head"}], "conditions": [{"field": "budget", "cmp": "lte"}]}
+// property
+{"nl": "update property price to <val1> where address contains <val2>", "intent": "update", "table": "property", "assignments": [{"field": "price"}], "conditions": [{"field": "address", "cmp": "contains"}]}
+{"nl": "set property bedrooms to <val1> where price is greater than or equal to <val2>", "intent": "update", "table": "property", "assignments": [{"field": "bedrooms"}], "conditions": [{"field": "price", "cmp": "gte"}]}
+{"nl": "update property price and type where price is less than or equal to <val>", "intent": "update", "table": "property", "assignments": [{"field": "price"}, {"field": "type"}], "conditions": [{"field": "price", "cmp": "lte"}]}
+// agent
+{"nl": "update agent rating to <val1> where name contains <val2>", "intent": "update", "table": "agent", "assignments": [{"field": "rating"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set agent active to false where rating is less than or equal to <val>", "intent": "update", "table": "agent", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "rating", "cmp": "lte"}]}
+// course
+{"nl": "update course credits to <val1> where name contains <val2>", "intent": "update", "table": "course", "assignments": [{"field": "credits"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set course capacity to <val1> where credits is greater than or equal to <val2>", "intent": "update", "table": "course", "assignments": [{"field": "capacity"}], "conditions": [{"field": "credits", "cmp": "gte"}]}
+// venue
+{"nl": "update venue capacity to <val1> where name contains <val2>", "intent": "update", "table": "venue", "assignments": [{"field": "capacity"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set venue address to <val1> where capacity is greater than or equal to <val2>", "intent": "update", "table": "venue", "assignments": [{"field": "address"}], "conditions": [{"field": "capacity", "cmp": "gte"}]}
+// warehouse
+{"nl": "update warehouse capacity to <val1> where location contains <val2>", "intent": "update", "table": "warehouse", "assignments": [{"field": "capacity"}], "conditions": [{"field": "location", "cmp": "contains"}]}
+{"nl": "set warehouse active to false where name contains <val>", "intent": "update", "table": "warehouse", "assignments": [{"field": "active", "value": "false"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+// budget
+{"nl": "update budget amount to <val1> where name contains <val2>", "intent": "update", "table": "budget", "assignments": [{"field": "amount"}], "conditions": [{"field": "name", "cmp": "contains"}]}
+{"nl": "set budget spent to <val1> where amount is greater than or equal to <val2>", "intent": "update", "table": "budget", "assignments": [{"field": "spent"}], "conditions": [{"field": "amount", "cmp": "gte"}]}
+{"nl": "update budget name and amount where spent is greater than or equal to <val>", "intent": "update", "table": "budget", "assignments": [{"field": "name"}, {"field": "amount"}], "conditions": [{"field": "spent", "cmp": "gte"}]}
