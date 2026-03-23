@@ -52,6 +52,10 @@ pub struct GatherCache<B: Backend> {
     /// [n_tables, max_fields] — 1.0 for valid field slots, 0.0 for padding
     pub field_mask: Tensor<B, 2>,
     pub max_fields: usize,
+    /// CPU-side copies — used to build per-batch index tensors without touching
+    /// the persistent autodiff-backend gather_idx tensor (avoids graph accumulation).
+    pub gather_idx_flat: Vec<i32>,
+    pub field_mask_flat: Vec<f32>,
 }
 
 impl<B: Backend> GatherCache<B> {
@@ -74,6 +78,8 @@ impl<B: Backend> GatherCache<B> {
             field_mask: Tensor::<B, 1>::from_floats(mask_flat.as_slice(), device)
                 .reshape([n_tables as i32, max_fields as i32]),
             max_fields,
+            gather_idx_flat: idx_flat,
+            field_mask_flat: mask_flat,
         }
     }
 }
@@ -318,10 +324,15 @@ impl<B: Backend> Lamella<B> {
             .collect();
 
         let seq_lens: Vec<usize> = batch_ngrams.iter().map(|toks| toks.len().max(1)).collect();
-        let max_seq = seq_lens.iter().copied().max().unwrap();
-        let max_ng = batch_ngrams.iter()
+        // Round up to next power-of-two — reduces unique tensor shapes across batches
+        // from O(range/step) to O(log range), cutting unique WGPU shader compilations by ~5×.
+        // (max_seq in {8,16,32,64}; max_ng in {4,8,16}  vs  multiples of 8/4)
+        let max_seq = seq_lens.iter().copied().max().unwrap()
+            .next_power_of_two().max(8);
+        let raw_ng  = batch_ngrams.iter()
             .flat_map(|toks| toks.iter().map(|b| b.len()))
             .max().unwrap_or(1);
+        let max_ng  = raw_ng.next_power_of_two().max(4);
 
         // Build padded [bs * max_seq, max_ng] index tensor + n-gram mask
         let total = bs * max_seq;
@@ -732,16 +743,19 @@ impl<B: Backend> Lamella<B> {
         }).collect();
 
         // ── Padded field embeddings [bs, max_fields, d] ─────────────────
-        // Gather entity rows from the pre-built cache — no CPU loop, no host transfer
-        // beyond the bs-element entity index array.
-        let batch_entity_idx = Tensor::<B, 1, Int>::from_ints(
-            entity_idxs.iter().map(|&i| i as i32).collect::<Vec<_>>().as_slice(), device,
-        );
-        let flat_gather = cache.gather_idx.clone()
-            .select(0, batch_entity_idx.clone())
-            .reshape([(bs * max_fields) as i32]);
-        let field_mask_2d = cache.field_mask.clone()
-            .select(0, batch_entity_idx);              // [bs, max_fields]
+        // Build gather index and field mask on CPU from entity_idxs, then upload
+        // as fresh tensors each batch. This avoids touching the persistent autodiff
+        // gather_idx / field_mask tensors which can accumulate graph nodes.
+        let mut flat_gather_cpu = Vec::with_capacity(bs * max_fields);
+        let mut field_mask_cpu  = Vec::with_capacity(bs * max_fields);
+        for &eidx in &entity_idxs {
+            let row = eidx * max_fields;
+            flat_gather_cpu.extend_from_slice(&cache.gather_idx_flat[row..row + max_fields]);
+            field_mask_cpu .extend_from_slice(&cache.field_mask_flat[row..row + max_fields]);
+        }
+        let flat_gather   = Tensor::<B, 1, Int>::from_ints(flat_gather_cpu.as_slice(), device);
+        let field_mask_2d = Tensor::<B, 1>::from_floats(field_mask_cpu.as_slice(), device)
+            .reshape([bs as i32, max_fields as i32]);  // [bs, max_fields]
         let padded_field_embs = embs.field_embs.clone()
             .select(0, flat_gather)
             .reshape([bs as i32, max_fields as i32, d as i32]); // [bs, max_fields, d]

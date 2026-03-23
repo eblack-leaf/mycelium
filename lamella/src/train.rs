@@ -246,17 +246,19 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let mut total_loss = 0.0f32;
         let mut count = 0usize;
 
-        // Per-head tensor-correct accumulators — no GPU→CPU sync until the very end.
-        // All tensor_correct([1]) values accumulate as a lazy GPU graph; we sync
-        // once per head (8 total) after all chunks instead of once per datum (~3000).
-        let mut tc_intent: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_entity: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_proj:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_cf:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_cc:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_asgn:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_modt:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
-        let mut tc_modf:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        // Per-head f32 accumulators (correct_sum, total).
+        // tc_* vecs are declared INSIDE the chunk loop so they never grow beyond
+        // chunk_size (≤32) — we flush each with stack+sum at end of each chunk.
+        // This gives 13 CE syncs + 13×8 = 104 accuracy syncs (was 3000 argmax syncs,
+        // or worse: 8 syncs of 395-long chain-reduce that causes growing GPU backlogs).
+        let mut s_intent = (0.0f32, 0usize);
+        let mut s_entity = (0.0f32, 0usize);
+        let mut s_proj   = (0.0f32, 0usize);
+        let mut s_cf     = (0.0f32, 0usize);
+        let mut s_cc     = (0.0f32, 0usize);
+        let mut s_asgn   = (0.0f32, 0usize);
+        let mut s_modt   = (0.0f32, 0usize);
+        let mut s_modf   = (0.0f32, 0usize);
 
         let embs = inner.precompute_schema_embs(&self.catalog, &self.device);
         let eval_cache = GatherCache::new(&self.catalog, &self.device);
@@ -277,6 +279,16 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             );
 
             let mut chunk_ces: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            // Per-chunk tc_* — reset every iteration; stack+sum at end keeps the
+            // GPU queue bounded to ≤chunk_size items between syncs.
+            let mut tc_intent: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_entity: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_proj:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_cf:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_cc:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_asgn:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_modt:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+            let mut tc_modf:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
 
             for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
@@ -348,42 +360,45 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
                 }
             }
 
-            // One GPU→CPU sync per chunk for CE (13 total)
+            // CE sync — 1 per chunk (13 total)
             if !chunk_ces.is_empty() {
                 let chunk_ce = chunk_ces.into_iter().reduce(|a, b| a + b).unwrap();
                 total_loss += chunk_ce.into_scalar().elem::<f32>();
             }
 
+            // Accuracy sync — stack [n,1] then sum → 1 parallel reduce per head per chunk.
+            // Using stack+sum instead of chain-reduce: 2 GPU ops vs n-1 sequential adds.
+            macro_rules! flush_tc {
+                ($tc:expr, $acc:expr) => {{
+                    let n = $tc.len();
+                    if n > 0 {
+                        let s: f32 = Tensor::stack::<2>($tc, 0).sum().into_scalar().elem::<f32>();
+                        $acc.0 += s;
+                        $acc.1 += n;
+                    }
+                }};
+            }
+            flush_tc!(tc_intent, s_intent);
+            flush_tc!(tc_entity, s_entity);
+            flush_tc!(tc_proj,   s_proj);
+            flush_tc!(tc_cf,     s_cf);
+            flush_tc!(tc_cc,     s_cc);
+            flush_tc!(tc_asgn,   s_asgn);
+            flush_tc!(tc_modt,   s_modt);
+            flush_tc!(tc_modf,   s_modf);
+
             bar.inc(1);
         }
 
-        // 8 GPU→CPU syncs total — one per head (was ~3000 argmax syncs before)
-        macro_rules! sync_tc {
-            ($tc:expr) => {{
-                let tc = $tc;
-                let total = tc.len();
-                if total == 0 {
-                    (0usize, 0usize)
-                } else {
-                    let sum: f32 = tc.into_iter()
-                        .reduce(|a, b| a + b)
-                        .unwrap()
-                        .into_scalar()
-                        .elem::<f32>();
-                    (sum.round() as usize, total)
-                }
-            }};
-        }
-
         let head_acc = HeadAcc {
-            intent:     sync_tc!(tc_intent),
-            entity:     sync_tc!(tc_entity),
-            proj:       sync_tc!(tc_proj),
-            cond_field: sync_tc!(tc_cf),
-            cond_cmp:   sync_tc!(tc_cc),
-            assign:     sync_tc!(tc_asgn),
-            mod_type:   sync_tc!(tc_modt),
-            mod_field:  sync_tc!(tc_modf),
+            intent:     (s_intent.0.round() as usize, s_intent.1),
+            entity:     (s_entity.0.round() as usize, s_entity.1),
+            proj:       (s_proj.0.round()   as usize, s_proj.1),
+            cond_field: (s_cf.0.round()     as usize, s_cf.1),
+            cond_cmp:   (s_cc.0.round()     as usize, s_cc.1),
+            assign:     (s_asgn.0.round()   as usize, s_asgn.1),
+            mod_type:   (s_modt.0.round()   as usize, s_modt.1),
+            mod_field:  (s_modf.0.round()   as usize, s_modf.1),
         };
 
         let val_loss = if count > 0 { total_loss / count as f32 } else { 0.0 };
@@ -530,14 +545,29 @@ pub fn train_loop<B: AutodiffBackend>(
             ).unwrap().progress_chars("=> "),
         );
 
+        let mut batch_times: Vec<f32> = Vec::with_capacity(num_batches);
         for chunk in train_indices.chunks(bs) {
             let batch: Vec<&LamellaDatum> = chunk.iter().map(|&i| &train_data[i]).collect();
+            let t0 = Instant::now();
             let batch_loss = ctx.step_batch(&batch);
+            batch_times.push(t0.elapsed().as_secs_f32());
             epoch_loss += batch_loss * batch.len() as f32;
             epoch_datums += batch.len();
             batch_bar.inc(1);
         }
         batch_bar.finish_and_clear();
+        let train_secs = epoch_start.elapsed().as_secs_f64();
+
+        // Print per-batch timing split to diagnose within-epoch vs cross-epoch slowdown
+        let n = batch_times.len();
+        if n >= 6 {
+            let first3: f32 = batch_times[..3].iter().sum::<f32>() / 3.0;
+            let last3:  f32 = batch_times[n-3..].iter().sum::<f32>() / 3.0;
+            bar.println(format!(
+                "    timing: first3={:.2}s/batch  last3={:.2}s/batch  (growth={:+.2}s)",
+                first3, last3, last3 - first3,
+            ));
+        }
 
         let train_loss = epoch_loss / epoch_datums as f32;
         let val_refs: Vec<&LamellaDatum> = val_data.iter().collect();
@@ -552,6 +582,7 @@ pub fn train_loop<B: AutodiffBackend>(
         metrics.train_loss = train_loss;
 
         let elapsed = epoch_start.elapsed().as_secs_f64();
+        let eval_secs = elapsed - train_secs;
         if epoch > 0 { epoch_secs.push(elapsed); }
         let eta_str = if epoch_secs.is_empty() {
             "warmup".to_string()
@@ -567,9 +598,9 @@ pub fn train_loop<B: AutodiffBackend>(
         ));
         bar.inc(1);
         bar.println(format!(
-            "  epoch {:>2}  loss={:.4}  val={:.4}  acc={:.1}%  [{:.0}s]  | {}",
+            "  epoch {:>2}  loss={:.4}  val={:.4}  acc={:.1}%  [tr{:.0}s ev{:.0}s]  | {}",
             epoch + 1, train_loss, metrics.val_loss, metrics.val_acc * 100.0,
-            elapsed, metrics.head_acc.display(),
+            train_secs, eval_secs, metrics.head_acc.display(),
         ));
 
         if metrics.val_loss < best_val_loss {
