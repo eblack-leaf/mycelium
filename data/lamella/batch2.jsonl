@@ -180,13 +180,13 @@
 {"nl": "show suppliers added before <val>", "intent": "select", "table": "supplier", "conditions": [{"field": "created", "cmp": "lt"}]}
 {"nl": "find shipments created after <val>", "intent": "select", "table": "shipment", "conditions": [{"field": "created", "cmp": "gt"}]}
 {"nl": "list properties listed after <val>", "intent": "select", "table": "property", "conditions": [{"field": "created", "cmp": "gt"}]}
-{"nl": "show venues added after <val>", "intent": "select", "table": "venue", "conditions": [{"field": "created", "cmp": "gt"}]}
-{"nl": "find warehouses created before <val>", "intent": "select", "table": "warehouse", "conditions": [{"field": "created", "cmp": "lt"}]}
+{"nl": "show venues with capacity above <val>", "intent": "select", "table": "venue", "conditions": [{"field": "capacity", "cmp": "gt"}]}
+{"nl": "find warehouses with capacity below <val>", "intent": "select", "table": "warehouse", "conditions": [{"field": "capacity", "cmp": "lt"}]}
 {"nl": "get recent appointments scheduled after <val>", "intent": "select", "table": "appointment", "conditions": [{"field": "scheduled", "cmp": "gt"}]}
 {"nl": "delete old transactions created before <val>", "intent": "delete", "table": "transaction", "conditions": [{"field": "created", "cmp": "lt"}]}
 {"nl": "delete expired listings created before <val>", "intent": "delete", "table": "listing", "conditions": [{"field": "created", "cmp": "lt"}]}
 {"nl": "show invoices issued this month after <val>", "intent": "select", "table": "invoice", "conditions": [{"field": "issued", "cmp": "gte"}]}
-{"nl": "find doctors added after <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "created", "cmp": "gt"}]}
+{"nl": "find doctors with rating above <val>", "intent": "select", "table": "doctor", "conditions": [{"field": "rating", "cmp": "gt"}]}
 
 // ── more product.category variety ──
 {"nl": "show all products in category <val>", "intent": "select", "table": "product", "conditions": [{"field": "category", "cmp": "eq"}], "projections": ["name", "price", "stock"]}

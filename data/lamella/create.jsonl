@@ -107,3 +107,747 @@
 {"nl": "add warehouse North Facility at location Detroit with capacity 10000", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "North Facility"}, {"field": "location", "value": "Detroit"}, {"field": "capacity", "value": "10000"}]}
 {"nl": "create an active warehouse called West Hub in Portland with capacity 7500", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "West Hub"}, {"field": "location", "value": "Portland"}, {"field": "capacity", "value": "7500"}, {"field": "active", "value": "true"}]}
 {"nl": "set up warehouse East Distribution in Philadelphia", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "East Distribution"}, {"field": "location", "value": "Philadelphia"}]}
+{"nl": "open a new savings account", "intent": "create", "table": "account", "assignments": [{"field": "type", "value": "savings"}, {"field": "active", "value": "true"}]}
+{"nl": "add an account with name Premium and balance 5000", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "Premium"}, {"field": "balance", "value": "5000"}]}
+{"nl": "create a checking account with zero balance", "intent": "create", "table": "account", "assignments": [{"field": "type", "value": "checking"}, {"field": "balance", "value": "0"}]}
+{"nl": "register a new account", "intent": "create", "table": "account"}
+{"nl": "add a new agent named Carlos", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Carlos"}, {"field": "active", "value": "true"}]}
+{"nl": "create an agent with phone 555-9988", "intent": "create", "table": "agent", "assignments": [{"field": "phone", "value": "555-9988"}]}
+{"nl": "register a new agent with rating 4.2", "intent": "create", "table": "agent", "assignments": [{"field": "rating", "value": "4.2"}]}
+{"nl": "add an agent with email agent@realty.com", "intent": "create", "table": "agent", "assignments": [{"field": "email", "value": "agent@realty.com"}, {"field": "active", "value": "true"}]}
+{"nl": "book a new appointment with status pending", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "pending"}]}
+{"nl": "create an appointment and add notes", "intent": "create", "table": "appointment", "assignments": [{"field": "notes", "value": "Follow-up required"}, {"field": "status", "value": "confirmed"}]}
+{"nl": "schedule a new appointment", "intent": "create", "table": "appointment"}
+{"nl": "add a new attendee named Maria with email maria@example.com", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Maria"}, {"field": "email", "value": "maria@example.com"}]}
+{"nl": "register attendee with phone 555-0001", "intent": "create", "table": "attendee", "assignments": [{"field": "phone", "value": "555-0001"}]}
+{"nl": "create a new attendee record", "intent": "create", "table": "attendee"}
+{"nl": "add a budget named Q1 Marketing with amount 20000", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Q1 Marketing"}, {"field": "amount", "value": "20000"}]}
+{"nl": "create a budget with zero spent", "intent": "create", "table": "budget", "assignments": [{"field": "spent", "value": "0"}, {"field": "active", "value": "true"}]}
+{"nl": "set up a new active budget", "intent": "create", "table": "budget", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "add a new category named Electronics", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Electronics"}]}
+{"nl": "create a category with name Furniture and a description", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Furniture"}, {"field": "description", "value": "Home and office furniture"}]}
+{"nl": "add category Clothing", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Clothing"}]}
+{"nl": "create a new course with 3 credits", "intent": "create", "table": "course", "assignments": [{"field": "credits", "value": "3"}, {"field": "active", "value": "true"}]}
+{"nl": "add course with capacity 30", "intent": "create", "table": "course", "assignments": [{"field": "capacity", "value": "30"}]}
+{"nl": "register a new active course", "intent": "create", "table": "course", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "create a course named Introduction to Data Science", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Introduction to Data Science"}, {"field": "credits", "value": "4"}]}
+{"nl": "add a new customer named Sophie", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Sophie"}]}
+{"nl": "create customer with email sophie@mail.com and phone 555-2233", "intent": "create", "table": "customer", "assignments": [{"field": "email", "value": "sophie@mail.com"}, {"field": "phone", "value": "555-2233"}]}
+{"nl": "register a new customer", "intent": "create", "table": "customer"}
+{"nl": "add customer named James with email james@corp.com", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "James"}, {"field": "email", "value": "james@corp.com"}]}
+{"nl": "create a new department named Legal", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Legal"}]}
+{"nl": "add department Engineering with budget 500000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Engineering"}, {"field": "budget", "value": "500000"}]}
+{"nl": "register a new department", "intent": "create", "table": "department"}
+{"nl": "add a new doctor named Dr. Patel", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Patel"}, {"field": "active", "value": "true"}]}
+{"nl": "create a doctor with specialty Cardiology and rating 4.8", "intent": "create", "table": "doctor", "assignments": [{"field": "specialty", "value": "Cardiology"}, {"field": "rating", "value": "4.8"}]}
+{"nl": "register a new active doctor", "intent": "create", "table": "doctor", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "add doctor with email drlee@hospital.com", "intent": "create", "table": "doctor", "assignments": [{"field": "email", "value": "drlee@hospital.com"}, {"field": "active", "value": "true"}]}
+{"nl": "hire a new employee named Alex with salary 55000", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Alex"}, {"field": "salary", "value": "55000"}]}
+{"nl": "add employee with email alex@company.com", "intent": "create", "table": "employee", "assignments": [{"field": "email", "value": "alex@company.com"}, {"field": "active", "value": "true"}]}
+{"nl": "create an active employee record", "intent": "create", "table": "employee", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "register new employee earning 72000", "intent": "create", "table": "employee", "assignments": [{"field": "salary", "value": "72000"}, {"field": "active", "value": "true"}]}
+{"nl": "enroll a student in a course", "intent": "create", "table": "enrollment"}
+{"nl": "create an enrollment record with grade 85", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "85"}, {"field": "completed", "value": "false"}]}
+{"nl": "add an enrollment marked as completed", "intent": "create", "table": "enrollment", "assignments": [{"field": "completed", "value": "true"}]}
+{"nl": "create a new event named Annual Gala", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Annual Gala"}, {"field": "status", "value": "open"}]}
+{"nl": "add event with capacity 200", "intent": "create", "table": "event", "assignments": [{"field": "capacity", "value": "200"}, {"field": "status", "value": "open"}]}
+{"nl": "create event with status open", "intent": "create", "table": "event", "assignments": [{"field": "status", "value": "open"}]}
+{"nl": "register a new event", "intent": "create", "table": "event"}
+{"nl": "submit a new expense of 250 for travel", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "250"}, {"field": "description", "value": "travel"}]}
+{"nl": "add an approved expense", "intent": "create", "table": "expense", "assignments": [{"field": "approved", "value": "true"}]}
+{"nl": "log a new expense", "intent": "create", "table": "expense"}
+{"nl": "create expense with amount 1200", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "1200"}]}
+{"nl": "add a new instructor named Prof. Chen", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Prof. Chen"}, {"field": "active", "value": "true"}]}
+{"nl": "create instructor with email chen@uni.edu", "intent": "create", "table": "instructor", "assignments": [{"field": "email", "value": "chen@uni.edu"}, {"field": "active", "value": "true"}]}
+{"nl": "register a new active instructor", "intent": "create", "table": "instructor", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "issue a new invoice for 850", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "850"}, {"field": "paid", "value": "false"}]}
+{"nl": "create an invoice marked as paid", "intent": "create", "table": "invoice", "assignments": [{"field": "paid", "value": "true"}]}
+{"nl": "add an invoice with amount 3200", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "3200"}]}
+{"nl": "create a new listing at price 450000", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "450000"}, {"field": "status", "value": "active"}]}
+{"nl": "add a listing with status pending", "intent": "create", "table": "listing", "assignments": [{"field": "status", "value": "pending"}]}
+{"nl": "list a property for 280000", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "280000"}, {"field": "status", "value": "active"}]}
+{"nl": "place a new order", "intent": "create", "table": "order"}
+{"nl": "create an order with status pending", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "pending"}]}
+{"nl": "add an order with total 350", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "350"}, {"field": "status", "value": "pending"}]}
+{"nl": "register a new patient named Emma", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Emma"}]}
+{"nl": "create an insured patient record", "intent": "create", "table": "patient", "assignments": [{"field": "insured", "value": "true"}]}
+{"nl": "add patient with email emma@health.com and phone 555-7766", "intent": "create", "table": "patient", "assignments": [{"field": "email", "value": "emma@health.com"}, {"field": "phone", "value": "555-7766"}]}
+{"nl": "issue a new prescription for Amoxicillin", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Amoxicillin"}, {"field": "active", "value": "true"}]}
+{"nl": "create a prescription with dosage 500mg", "intent": "create", "table": "prescription", "assignments": [{"field": "dosage", "value": "500mg"}, {"field": "active", "value": "true"}]}
+{"nl": "add an active prescription record", "intent": "create", "table": "prescription", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "add a new product named Laptop with price 999", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Laptop"}, {"field": "price", "value": "999"}]}
+{"nl": "create product with SKU PROD-001 and stock 50", "intent": "create", "table": "product", "assignments": [{"field": "sku", "value": "PROD-001"}, {"field": "stock", "value": "50"}]}
+{"nl": "list a new active product", "intent": "create", "table": "product", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "add product Keyboard priced at 79", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Keyboard"}, {"field": "price", "value": "79"}, {"field": "active", "value": "true"}]}
+{"nl": "add a property at 123 Oak Street priced at 320000", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "123 Oak Street"}, {"field": "price", "value": "320000"}]}
+{"nl": "create a property listing with 4 bedrooms", "intent": "create", "table": "property", "assignments": [{"field": "bedrooms", "value": "4"}, {"field": "active", "value": "true"}]}
+{"nl": "add property with 2 bathrooms and 3 bedrooms", "intent": "create", "table": "property", "assignments": [{"field": "bathrooms", "value": "2"}, {"field": "bedrooms", "value": "3"}]}
+{"nl": "list a new apartment property", "intent": "create", "table": "property", "assignments": [{"field": "type", "value": "apartment"}, {"field": "active", "value": "true"}]}
+{"nl": "create a 5-star review for a product", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "5"}]}
+{"nl": "add a review with rating 3", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "3"}, {"field": "body", "value": "Average quality"}]}
+{"nl": "submit a new review", "intent": "create", "table": "review"}
+{"nl": "create a review with rating 4", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "4"}]}
+{"nl": "add a new role named Manager", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Manager"}, {"field": "active", "value": "true"}]}
+{"nl": "create a role at level 3", "intent": "create", "table": "role", "assignments": [{"field": "level", "value": "3"}, {"field": "active", "value": "true"}]}
+{"nl": "add role Senior Engineer at level 7", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Senior Engineer"}, {"field": "level", "value": "7"}]}
+{"nl": "schedule a new shift at location Warehouse A", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Warehouse A"}, {"field": "paid", "value": "false"}]}
+{"nl": "add a paid shift", "intent": "create", "table": "shift", "assignments": [{"field": "paid", "value": "true"}]}
+{"nl": "create a shift record", "intent": "create", "table": "shift"}
+{"nl": "create a shipment via FedEx", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "FedEx"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a shipment with weight 12.5 and status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "weight", "value": "12.5"}, {"field": "status", "value": "pending"}]}
+{"nl": "log a new shipment", "intent": "create", "table": "shipment"}
+{"nl": "add a new student named Liam", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Liam"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "create a student with GPA 3.8", "intent": "create", "table": "student", "assignments": [{"field": "gpa", "value": "3.8"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "register a new enrolled student", "intent": "create", "table": "student", "assignments": [{"field": "enrolled", "value": "true"}]}
+{"nl": "add student with email liam@school.edu", "intent": "create", "table": "student", "assignments": [{"field": "email", "value": "liam@school.edu"}]}
+{"nl": "add a new supplier named GlobalParts", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "GlobalParts"}, {"field": "active", "value": "true"}]}
+{"nl": "create a supplier from Germany with rating 4.5", "intent": "create", "table": "supplier", "assignments": [{"field": "country", "value": "Germany"}, {"field": "rating", "value": "4.5"}]}
+{"nl": "register a new active supplier", "intent": "create", "table": "supplier", "assignments": [{"field": "active", "value": "true"}]}
+{"nl": "add supplier with email supply@parts.com", "intent": "create", "table": "supplier", "assignments": [{"field": "email", "value": "supply@parts.com"}, {"field": "active", "value": "true"}]}
+{"nl": "issue a new ticket priced at 25", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "25"}, {"field": "status", "value": "available"}]}
+{"nl": "create a ticket with status available", "intent": "create", "table": "ticket", "assignments": [{"field": "status", "value": "available"}]}
+{"nl": "add a VIP ticket for 200", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "200"}, {"field": "status", "value": "available"}]}
+{"nl": "log a new deposit transaction", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "deposit"}, {"field": "status", "value": "completed"}]}
+{"nl": "create a transaction of amount 500", "intent": "create", "table": "transaction", "assignments": [{"field": "amount", "value": "500"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a withdrawal transaction", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "withdrawal"}]}
+{"nl": "add a new venue named City Hall", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "City Hall"}, {"field": "active", "value": "true"}]}
+{"nl": "create a venue with capacity 500", "intent": "create", "table": "venue", "assignments": [{"field": "capacity", "value": "500"}, {"field": "active", "value": "true"}]}
+{"nl": "register a venue at 5th Avenue", "intent": "create", "table": "venue", "assignments": [{"field": "address", "value": "5th Avenue"}, {"field": "active", "value": "true"}]}
+{"nl": "add a new warehouse in Chicago", "intent": "create", "table": "warehouse", "assignments": [{"field": "location", "value": "Chicago"}, {"field": "active", "value": "true"}]}
+{"nl": "create a warehouse with capacity 10000", "intent": "create", "table": "warehouse", "assignments": [{"field": "capacity", "value": "10000"}, {"field": "active", "value": "true"}]}
+{"nl": "register a new warehouse named Depot West", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "Depot West"}, {"field": "active", "value": "true"}]}
+{"nl": "open a new account named Elite with type savings and balance 2500", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "Elite"}, {"field": "type", "value": "savings"}, {"field": "balance", "value": "2500"}, {"field": "active", "value": "true"}]}
+{"nl": "create a checking account named Basic with zero balance", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "Basic"}, {"field": "type", "value": "checking"}, {"field": "balance", "value": "0"}]}
+{"nl": "add account with type premium balance 10000 and active true", "intent": "create", "table": "account", "assignments": [{"field": "type", "value": "premium"}, {"field": "balance", "value": "10000"}, {"field": "active", "value": "true"}]}
+{"nl": "register agent Maria with email maria@realty.com and phone 555-1234", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Maria"}, {"field": "email", "value": "maria@realty.com"}, {"field": "phone", "value": "555-1234"}]}
+{"nl": "add active agent with rating 4.7 and email top@agents.com", "intent": "create", "table": "agent", "assignments": [{"field": "rating", "value": "4.7"}, {"field": "email", "value": "top@agents.com"}, {"field": "active", "value": "true"}]}
+{"nl": "create agent named Tom phone 555-9876 and active", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Tom"}, {"field": "phone", "value": "555-9876"}, {"field": "active", "value": "true"}]}
+{"nl": "book appointment with status confirmed and notes initial visit", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}, {"field": "notes", "value": "initial visit"}]}
+{"nl": "create a pending appointment with notes follow up next week", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "pending"}, {"field": "notes", "value": "follow up next week"}]}
+{"nl": "add attendee Lisa with email lisa@event.com and phone 555-4321", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Lisa"}, {"field": "email", "value": "lisa@event.com"}, {"field": "phone", "value": "555-4321"}]}
+{"nl": "register attendee named Bob email bob@mail.com", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Bob"}, {"field": "email", "value": "bob@mail.com"}]}
+{"nl": "create budget named Annual Ops with amount 75000 spent 0 and active", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Annual Ops"}, {"field": "amount", "value": "75000"}, {"field": "spent", "value": "0"}, {"field": "active", "value": "true"}]}
+{"nl": "add budget Q2 Sales amount 30000 and active true", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Q2 Sales"}, {"field": "amount", "value": "30000"}, {"field": "active", "value": "true"}]}
+{"nl": "create category named Sports with description Sporting goods", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Sports"}, {"field": "description", "value": "Sporting goods"}]}
+{"nl": "add category Books with description Educational materials", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Books"}, {"field": "description", "value": "Educational materials"}]}
+{"nl": "create course Advanced ML with 4 credits capacity 25 and active", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Advanced ML"}, {"field": "credits", "value": "4"}, {"field": "capacity", "value": "25"}, {"field": "active", "value": "true"}]}
+{"nl": "add course Database Systems credits 3 capacity 40", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Database Systems"}, {"field": "credits", "value": "3"}, {"field": "capacity", "value": "40"}]}
+{"nl": "register customer Rachel with email rachel@shop.com and phone 555-0011", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Rachel"}, {"field": "email", "value": "rachel@shop.com"}, {"field": "phone", "value": "555-0011"}]}
+{"nl": "add customer named Chris email chris@example.com", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Chris"}, {"field": "email", "value": "chris@example.com"}]}
+{"nl": "create department Marketing with budget 200000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Marketing"}, {"field": "budget", "value": "200000"}]}
+{"nl": "add department HR with budget 80000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "HR"}, {"field": "budget", "value": "80000"}]}
+{"nl": "register doctor named Dr. Kim email drkim@clinic.com specialty Neurology rating 4.9", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Kim"}, {"field": "email", "value": "drkim@clinic.com"}, {"field": "specialty", "value": "Neurology"}, {"field": "rating", "value": "4.9"}]}
+{"nl": "add active doctor specialty Orthopedics rating 4.5", "intent": "create", "table": "doctor", "assignments": [{"field": "specialty", "value": "Orthopedics"}, {"field": "rating", "value": "4.5"}, {"field": "active", "value": "true"}]}
+{"nl": "hire employee Sara salary 68000 email sara@corp.com and active", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Sara"}, {"field": "salary", "value": "68000"}, {"field": "email", "value": "sara@corp.com"}, {"field": "active", "value": "true"}]}
+{"nl": "add employee named Ben with salary 55000 active true", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Ben"}, {"field": "salary", "value": "55000"}, {"field": "active", "value": "true"}]}
+{"nl": "create employee with email dev@company.com salary 90000", "intent": "create", "table": "employee", "assignments": [{"field": "email", "value": "dev@company.com"}, {"field": "salary", "value": "90000"}, {"field": "active", "value": "true"}]}
+{"nl": "enroll with grade 75 and not completed", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "75"}, {"field": "completed", "value": "false"}]}
+{"nl": "add completed enrollment with grade 92", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "92"}, {"field": "completed", "value": "true"}]}
+{"nl": "create event Summer Fair with capacity 500 status open", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Summer Fair"}, {"field": "capacity", "value": "500"}, {"field": "status", "value": "open"}]}
+{"nl": "add event Tech Expo capacity 1000 status open", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Tech Expo"}, {"field": "capacity", "value": "1000"}, {"field": "status", "value": "open"}]}
+{"nl": "log expense of 180 for office supplies approved", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "180"}, {"field": "description", "value": "office supplies"}, {"field": "approved", "value": "true"}]}
+{"nl": "submit expense amount 750 description equipment not yet approved", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "750"}, {"field": "description", "value": "equipment"}, {"field": "approved", "value": "false"}]}
+{"nl": "add instructor Prof. Wang email wang@uni.edu active", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Prof. Wang"}, {"field": "email", "value": "wang@uni.edu"}, {"field": "active", "value": "true"}]}
+{"nl": "create instructor email jones@college.edu active true", "intent": "create", "table": "instructor", "assignments": [{"field": "email", "value": "jones@college.edu"}, {"field": "active", "value": "true"}]}
+{"nl": "issue invoice for 1200 unpaid", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "1200"}, {"field": "paid", "value": "false"}]}
+{"nl": "create invoice amount 350 paid true", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "350"}, {"field": "paid", "value": "true"}]}
+{"nl": "list property at 88 Pine Road price 420000 active type house", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "420000"}, {"field": "status", "value": "active"}]}
+{"nl": "create listing price 180000 status pending", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "180000"}, {"field": "status", "value": "pending"}]}
+{"nl": "place order with total 89 status pending", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "89"}, {"field": "status", "value": "pending"}]}
+{"nl": "create an order total 1500 status pending", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "1500"}, {"field": "status", "value": "pending"}]}
+{"nl": "register patient Jane name Jane email jane@health.com insured true", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Jane"}, {"field": "email", "value": "jane@health.com"}, {"field": "insured", "value": "true"}]}
+{"nl": "add patient named Mark phone 555-3344 insured false", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Mark"}, {"field": "phone", "value": "555-3344"}, {"field": "insured", "value": "false"}]}
+{"nl": "prescribe Metformin dosage 1000mg active", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Metformin"}, {"field": "dosage", "value": "1000mg"}, {"field": "active", "value": "true"}]}
+{"nl": "create prescription for Lisinopril dosage 10mg active true", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Lisinopril"}, {"field": "dosage", "value": "10mg"}, {"field": "active", "value": "true"}]}
+{"nl": "add product Monitor price 299 stock 30 sku MON-01 active", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Monitor"}, {"field": "price", "value": "299"}, {"field": "stock", "value": "30"}, {"field": "sku", "value": "MON-01"}, {"field": "active", "value": "true"}]}
+{"nl": "create product Headphones price 79 stock 50 active true", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Headphones"}, {"field": "price", "value": "79"}, {"field": "stock", "value": "50"}, {"field": "active", "value": "true"}]}
+{"nl": "list product Desk SKU DSK-02 price 199 stock 15", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Desk"}, {"field": "sku", "value": "DSK-02"}, {"field": "price", "value": "199"}, {"field": "stock", "value": "15"}]}
+{"nl": "add property 45 Elm St price 275000 bedrooms 3 bathrooms 2 active", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "45 Elm St"}, {"field": "price", "value": "275000"}, {"field": "bedrooms", "value": "3"}, {"field": "bathrooms", "value": "2"}, {"field": "active", "value": "true"}]}
+{"nl": "create property condo type price 190000 bedrooms 2 active", "intent": "create", "table": "property", "assignments": [{"field": "type", "value": "condo"}, {"field": "price", "value": "190000"}, {"field": "bedrooms", "value": "2"}, {"field": "active", "value": "true"}]}
+{"nl": "submit 5 star review body excellent product", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "5"}, {"field": "body", "value": "excellent product"}]}
+{"nl": "add review rating 2 body needs improvement", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "2"}, {"field": "body", "value": "needs improvement"}]}
+{"nl": "create role Director level 8 active", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Director"}, {"field": "level", "value": "8"}, {"field": "active", "value": "true"}]}
+{"nl": "add role Analyst level 2 active true", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Analyst"}, {"field": "level", "value": "2"}, {"field": "active", "value": "true"}]}
+{"nl": "schedule shift location Downtown paid false", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Downtown"}, {"field": "paid", "value": "false"}]}
+{"nl": "create paid shift at location North Depot", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "North Depot"}, {"field": "paid", "value": "true"}]}
+{"nl": "create shipment via DHL weight 5.2 status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "DHL"}, {"field": "weight", "value": "5.2"}, {"field": "status", "value": "pending"}]}
+{"nl": "add shipment carrier UPS weight 22 status in_transit", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "UPS"}, {"field": "weight", "value": "22"}, {"field": "status", "value": "in_transit"}]}
+{"nl": "enroll student Amy email amy@school.edu gpa 3.5", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Amy"}, {"field": "email", "value": "amy@school.edu"}, {"field": "gpa", "value": "3.5"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "add student Jake gpa 2.8 enrolled true", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Jake"}, {"field": "gpa", "value": "2.8"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "register supplier FastShip email fast@supply.com country USA rating 4.2 active", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "FastShip"}, {"field": "email", "value": "fast@supply.com"}, {"field": "country", "value": "USA"}, {"field": "rating", "value": "4.2"}, {"field": "active", "value": "true"}]}
+{"nl": "add supplier from Japan rating 3.8 active true", "intent": "create", "table": "supplier", "assignments": [{"field": "country", "value": "Japan"}, {"field": "rating", "value": "3.8"}, {"field": "active", "value": "true"}]}
+{"nl": "issue ticket price 45 status available", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "45"}, {"field": "status", "value": "available"}]}
+{"nl": "create ticket price 120 status available", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "120"}, {"field": "status", "value": "available"}]}
+{"nl": "log deposit transaction amount 2000 status completed", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "deposit"}, {"field": "amount", "value": "2000"}, {"field": "status", "value": "completed"}]}
+{"nl": "create withdrawal transaction amount 500 status pending", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "withdrawal"}, {"field": "amount", "value": "500"}, {"field": "status", "value": "pending"}]}
+{"nl": "add venue Grand Hall address 10 Main St capacity 800 active", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Grand Hall"}, {"field": "address", "value": "10 Main St"}, {"field": "capacity", "value": "800"}, {"field": "active", "value": "true"}]}
+{"nl": "create venue Rooftop capacity 150 active true", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Rooftop"}, {"field": "capacity", "value": "150"}, {"field": "active", "value": "true"}]}
+{"nl": "add warehouse East Storage location Dallas capacity 8000 active", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "East Storage"}, {"field": "location", "value": "Dallas"}, {"field": "capacity", "value": "8000"}, {"field": "active", "value": "true"}]}
+{"nl": "create warehouse location Seattle capacity 3000 active", "intent": "create", "table": "warehouse", "assignments": [{"field": "location", "value": "Seattle"}, {"field": "capacity", "value": "3000"}, {"field": "active", "value": "true"}]}
+{"nl": "open a new account called Silver with balance 1500", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "Silver"}, {"field": "balance", "value": "1500"}]}
+{"nl": "create an inactive savings account with name Old", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "Old"}, {"field": "type", "value": "savings"}, {"field": "active", "value": "false"}]}
+{"nl": "add account type checking balance 500 active true", "intent": "create", "table": "account", "assignments": [{"field": "type", "value": "checking"}, {"field": "balance", "value": "500"}, {"field": "active", "value": "true"}]}
+{"nl": "register a new agent named Priya with rating 4.9 and email priya@homes.com", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Priya"}, {"field": "rating", "value": "4.9"}, {"field": "email", "value": "priya@homes.com"}, {"field": "active", "value": "true"}]}
+{"nl": "add inactive agent with phone 555-0099 and rating 2.1", "intent": "create", "table": "agent", "assignments": [{"field": "phone", "value": "555-0099"}, {"field": "rating", "value": "2.1"}, {"field": "active", "value": "false"}]}
+{"nl": "schedule appointment with notes pre-op assessment and status pending", "intent": "create", "table": "appointment", "assignments": [{"field": "notes", "value": "pre-op assessment"}, {"field": "status", "value": "pending"}]}
+{"nl": "book confirmed appointment with doctor notes all clear", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}, {"field": "notes", "value": "all clear"}]}
+{"nl": "register attendee named Kenji email kenji@conf.com phone 555-2020", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Kenji"}, {"field": "email", "value": "kenji@conf.com"}, {"field": "phone", "value": "555-2020"}]}
+{"nl": "add attendee with name Fatima and email fatima@event.org", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Fatima"}, {"field": "email", "value": "fatima@event.org"}]}
+{"nl": "create budget Infrastructure amount 120000 spent 5000 active", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Infrastructure"}, {"field": "amount", "value": "120000"}, {"field": "spent", "value": "5000"}, {"field": "active", "value": "true"}]}
+{"nl": "add a budget called Training with amount 25000 not yet spent", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Training"}, {"field": "amount", "value": "25000"}, {"field": "spent", "value": "0"}]}
+{"nl": "create category Tools with description Hand and power tools", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Tools"}, {"field": "description", "value": "Hand and power tools"}]}
+{"nl": "add category Home Decor description Interior decoration", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Home Decor"}, {"field": "description", "value": "Interior decoration"}]}
+{"nl": "create course Web Development 4 credits capacity 20 active", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Web Development"}, {"field": "credits", "value": "4"}, {"field": "capacity", "value": "20"}, {"field": "active", "value": "true"}]}
+{"nl": "add course Calculus with 3 credits capacity 50 inactive", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Calculus"}, {"field": "credits", "value": "3"}, {"field": "capacity", "value": "50"}, {"field": "active", "value": "false"}]}
+{"nl": "register customer Yuki email yuki@mail.jp phone 555-3311", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Yuki"}, {"field": "email", "value": "yuki@mail.jp"}, {"field": "phone", "value": "555-3311"}]}
+{"nl": "add new customer name Dmitri email dmitri@shop.ru", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Dmitri"}, {"field": "email", "value": "dmitri@shop.ru"}]}
+{"nl": "create department Finance with budget 350000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Finance"}, {"field": "budget", "value": "350000"}]}
+{"nl": "add department Research budget 900000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Research"}, {"field": "budget", "value": "900000"}]}
+{"nl": "register doctor Dr. Reyes specialty Dermatology rating 4.6 email reyes@med.com active", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Reyes"}, {"field": "specialty", "value": "Dermatology"}, {"field": "rating", "value": "4.6"}, {"field": "email", "value": "reyes@med.com"}, {"field": "active", "value": "true"}]}
+{"nl": "add doctor specialty Pediatrics active false rating 3.0", "intent": "create", "table": "doctor", "assignments": [{"field": "specialty", "value": "Pediatrics"}, {"field": "active", "value": "false"}, {"field": "rating", "value": "3.0"}]}
+{"nl": "hire employee Nina salary 62000 email nina@work.com role active", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Nina"}, {"field": "salary", "value": "62000"}, {"field": "email", "value": "nina@work.com"}, {"field": "active", "value": "true"}]}
+{"nl": "add employee with email ops@corp.com salary 48000 not active", "intent": "create", "table": "employee", "assignments": [{"field": "email", "value": "ops@corp.com"}, {"field": "salary", "value": "48000"}, {"field": "active", "value": "false"}]}
+{"nl": "enroll student with grade 60 not yet completed", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "60"}, {"field": "completed", "value": "false"}]}
+{"nl": "add completed enrollment with perfect grade 100", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "100"}, {"field": "completed", "value": "true"}]}
+{"nl": "create event Winter Gala capacity 300 status open", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Winter Gala"}, {"field": "capacity", "value": "300"}, {"field": "status", "value": "open"}]}
+{"nl": "add event Product Launch capacity 150 status pending", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Product Launch"}, {"field": "capacity", "value": "150"}, {"field": "status", "value": "pending"}]}
+{"nl": "log expense 320 description team lunch approved true", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "320"}, {"field": "description", "value": "team lunch"}, {"field": "approved", "value": "true"}]}
+{"nl": "submit unapproved expense amount 4500 description conference", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "4500"}, {"field": "description", "value": "conference"}, {"field": "approved", "value": "false"}]}
+{"nl": "add instructor Prof. Obi email obi@campus.edu active true", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Prof. Obi"}, {"field": "email", "value": "obi@campus.edu"}, {"field": "active", "value": "true"}]}
+{"nl": "create instructor email flores@uni.org active false", "intent": "create", "table": "instructor", "assignments": [{"field": "email", "value": "flores@uni.org"}, {"field": "active", "value": "false"}]}
+{"nl": "issue invoice amount 2500 not paid", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "2500"}, {"field": "paid", "value": "false"}]}
+{"nl": "create paid invoice for 75", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "75"}, {"field": "paid", "value": "true"}]}
+{"nl": "list property at 7 Birch Lane price 380000 3 bedrooms 2 bathrooms active", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "380000"}, {"field": "status", "value": "active"}]}
+{"nl": "add listing price 125000 status inactive", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "125000"}, {"field": "status", "value": "inactive"}]}
+{"nl": "place order total 750 status pending", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "750"}, {"field": "status", "value": "pending"}]}
+{"nl": "create new order with total 42 status pending", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "42"}, {"field": "status", "value": "pending"}]}
+{"nl": "add patient Clara email clara@care.com phone 555-8800 insured true", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Clara"}, {"field": "email", "value": "clara@care.com"}, {"field": "phone", "value": "555-8800"}, {"field": "insured", "value": "true"}]}
+{"nl": "register uninsured patient named Omar phone 555-4455", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Omar"}, {"field": "phone", "value": "555-4455"}, {"field": "insured", "value": "false"}]}
+{"nl": "prescribe Atorvastatin 20mg active", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Atorvastatin"}, {"field": "dosage", "value": "20mg"}, {"field": "active", "value": "true"}]}
+{"nl": "create inactive prescription for Prednisone dosage 5mg", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Prednisone"}, {"field": "dosage", "value": "5mg"}, {"field": "active", "value": "false"}]}
+{"nl": "add product Webcam sku WC-003 price 59 stock 80 active", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Webcam"}, {"field": "sku", "value": "WC-003"}, {"field": "price", "value": "59"}, {"field": "stock", "value": "80"}, {"field": "active", "value": "true"}]}
+{"nl": "create product Chair price 149 stock 20 active true", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Chair"}, {"field": "price", "value": "149"}, {"field": "stock", "value": "20"}, {"field": "active", "value": "true"}]}
+{"nl": "list product Mouse sku MS-007 price 25 stock 200", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Mouse"}, {"field": "sku", "value": "MS-007"}, {"field": "price", "value": "25"}, {"field": "stock", "value": "200"}]}
+{"nl": "add property villa type price 650000 5 bedrooms 3 bathrooms active", "intent": "create", "table": "property", "assignments": [{"field": "type", "value": "villa"}, {"field": "price", "value": "650000"}, {"field": "bedrooms", "value": "5"}, {"field": "bathrooms", "value": "3"}, {"field": "active", "value": "true"}]}
+{"nl": "create property address 22 River Rd price 210000 2 bedrooms 1 bathroom", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "22 River Rd"}, {"field": "price", "value": "210000"}, {"field": "bedrooms", "value": "2"}, {"field": "bathrooms", "value": "1"}]}
+{"nl": "write a 4-star review body good quality", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "4"}, {"field": "body", "value": "good quality"}]}
+{"nl": "add review rating 1 body very disappointing", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "1"}, {"field": "body", "value": "very disappointing"}]}
+{"nl": "create role VP title level 9 active", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "VP"}, {"field": "level", "value": "9"}, {"field": "active", "value": "true"}]}
+{"nl": "add inactive role Intern level 1", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Intern"}, {"field": "level", "value": "1"}, {"field": "active", "value": "false"}]}
+{"nl": "schedule unpaid shift location Eastside", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Eastside"}, {"field": "paid", "value": "false"}]}
+{"nl": "add paid shift location HQ", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "HQ"}, {"field": "paid", "value": "true"}]}
+{"nl": "create shipment carrier USPS weight 3.1 status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "USPS"}, {"field": "weight", "value": "3.1"}, {"field": "status", "value": "pending"}]}
+{"nl": "add shipment via FedEx weight 18.5 in transit", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "FedEx"}, {"field": "weight", "value": "18.5"}, {"field": "status", "value": "in_transit"}]}
+{"nl": "register student Mei email mei@uni.edu gpa 3.2 enrolled", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Mei"}, {"field": "email", "value": "mei@uni.edu"}, {"field": "gpa", "value": "3.2"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "add student Carlos gpa 1.9 not enrolled", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Carlos"}, {"field": "gpa", "value": "1.9"}, {"field": "enrolled", "value": "false"}]}
+{"nl": "add supplier MegaParts email mega@parts.com country Canada rating 3.5 active", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "MegaParts"}, {"field": "email", "value": "mega@parts.com"}, {"field": "country", "value": "Canada"}, {"field": "rating", "value": "3.5"}, {"field": "active", "value": "true"}]}
+{"nl": "create inactive supplier from China rating 2.8", "intent": "create", "table": "supplier", "assignments": [{"field": "country", "value": "China"}, {"field": "rating", "value": "2.8"}, {"field": "active", "value": "false"}]}
+{"nl": "issue ticket price 75 status available", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "75"}, {"field": "status", "value": "available"}]}
+{"nl": "create sold ticket price 300", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "300"}, {"field": "status", "value": "sold"}]}
+{"nl": "log transfer transaction amount 1500 status completed", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "transfer"}, {"field": "amount", "value": "1500"}, {"field": "status", "value": "completed"}]}
+{"nl": "create failed transaction type payment amount 200", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "payment"}, {"field": "amount", "value": "200"}, {"field": "status", "value": "failed"}]}
+{"nl": "add venue Arena address Stadium Rd capacity 5000 active", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Arena"}, {"field": "address", "value": "Stadium Rd"}, {"field": "capacity", "value": "5000"}, {"field": "active", "value": "true"}]}
+{"nl": "create inactive venue capacity 80 name Lounge", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Lounge"}, {"field": "capacity", "value": "80"}, {"field": "active", "value": "false"}]}
+{"nl": "add warehouse South Hub location Houston capacity 6000 active", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "South Hub"}, {"field": "location", "value": "Houston"}, {"field": "capacity", "value": "6000"}, {"field": "active", "value": "true"}]}
+{"nl": "create inactive warehouse location Phoenix capacity 1500", "intent": "create", "table": "warehouse", "assignments": [{"field": "location", "value": "Phoenix"}, {"field": "capacity", "value": "1500"}, {"field": "active", "value": "false"}]}
+// create5.jsonl — CREATE with varied assignment coverage across more tables
+// product
+{"nl": "add a new product called Widget priced at 29.99 with sku W001", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Widget"}, {"field": "price", "value": "29.99"}, {"field": "sku", "value": "W001"}]}
+{"nl": "create product Gadget with price 149.99 stock 200 and active true", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Gadget"}, {"field": "price", "value": "149.99"}, {"field": "stock", "value": "200"}, {"field": "active", "value": "true"}]}
+{"nl": "register product with name Sensor sku S-200 price 9.99 and stock 500", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Sensor"}, {"field": "sku", "value": "S-200"}, {"field": "price", "value": "9.99"}, {"field": "stock", "value": "500"}]}
+{"nl": "add inactive product Prototype with sku P-999 price 0.01", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Prototype"}, {"field": "active", "value": "false"}, {"field": "sku", "value": "P-999"}, {"field": "price", "value": "0.01"}]}
+{"nl": "new product named Cable price 4.99 stock 1000 active true", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Cable"}, {"field": "price", "value": "4.99"}, {"field": "stock", "value": "1000"}, {"field": "active", "value": "true"}]}
+// employee
+{"nl": "hire a new employee named James with email james@co.com salary 65000 and role analyst", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "James"}, {"field": "email", "value": "james@co.com"}, {"field": "salary", "value": "65000"}, {"field": "role", "value": "analyst"}]}
+{"nl": "add employee Sara email sara@corp.com department sales salary 72000", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Sara"}, {"field": "email", "value": "sara@corp.com"}, {"field": "department", "value": "sales"}, {"field": "salary", "value": "72000"}]}
+{"nl": "create an active employee Leo in engineering with salary 90000 and role engineer", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Leo"}, {"field": "active", "value": "true"}, {"field": "department", "value": "engineering"}, {"field": "salary", "value": "90000"}, {"field": "role", "value": "engineer"}]}
+{"nl": "register new employee Mia role manager department operations email mia@work.com active true", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Mia"}, {"field": "role", "value": "manager"}, {"field": "department", "value": "operations"}, {"field": "email", "value": "mia@work.com"}, {"field": "active", "value": "true"}]}
+{"nl": "add employee Tom salary 55000 email tom@co.com department hr role recruiter", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Tom"}, {"field": "salary", "value": "55000"}, {"field": "email", "value": "tom@co.com"}, {"field": "department", "value": "hr"}, {"field": "role", "value": "recruiter"}]}
+// student
+{"nl": "enroll a new student named Alice with email alice@uni.edu and gpa 3.8", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Alice"}, {"field": "email", "value": "alice@uni.edu"}, {"field": "gpa", "value": "3.8"}]}
+{"nl": "add student Bob email bob@school.edu gpa 2.9 enrolled true", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Bob"}, {"field": "email", "value": "bob@school.edu"}, {"field": "gpa", "value": "2.9"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "register student Clara gpa 3.5 enrolled true email clara@uni.edu", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Clara"}, {"field": "gpa", "value": "3.5"}, {"field": "enrolled", "value": "true"}, {"field": "email", "value": "clara@uni.edu"}]}
+{"nl": "create new student David not enrolled gpa 1.8 email david@edu.com", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "David"}, {"field": "enrolled", "value": "false"}, {"field": "gpa", "value": "1.8"}, {"field": "email", "value": "david@edu.com"}]}
+// doctor
+{"nl": "add a doctor named Dr. Reed specialty cardiology email reed@hospital.com rating 4.7", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Reed"}, {"field": "specialty", "value": "cardiology"}, {"field": "email", "value": "reed@hospital.com"}, {"field": "rating", "value": "4.7"}]}
+{"nl": "register doctor Kim email kim@clinic.com specialty neurology active true", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Kim"}, {"field": "email", "value": "kim@clinic.com"}, {"field": "specialty", "value": "neurology"}, {"field": "active", "value": "true"}]}
+{"nl": "create doctor Patel specialty oncology rating 4.9 active true email patel@med.com", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Patel"}, {"field": "specialty", "value": "oncology"}, {"field": "rating", "value": "4.9"}, {"field": "active", "value": "true"}, {"field": "email", "value": "patel@med.com"}]}
+{"nl": "add inactive doctor Chen specialty dermatology email chen@hosp.com rating 3.5", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Chen"}, {"field": "active", "value": "false"}, {"field": "specialty", "value": "dermatology"}, {"field": "email", "value": "chen@hosp.com"}, {"field": "rating", "value": "3.5"}]}
+// patient
+{"nl": "add patient Maria with email maria@email.com phone 555-1111 and insured true", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Maria"}, {"field": "email", "value": "maria@email.com"}, {"field": "phone", "value": "555-1111"}, {"field": "insured", "value": "true"}]}
+{"nl": "register patient John dob 1985-03-14 phone 555-2222 insured false email john@mail.com", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "John"}, {"field": "dob", "value": "1985-03-14"}, {"field": "phone", "value": "555-2222"}, {"field": "insured", "value": "false"}, {"field": "email", "value": "john@mail.com"}]}
+{"nl": "create patient Nina email nina@care.com insured true phone 555-3333 dob 1990-07-20", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Nina"}, {"field": "email", "value": "nina@care.com"}, {"field": "insured", "value": "true"}, {"field": "phone", "value": "555-3333"}, {"field": "dob", "value": "1990-07-20"}]}
+// supplier
+{"nl": "add a supplier named TechCorp with email tech@corp.com country USA rating 4.5", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "TechCorp"}, {"field": "email", "value": "tech@corp.com"}, {"field": "country", "value": "USA"}, {"field": "rating", "value": "4.5"}]}
+{"nl": "register supplier GoodParts email parts@good.com country Germany active true rating 4.2", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "GoodParts"}, {"field": "email", "value": "parts@good.com"}, {"field": "country", "value": "Germany"}, {"field": "active", "value": "true"}, {"field": "rating", "value": "4.2"}]}
+{"nl": "create inactive supplier QuickShip country Japan email qs@ship.jp rating 3.8", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "QuickShip"}, {"field": "active", "value": "false"}, {"field": "country", "value": "Japan"}, {"field": "email", "value": "qs@ship.jp"}, {"field": "rating", "value": "3.8"}]}
+{"nl": "add supplier EcoMakers email eco@make.com country Canada rating 4.8 active true", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "EcoMakers"}, {"field": "email", "value": "eco@make.com"}, {"field": "country", "value": "Canada"}, {"field": "rating", "value": "4.8"}, {"field": "active", "value": "true"}]}
+// customer
+{"nl": "add customer Lucy with email lucy@shop.com and phone 555-4444", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Lucy"}, {"field": "email", "value": "lucy@shop.com"}, {"field": "phone", "value": "555-4444"}]}
+{"nl": "create customer Mike email mike@buy.com phone 555-5555", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Mike"}, {"field": "email", "value": "mike@buy.com"}, {"field": "phone", "value": "555-5555"}]}
+{"nl": "register new customer Ann phone 555-6666 email ann@store.com", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Ann"}, {"field": "phone", "value": "555-6666"}, {"field": "email", "value": "ann@store.com"}]}
+// property
+{"nl": "add a property at 10 Elm St type house price 250000 with 3 bedrooms and 2 bathrooms", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "10 Elm St"}, {"field": "type", "value": "house"}, {"field": "price", "value": "250000"}, {"field": "bedrooms", "value": "3"}, {"field": "bathrooms", "value": "2"}]}
+{"nl": "list new property address 5 Oak Ave type condo price 180000 active true bedrooms 2", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "5 Oak Ave"}, {"field": "type", "value": "condo"}, {"field": "price", "value": "180000"}, {"field": "active", "value": "true"}, {"field": "bedrooms", "value": "2"}]}
+{"nl": "create property 22 Pine Rd type apartment bedrooms 1 bathrooms 1 price 120000 active true", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "22 Pine Rd"}, {"field": "type", "value": "apartment"}, {"field": "bedrooms", "value": "1"}, {"field": "bathrooms", "value": "1"}, {"field": "price", "value": "120000"}, {"field": "active", "value": "true"}]}
+// venue
+{"nl": "add a venue named Grand Hall address 1 Main St capacity 500 active true", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Grand Hall"}, {"field": "address", "value": "1 Main St"}, {"field": "capacity", "value": "500"}, {"field": "active", "value": "true"}]}
+{"nl": "create venue City Arena address 50 Arena Blvd capacity 2000", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "City Arena"}, {"field": "address", "value": "50 Arena Blvd"}, {"field": "capacity", "value": "2000"}]}
+{"nl": "register inactive venue Studio X address 7 West Ave capacity 100", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Studio X"}, {"field": "active", "value": "false"}, {"field": "address", "value": "7 West Ave"}, {"field": "capacity", "value": "100"}]}
+// warehouse
+{"nl": "add warehouse North Hub location Chicago capacity 5000 active true", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "North Hub"}, {"field": "location", "value": "Chicago"}, {"field": "capacity", "value": "5000"}, {"field": "active", "value": "true"}]}
+{"nl": "create warehouse South Depot location Atlanta capacity 3000", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "South Depot"}, {"field": "location", "value": "Atlanta"}, {"field": "capacity", "value": "3000"}]}
+{"nl": "register inactive warehouse East Store location Boston capacity 1500", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "East Store"}, {"field": "active", "value": "false"}, {"field": "location", "value": "Boston"}, {"field": "capacity", "value": "1500"}]}
+// budget
+{"nl": "add a budget named Q1 Ops amount 50000 department operations active true", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Q1 Ops"}, {"field": "amount", "value": "50000"}, {"field": "department", "value": "operations"}, {"field": "active", "value": "true"}]}
+{"nl": "create budget Marketing Q2 amount 30000 spent 5000 department marketing", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Marketing Q2"}, {"field": "amount", "value": "30000"}, {"field": "spent", "value": "5000"}, {"field": "department", "value": "marketing"}]}
+{"nl": "register budget R&D 2024 amount 100000 spent 0 active true department engineering", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "R&D 2024"}, {"field": "amount", "value": "100000"}, {"field": "spent", "value": "0"}, {"field": "active", "value": "true"}, {"field": "department", "value": "engineering"}]}
+// transaction
+{"nl": "add a transaction of type deposit amount 1000 status pending", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "deposit"}, {"field": "amount", "value": "1000"}, {"field": "status", "value": "pending"}]}
+{"nl": "create withdrawal transaction amount 500 status completed", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "withdrawal"}, {"field": "amount", "value": "500"}, {"field": "status", "value": "completed"}]}
+{"nl": "register transaction type transfer amount 250 status pending", "intent": "create", "table": "transaction", "assignments": [{"field": "type", "value": "transfer"}, {"field": "amount", "value": "250"}, {"field": "status", "value": "pending"}]}
+// course
+{"nl": "add a new course Introduction to AI credits 3 capacity 30 active true", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Introduction to AI"}, {"field": "credits", "value": "3"}, {"field": "capacity", "value": "30"}, {"field": "active", "value": "true"}]}
+{"nl": "create course Data Structures credits 4 capacity 25 active true", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Data Structures"}, {"field": "credits", "value": "4"}, {"field": "capacity", "value": "25"}, {"field": "active", "value": "true"}]}
+{"nl": "register inactive course Advanced Calculus credits 4 capacity 20", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Advanced Calculus"}, {"field": "active", "value": "false"}, {"field": "credits", "value": "4"}, {"field": "capacity", "value": "20"}]}
+// instructor
+{"nl": "add instructor named Prof Wu email wu@uni.edu department mathematics active true", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Prof Wu"}, {"field": "email", "value": "wu@uni.edu"}, {"field": "department", "value": "mathematics"}, {"field": "active", "value": "true"}]}
+{"nl": "create instructor Dr. Bell email bell@college.edu department physics active true", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Dr. Bell"}, {"field": "email", "value": "bell@college.edu"}, {"field": "department", "value": "physics"}, {"field": "active", "value": "true"}]}
+{"nl": "register inactive instructor Chen email chen@uni.edu department chemistry", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Chen"}, {"field": "active", "value": "false"}, {"field": "email", "value": "chen@uni.edu"}, {"field": "department", "value": "chemistry"}]}
+// event
+{"nl": "add an event named Tech Summit venue city hall scheduled 2025-06-01 capacity 300 status open", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Tech Summit"}, {"field": "venue", "value": "city hall"}, {"field": "scheduled", "value": "2025-06-01"}, {"field": "capacity", "value": "300"}, {"field": "status", "value": "open"}]}
+{"nl": "create event Art Fair scheduled 2025-08-15 capacity 150 status open", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Art Fair"}, {"field": "scheduled", "value": "2025-08-15"}, {"field": "capacity", "value": "150"}, {"field": "status", "value": "open"}]}
+{"nl": "register event Music Fest scheduled 2025-09-20 capacity 5000 status cancelled", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Music Fest"}, {"field": "scheduled", "value": "2025-09-20"}, {"field": "capacity", "value": "5000"}, {"field": "status", "value": "cancelled"}]}
+// department
+{"nl": "add a department named Engineering with head Alice and budget 200000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Engineering"}, {"field": "head", "value": "Alice"}, {"field": "budget", "value": "200000"}]}
+{"nl": "create department Marketing head Bob budget 80000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Marketing"}, {"field": "head", "value": "Bob"}, {"field": "budget", "value": "80000"}]}
+{"nl": "register new department Operations head Carol budget 150000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Operations"}, {"field": "head", "value": "Carol"}, {"field": "budget", "value": "150000"}]}
+// role
+{"nl": "add a role titled Senior Engineer level 5 active true", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Senior Engineer"}, {"field": "level", "value": "5"}, {"field": "active", "value": "true"}]}
+{"nl": "create role Junior Analyst level 2 active true", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Junior Analyst"}, {"field": "level", "value": "2"}, {"field": "active", "value": "true"}]}
+{"nl": "register inactive role Intern level 1", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Intern"}, {"field": "active", "value": "false"}, {"field": "level", "value": "1"}]}
+// create7.jsonl — CREATE queries with <val1> runtime values; mix of literal and <val2> in same query; all 32 tables
+
+// account
+{"nl": "create an account with name <val> and type checking", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "type", "value": "checking"}]}
+{"nl": "add a new account with name <val1> balance <val2> and type <val3>", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "balance"}, {"field": "type"}]}
+{"nl": "open a savings account for owner <val> with balance 0", "intent": "create", "table": "account", "assignments": [{"field": "owner"}, {"field": "type", "value": "savings"}, {"field": "balance", "value": "0"}]}
+{"nl": "register a new account with name <val> and set it as active", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "active", "value": "true"}]}
+
+// agent
+{"nl": "create an agent with name <val1> and email <val2>", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "add a new agent named <val1> with phone <val2> and rating 5.0", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "phone"}, {"field": "rating", "value": "5.0"}]}
+{"nl": "register agent <val1> with email <val2> and mark them active", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "active", "value": "true"}]}
+
+// appointment
+{"nl": "book an appointment with patient <val1> and doctor <val2>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}, {"field": "doctor"}]}
+{"nl": "create an appointment for patient <val1> with status pending and notes <val2>", "intent": "create", "table": "appointment", "assignments": [{"field": "patient"}, {"field": "status", "value": "pending"}, {"field": "notes"}]}
+{"nl": "schedule an appointment with doctor <val1> patient <val2> and status confirmed", "intent": "create", "table": "appointment", "assignments": [{"field": "doctor"}, {"field": "patient"}, {"field": "status", "value": "confirmed"}]}
+
+// attendee
+{"nl": "add an attendee with name <val1> and email <val2>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "register attendee <val1> with phone <val2> and event <val3>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "phone"}, {"field": "event"}]}
+{"nl": "create a new attendee with name <val1> email <val2> and event <val3>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "event"}]}
+
+// budget
+{"nl": "create a budget with name <val1> and amount <val2>", "intent": "create", "table": "budget", "assignments": [{"field": "name"}, {"field": "amount"}]}
+{"nl": "add a new budget named <val1> for department <val2> with amount <val3>", "intent": "create", "table": "budget", "assignments": [{"field": "name"}, {"field": "department"}, {"field": "amount"}]}
+{"nl": "set up a budget called <val1> with amount <val2> and spent 0", "intent": "create", "table": "budget", "assignments": [{"field": "name"}, {"field": "amount"}, {"field": "spent", "value": "0"}]}
+{"nl": "create an active budget for department <val1> with name <val2> and amount <val3>", "intent": "create", "table": "budget", "assignments": [{"field": "department"}, {"field": "name"}, {"field": "amount"}, {"field": "active", "value": "true"}]}
+
+// category
+{"nl": "create a category with name <val>", "intent": "create", "table": "category", "assignments": [{"field": "name"}]}
+{"nl": "add a new category named <val1> with description <val2>", "intent": "create", "table": "category", "assignments": [{"field": "name"}, {"field": "description"}]}
+
+// course
+{"nl": "create a course with name <val1> and credits <val2>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "credits"}]}
+{"nl": "add a new course named <val1> with capacity <val2> and instructor <val3>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "capacity"}, {"field": "instructor"}]}
+{"nl": "set up a course called <val1> with credits 3 and capacity <val2>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "credits", "value": "3"}, {"field": "capacity"}]}
+{"nl": "create an active course named <val1> with instructor <val2> and credits <val3>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "instructor"}, {"field": "credits"}, {"field": "active", "value": "true"}]}
+
+// customer
+{"nl": "add a customer with name <val1> and email <val2>", "intent": "create", "table": "customer", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "create a new customer named <val1> with phone <val2> and email <val3>", "intent": "create", "table": "customer", "assignments": [{"field": "name"}, {"field": "phone"}, {"field": "email"}]}
+
+// department
+{"nl": "create a department with name <val1> and budget <val2>", "intent": "create", "table": "department", "assignments": [{"field": "name"}, {"field": "budget"}]}
+{"nl": "add a new department named <val1> with head <val2> and budget <val3>", "intent": "create", "table": "department", "assignments": [{"field": "name"}, {"field": "head"}, {"field": "budget"}]}
+{"nl": "set up department <val1> with budget <val2> and head <val3>", "intent": "create", "table": "department", "assignments": [{"field": "name"}, {"field": "budget"}, {"field": "head"}]}
+
+// doctor
+{"nl": "add a doctor with name <val1> and specialty <val2>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "specialty"}]}
+{"nl": "create a new doctor named <val1> with email <val2> and specialty <val3>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "specialty"}]}
+{"nl": "register doctor <val1> with specialty <val2> and rating <val3>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "specialty"}, {"field": "rating"}]}
+
+// employee
+{"nl": "create an employee with name <val1> and salary <val2>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "salary"}]}
+{"nl": "add employee <val1> with email <val2> department <val3> and role <val4>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "department"}, {"field": "role"}]}
+{"nl": "hire a new employee named <val1> with salary <val2> and department Engineering", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "salary"}, {"field": "department", "value": "Engineering"}]}
+
+// enrollment
+{"nl": "enroll student <val1> in course <val2>", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}, {"field": "course"}]}
+{"nl": "create an enrollment for student <val1> in course <val2> with grade <val3>", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}, {"field": "course"}, {"field": "grade"}]}
+{"nl": "add an enrollment for student <val1> with course <val2> and completed false", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}, {"field": "course"}, {"field": "completed", "value": "false"}]}
+
+// event
+{"nl": "create an event with name <val1> and venue <val2>", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "venue"}]}
+{"nl": "add an event called <val1> with capacity <val2> and status <val3>", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "capacity"}, {"field": "status"}]}
+{"nl": "schedule an event named <val1> at venue <val2> with capacity 500", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "venue"}, {"field": "capacity", "value": "500"}]}
+
+// expense
+{"nl": "log an expense with amount <val1> and description <val2>", "intent": "create", "table": "expense", "assignments": [{"field": "amount"}, {"field": "description"}]}
+{"nl": "add an expense for employee <val1> with amount <val2> and approved false", "intent": "create", "table": "expense", "assignments": [{"field": "employee"}, {"field": "amount"}, {"field": "approved", "value": "false"}]}
+{"nl": "create an expense of <val1> with description <val2> and employee <val3>", "intent": "create", "table": "expense", "assignments": [{"field": "amount"}, {"field": "description"}, {"field": "employee"}]}
+
+// instructor
+{"nl": "add an instructor with name <val1> and email <val2>", "intent": "create", "table": "instructor", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "create a new instructor named <val1> with department <val2>", "intent": "create", "table": "instructor", "assignments": [{"field": "name"}, {"field": "department"}]}
+{"nl": "register instructor <val1> with email <val2> department <val3> and active true", "intent": "create", "table": "instructor", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "department"}, {"field": "active", "value": "true"}]}
+
+// invoice
+{"nl": "create an invoice with amount <val1> and order <val2>", "intent": "create", "table": "invoice", "assignments": [{"field": "amount"}, {"field": "order"}]}
+{"nl": "add a new invoice for order <val1> with amount <val2> and paid false", "intent": "create", "table": "invoice", "assignments": [{"field": "order"}, {"field": "amount"}, {"field": "paid", "value": "false"}]}
+{"nl": "issue an invoice with amount <val1> order <val2> and paid <val3>", "intent": "create", "table": "invoice", "assignments": [{"field": "amount"}, {"field": "order"}, {"field": "paid"}]}
+
+// listing
+{"nl": "add a listing with property <val1> and price <val2>", "intent": "create", "table": "listing", "assignments": [{"field": "property"}, {"field": "price"}]}
+{"nl": "create a listing for property <val1> with agent <val2> and status active", "intent": "create", "table": "listing", "assignments": [{"field": "property"}, {"field": "agent"}, {"field": "status", "value": "active"}]}
+{"nl": "post a new listing with property <val1> agent <val2> and price <val3>", "intent": "create", "table": "listing", "assignments": [{"field": "property"}, {"field": "agent"}, {"field": "price"}]}
+
+// order
+{"nl": "place an order for customer <val1> with total <val2>", "intent": "create", "table": "order", "assignments": [{"field": "customer"}, {"field": "total"}]}
+{"nl": "create an order with customer <val1> total <val2> and status pending", "intent": "create", "table": "order", "assignments": [{"field": "customer"}, {"field": "total"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a new order for customer <val1> with status <val2> and total <val3>", "intent": "create", "table": "order", "assignments": [{"field": "customer"}, {"field": "status"}, {"field": "total"}]}
+
+// patient
+{"nl": "register a patient with name <val1> and email <val2>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "add patient <val1> with phone <val2> and insured true", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "phone"}, {"field": "insured", "value": "true"}]}
+{"nl": "create a new patient named <val1> with email <val2> phone <val3> and dob <val4>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "phone"}, {"field": "dob"}]}
+
+// prescription
+{"nl": "write a prescription for patient <val1> with drug <val2>", "intent": "create", "table": "prescription", "assignments": [{"field": "patient"}, {"field": "drug"}]}
+{"nl": "create a prescription for patient <val1> by doctor <val2> with drug <val3> and dosage <val4>", "intent": "create", "table": "prescription", "assignments": [{"field": "patient"}, {"field": "doctor"}, {"field": "drug"}, {"field": "dosage"}]}
+{"nl": "issue a prescription with patient <val1> drug <val2> dosage <val3> and active true", "intent": "create", "table": "prescription", "assignments": [{"field": "patient"}, {"field": "drug"}, {"field": "dosage"}, {"field": "active", "value": "true"}]}
+
+// product
+{"nl": "add a product with name <val1> and price <val2>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "price"}]}
+{"nl": "create a product named <val1> with sku <val2> price <val3> and stock <val4>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "sku"}, {"field": "price"}, {"field": "stock"}]}
+{"nl": "list a new product called <val1> in category <val2> with price <val3>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "category"}, {"field": "price"}]}
+
+// property
+{"nl": "add a property at address <val1> with price <val2>", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "price"}]}
+{"nl": "create a property with address <val1> type <val2> and price <val3>", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "type"}, {"field": "price"}]}
+{"nl": "list a new property at <val1> with bedrooms <val2> bathrooms <val3> and price <val4>", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "bedrooms"}, {"field": "bathrooms"}, {"field": "price"}]}
+
+// review
+{"nl": "add a review with rating <val1> and body <val2>", "intent": "create", "table": "review", "assignments": [{"field": "rating"}, {"field": "body"}]}
+{"nl": "create a review for product <val1> with rating <val2> and author <val3>", "intent": "create", "table": "review", "assignments": [{"field": "product"}, {"field": "rating"}, {"field": "author"}]}
+{"nl": "post a review with product <val1> rating <val2> body <val3> and author <val4>", "intent": "create", "table": "review", "assignments": [{"field": "product"}, {"field": "rating"}, {"field": "body"}, {"field": "author"}]}
+
+// role
+{"nl": "create a role with title <val1> and level <val2>", "intent": "create", "table": "role", "assignments": [{"field": "title"}, {"field": "level"}]}
+{"nl": "add a new role called <val1> at level <val2> and mark it active", "intent": "create", "table": "role", "assignments": [{"field": "title"}, {"field": "level"}, {"field": "active", "value": "true"}]}
+
+// shift
+{"nl": "create a shift for employee <val1> starting at <val2>", "intent": "create", "table": "shift", "assignments": [{"field": "employee"}, {"field": "start"}]}
+{"nl": "add a shift for employee <val1> from <val2> to <val3> at location <val4>", "intent": "create", "table": "shift", "assignments": [{"field": "employee"}, {"field": "start"}, {"field": "end"}, {"field": "location"}]}
+{"nl": "schedule a shift at location <val1> for employee <val2> and mark paid false", "intent": "create", "table": "shift", "assignments": [{"field": "location"}, {"field": "employee"}, {"field": "paid", "value": "false"}]}
+
+// shipment
+{"nl": "create a shipment for order <val1> with carrier <val2>", "intent": "create", "table": "shipment", "assignments": [{"field": "order"}, {"field": "carrier"}]}
+{"nl": "add a shipment for order <val1> with carrier <val2> and status in-transit", "intent": "create", "table": "shipment", "assignments": [{"field": "order"}, {"field": "carrier"}, {"field": "status", "value": "in-transit"}]}
+{"nl": "ship order <val1> via carrier <val2> with weight <val3> and status <val4>", "intent": "create", "table": "shipment", "assignments": [{"field": "order"}, {"field": "carrier"}, {"field": "weight"}, {"field": "status"}]}
+
+// student
+{"nl": "enroll a student with name <val1> and email <val2>", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "add a new student named <val1> with gpa <val2>", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "gpa"}]}
+{"nl": "create a student record for <val1> with email <val2> gpa <val3> and enrolled true", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "gpa"}, {"field": "enrolled", "value": "true"}]}
+
+// supplier
+{"nl": "add a supplier with name <val1> and country <val2>", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "country"}]}
+{"nl": "create a new supplier named <val1> with email <val2> and country <val3>", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "country"}]}
+{"nl": "register supplier <val1> from country <val2> with rating <val3> and active true", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "country"}, {"field": "rating"}, {"field": "active", "value": "true"}]}
+
+// ticket
+{"nl": "issue a ticket for event <val1> and attendee <val2>", "intent": "create", "table": "ticket", "assignments": [{"field": "event"}, {"field": "attendee"}]}
+{"nl": "create a ticket for attendee <val1> at event <val2> with price <val3>", "intent": "create", "table": "ticket", "assignments": [{"field": "attendee"}, {"field": "event"}, {"field": "price"}]}
+{"nl": "add a ticket for event <val1> with attendee <val2> price <val3> and status valid", "intent": "create", "table": "ticket", "assignments": [{"field": "event"}, {"field": "attendee"}, {"field": "price"}, {"field": "status", "value": "valid"}]}
+
+// transaction
+{"nl": "record a transaction with amount <val1> and type <val2>", "intent": "create", "table": "transaction", "assignments": [{"field": "amount"}, {"field": "type"}]}
+{"nl": "create a transaction with account <val1> amount <val2> and status pending", "intent": "create", "table": "transaction", "assignments": [{"field": "account"}, {"field": "amount"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a transaction of type <val1> for account <val2> with amount <val3> and status <val4>", "intent": "create", "table": "transaction", "assignments": [{"field": "type"}, {"field": "account"}, {"field": "amount"}, {"field": "status"}]}
+
+// venue
+{"nl": "add a venue with name <val1> and address <val2>", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "address"}]}
+{"nl": "create a venue named <val1> with capacity <val2>", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "capacity"}]}
+{"nl": "register a new venue called <val1> at address <val2> with capacity <val3> and active true", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "address"}, {"field": "capacity"}, {"field": "active", "value": "true"}]}
+
+// warehouse
+{"nl": "create a warehouse with name <val1> and location <val2>", "intent": "create", "table": "warehouse", "assignments": [{"field": "name"}, {"field": "location"}]}
+{"nl": "add a new warehouse at location <val1> with capacity <val2>", "intent": "create", "table": "warehouse", "assignments": [{"field": "location"}, {"field": "capacity"}]}
+{"nl": "set up a warehouse named <val1> at location <val2> with capacity <val3> and active true", "intent": "create", "table": "warehouse", "assignments": [{"field": "name"}, {"field": "location"}, {"field": "capacity"}, {"field": "active", "value": "true"}]}
+
+// additional variety — account, employee, product, order, student, patient, supplier
+{"nl": "open a new account called <val1> with owner <val2> balance <val3> and active true", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "owner"}, {"field": "balance"}, {"field": "active", "value": "true"}]}
+{"nl": "create an account for owner <val1> with type <val2> and balance <val3>", "intent": "create", "table": "account", "assignments": [{"field": "owner"}, {"field": "type"}, {"field": "balance"}]}
+{"nl": "add employee <val1> with salary <val2> role <val3> and active true", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "salary"}, {"field": "role"}, {"field": "active", "value": "true"}]}
+{"nl": "hire a new employee with name <val1> email <val2> and department <val3>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "department"}]}
+{"nl": "create a product called <val1> with sku <val2> stock <val3> and active true", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "sku"}, {"field": "stock"}, {"field": "active", "value": "true"}]}
+{"nl": "add a product with name <val1> price <val2> and category <val3>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "price"}, {"field": "category"}]}
+{"nl": "place a new order for customer <val1> with total <val2> and status <val3>", "intent": "create", "table": "order", "assignments": [{"field": "customer"}, {"field": "total"}, {"field": "status"}]}
+{"nl": "create an order with status shipped for customer <val1> with total <val2>", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "shipped"}, {"field": "customer"}, {"field": "total"}]}
+{"nl": "register a student named <val1> with email <val2> and gpa <val3>", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "gpa"}]}
+{"nl": "add a new student with name <val1> enrolled true and email <val2>", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "enrolled", "value": "true"}, {"field": "email"}]}
+{"nl": "register a patient named <val1> with dob <val2> and insured false", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "dob"}, {"field": "insured", "value": "false"}]}
+{"nl": "add patient <val1> with email <val2> phone <val3> and insured <val4>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "phone"}, {"field": "insured"}]}
+{"nl": "create a supplier named <val1> from <val2> with email <val3> and rating <val4>", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "country"}, {"field": "email"}, {"field": "rating"}]}
+{"nl": "add a supplier with name <val1> country <val2> and active false", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "country"}, {"field": "active", "value": "false"}]}
+{"nl": "create a transaction for account <val1> with type <val2> amount <val3> and status completed", "intent": "create", "table": "transaction", "assignments": [{"field": "account"}, {"field": "type"}, {"field": "amount"}, {"field": "status", "value": "completed"}]}
+{"nl": "issue a new shipment for order <val1> with carrier <val2> weight <val3> and status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "order"}, {"field": "carrier"}, {"field": "weight"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a review from author <val1> for product <val2> with rating 5 and body <val3>", "intent": "create", "table": "review", "assignments": [{"field": "author"}, {"field": "product"}, {"field": "rating", "value": "5"}, {"field": "body"}]}
+{"nl": "create a new property at <val1> with type <val2> price <val3> and active true", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "type"}, {"field": "price"}, {"field": "active", "value": "true"}]}
+{"nl": "add a listing for property <val1> with price <val2> agent <val3> and status pending", "intent": "create", "table": "listing", "assignments": [{"field": "property"}, {"field": "price"}, {"field": "agent"}, {"field": "status", "value": "pending"}]}
+{"nl": "create a new role with title <val1> level <val2> and active false", "intent": "create", "table": "role", "assignments": [{"field": "title"}, {"field": "level"}, {"field": "active", "value": "false"}]}
+{"nl": "book an event called <val1> at venue <val2> with status scheduled and capacity <val3>", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "venue"}, {"field": "status", "value": "scheduled"}, {"field": "capacity"}]}
+{"nl": "register a new venue with name <val1> address <val2> and capacity <val3>", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "address"}, {"field": "capacity"}]}
+{"nl": "issue a ticket for event <val1> attendee <val2> price <val3> and status <val4>", "intent": "create", "table": "ticket", "assignments": [{"field": "event"}, {"field": "attendee"}, {"field": "price"}, {"field": "status"}]}
+{"nl": "add a new expense for employee <val1> amount <val2> description <val3> and approved true", "intent": "create", "table": "expense", "assignments": [{"field": "employee"}, {"field": "amount"}, {"field": "description"}, {"field": "approved", "value": "true"}]}
+{"nl": "create a prescription with doctor <val1> patient <val2> drug <val3> dosage <val4> and active false", "intent": "create", "table": "prescription", "assignments": [{"field": "doctor"}, {"field": "patient"}, {"field": "drug"}, {"field": "dosage"}, {"field": "active", "value": "false"}]}
+{"nl": "enroll student <val1> in course <val2> with grade <val3> and completed true", "intent": "create", "table": "enrollment", "assignments": [{"field": "student"}, {"field": "course"}, {"field": "grade"}, {"field": "completed", "value": "true"}]}
+{"nl": "add a new invoice for order <val1> with amount <val2> and paid true", "intent": "create", "table": "invoice", "assignments": [{"field": "order"}, {"field": "amount"}, {"field": "paid", "value": "true"}]}
+// create8.jsonl — CREATE with runtime <val> slots, numbered for multi-value
+// employee
+{"nl": "add a new employee with name <val1> salary <val2> and department <val3>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "salary"}, {"field": "department"}]}
+{"nl": "create employee name <val1> and email <val2>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "register new employee with role <val1> and department <val2>", "intent": "create", "table": "employee", "assignments": [{"field": "role"}, {"field": "department"}]}
+{"nl": "add employee with name <val>", "intent": "create", "table": "employee", "assignments": [{"field": "name"}]}
+{"nl": "create a new employee setting name to <val1> salary to <val2> and active to true", "intent": "create", "table": "employee", "assignments": [{"field": "name"}, {"field": "salary"}, {"field": "active", "value": "true"}]}
+// product
+{"nl": "add a product with name <val1> price <val2> and sku <val3>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "price"}, {"field": "sku"}]}
+{"nl": "create product with name <val1> and stock <val2>", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "stock"}]}
+{"nl": "add new product setting sku to <val1> and price to <val2>", "intent": "create", "table": "product", "assignments": [{"field": "sku"}, {"field": "price"}]}
+{"nl": "register product with name <val> and mark it active", "intent": "create", "table": "product", "assignments": [{"field": "name"}, {"field": "active", "value": "true"}]}
+// customer
+{"nl": "add customer with name <val1> email <val2> and phone <val3>", "intent": "create", "table": "customer", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "phone"}]}
+{"nl": "create a new customer with name <val1> and email <val2>", "intent": "create", "table": "customer", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "register customer name <val>", "intent": "create", "table": "customer", "assignments": [{"field": "name"}]}
+// order
+{"nl": "add a new order with status <val1> and total <val2>", "intent": "create", "table": "order", "assignments": [{"field": "status"}, {"field": "total"}]}
+{"nl": "create order for customer with total <val1> and status pending", "intent": "create", "table": "order", "assignments": [{"field": "total"}, {"field": "status", "value": "pending"}]}
+{"nl": "place new order setting total to <val>", "intent": "create", "table": "order", "assignments": [{"field": "total"}]}
+// appointment
+{"nl": "book an appointment with status <val1> and notes <val2>", "intent": "create", "table": "appointment", "assignments": [{"field": "status"}, {"field": "notes"}]}
+{"nl": "create appointment with status pending and notes <val>", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "pending"}, {"field": "notes"}]}
+{"nl": "add new appointment setting notes to <val>", "intent": "create", "table": "appointment", "assignments": [{"field": "notes"}]}
+// patient
+{"nl": "register a new patient with name <val1> phone <val2> and dob <val3>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "phone"}, {"field": "dob"}]}
+{"nl": "create patient with name <val1> and email <val2>", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "add patient name <val> and mark as insured", "intent": "create", "table": "patient", "assignments": [{"field": "name"}, {"field": "insured", "value": "true"}]}
+// doctor
+{"nl": "add a doctor with name <val1> and specialty <val2>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "specialty"}]}
+{"nl": "create doctor with name <val1> email <val2> and specialty <val3>", "intent": "create", "table": "doctor", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "specialty"}]}
+{"nl": "register new doctor setting rating to <val1> and name to <val2>", "intent": "create", "table": "doctor", "assignments": [{"field": "rating"}, {"field": "name"}]}
+// invoice
+{"nl": "create an invoice with amount <val1> and paid false", "intent": "create", "table": "invoice", "assignments": [{"field": "amount"}, {"field": "paid", "value": "false"}]}
+{"nl": "add invoice with amount <val>", "intent": "create", "table": "invoice", "assignments": [{"field": "amount"}]}
+{"nl": "create new invoice setting amount to <val1> and paid to <val2>", "intent": "create", "table": "invoice", "assignments": [{"field": "amount"}, {"field": "paid"}]}
+// expense
+{"nl": "log an expense with amount <val1> and description <val2>", "intent": "create", "table": "expense", "assignments": [{"field": "amount"}, {"field": "description"}]}
+{"nl": "create expense amount <val1> description <val2> and mark unapproved", "intent": "create", "table": "expense", "assignments": [{"field": "amount"}, {"field": "description"}, {"field": "approved", "value": "false"}]}
+{"nl": "add new expense with amount <val>", "intent": "create", "table": "expense", "assignments": [{"field": "amount"}]}
+// shipment
+{"nl": "create a shipment with carrier <val1> and status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier"}, {"field": "status", "value": "pending"}]}
+{"nl": "add shipment with carrier <val1> weight <val2> and status <val3>", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier"}, {"field": "weight"}, {"field": "status"}]}
+{"nl": "register new shipment setting carrier to <val>", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier"}]}
+// review
+{"nl": "add a review with rating <val1> and body <val2>", "intent": "create", "table": "review", "assignments": [{"field": "rating"}, {"field": "body"}]}
+{"nl": "create review with author <val1> rating <val2> and body <val3>", "intent": "create", "table": "review", "assignments": [{"field": "author"}, {"field": "rating"}, {"field": "body"}]}
+{"nl": "post a new review setting rating to <val>", "intent": "create", "table": "review", "assignments": [{"field": "rating"}]}
+// ticket
+{"nl": "create a ticket with price <val1> and status available", "intent": "create", "table": "ticket", "assignments": [{"field": "price"}, {"field": "status", "value": "available"}]}
+{"nl": "add ticket with price <val1> and status <val2>", "intent": "create", "table": "ticket", "assignments": [{"field": "price"}, {"field": "status"}]}
+{"nl": "issue new ticket setting price to <val>", "intent": "create", "table": "ticket", "assignments": [{"field": "price"}]}
+// shift
+{"nl": "create a shift with location <val1> and mark as unpaid", "intent": "create", "table": "shift", "assignments": [{"field": "location"}, {"field": "paid", "value": "false"}]}
+{"nl": "add shift with location <val1> start <val2> and end <val3>", "intent": "create", "table": "shift", "assignments": [{"field": "location"}, {"field": "start"}, {"field": "end"}]}
+{"nl": "register new shift at location <val>", "intent": "create", "table": "shift", "assignments": [{"field": "location"}]}
+// listing
+{"nl": "create a listing with price <val1> and status active", "intent": "create", "table": "listing", "assignments": [{"field": "price"}, {"field": "status", "value": "active"}]}
+{"nl": "add listing with price <val1> and status <val2>", "intent": "create", "table": "listing", "assignments": [{"field": "price"}, {"field": "status"}]}
+{"nl": "publish new listing setting price to <val>", "intent": "create", "table": "listing", "assignments": [{"field": "price"}]}
+// prescription
+{"nl": "create a prescription with drug <val1> and dosage <val2>", "intent": "create", "table": "prescription", "assignments": [{"field": "drug"}, {"field": "dosage"}]}
+{"nl": "add prescription with drug <val1> dosage <val2> and mark active", "intent": "create", "table": "prescription", "assignments": [{"field": "drug"}, {"field": "dosage"}, {"field": "active", "value": "true"}]}
+{"nl": "issue prescription for drug <val>", "intent": "create", "table": "prescription", "assignments": [{"field": "drug"}]}
+// enrollment
+{"nl": "create an enrollment with grade <val> and mark incomplete", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade"}, {"field": "completed", "value": "false"}]}
+{"nl": "add enrollment with grade <val1> and completed <val2>", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade"}, {"field": "completed"}]}
+// transaction
+{"nl": "create a transaction with amount <val1> and type <val2>", "intent": "create", "table": "transaction", "assignments": [{"field": "amount"}, {"field": "type"}]}
+{"nl": "add transaction with amount <val1> type <val2> and status pending", "intent": "create", "table": "transaction", "assignments": [{"field": "amount"}, {"field": "type"}, {"field": "status", "value": "pending"}]}
+{"nl": "record new transaction setting amount to <val>", "intent": "create", "table": "transaction", "assignments": [{"field": "amount"}]}
+// account
+{"nl": "create an account with name <val1> and type <val2>", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "type"}]}
+{"nl": "add account with name <val1> balance <val2> and type <val3>", "intent": "create", "table": "account", "assignments": [{"field": "name"}, {"field": "balance"}, {"field": "type"}]}
+{"nl": "open new account with name <val>", "intent": "create", "table": "account", "assignments": [{"field": "name"}]}
+// student
+{"nl": "enroll a student with name <val1> and email <val2>", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "create student with name <val1> gpa <val2> and mark enrolled", "intent": "create", "table": "student", "assignments": [{"field": "name"}, {"field": "gpa"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "add new student setting name to <val>", "intent": "create", "table": "student", "assignments": [{"field": "name"}]}
+// course
+{"nl": "create a course with name <val1> and credits <val2>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "credits"}]}
+{"nl": "add course with name <val1> credits <val2> and capacity <val3>", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "credits"}, {"field": "capacity"}]}
+{"nl": "register new course setting name to <val> and mark active", "intent": "create", "table": "course", "assignments": [{"field": "name"}, {"field": "active", "value": "true"}]}
+// venue
+{"nl": "create a venue with name <val1> and capacity <val2>", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "capacity"}]}
+{"nl": "add venue with name <val1> address <val2> and capacity <val3>", "intent": "create", "table": "venue", "assignments": [{"field": "name"}, {"field": "address"}, {"field": "capacity"}]}
+// event
+{"nl": "create an event with name <val1> and status upcoming", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "status", "value": "upcoming"}]}
+{"nl": "add event with name <val1> capacity <val2> and status <val3>", "intent": "create", "table": "event", "assignments": [{"field": "name"}, {"field": "capacity"}, {"field": "status"}]}
+// property
+{"nl": "list a property with address <val1> and price <val2>", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "price"}]}
+{"nl": "create property with address <val1> price <val2> and bedrooms <val3>", "intent": "create", "table": "property", "assignments": [{"field": "address"}, {"field": "price"}, {"field": "bedrooms"}]}
+{"nl": "add new property at address <val>", "intent": "create", "table": "property", "assignments": [{"field": "address"}]}
+// supplier
+{"nl": "add a supplier with name <val1> and country <val2>", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "country"}]}
+{"nl": "create supplier with name <val1> email <val2> and country <val3>", "intent": "create", "table": "supplier", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "country"}]}
+// warehouse
+{"nl": "create a warehouse with name <val1> and location <val2>", "intent": "create", "table": "warehouse", "assignments": [{"field": "name"}, {"field": "location"}]}
+{"nl": "add warehouse with name <val1> location <val2> and capacity <val3>", "intent": "create", "table": "warehouse", "assignments": [{"field": "name"}, {"field": "location"}, {"field": "capacity"}]}
+// department
+{"nl": "create a department with name <val1> and head <val2>", "intent": "create", "table": "department", "assignments": [{"field": "name"}, {"field": "head"}]}
+{"nl": "add department with name <val1> head <val2> and budget <val3>", "intent": "create", "table": "department", "assignments": [{"field": "name"}, {"field": "head"}, {"field": "budget"}]}
+// instructor
+{"nl": "add an instructor with name <val1> and department <val2>", "intent": "create", "table": "instructor", "assignments": [{"field": "name"}, {"field": "department"}]}
+{"nl": "create instructor with name <val1> email <val2> and department <val3>", "intent": "create", "table": "instructor", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "department"}]}
+// agent
+{"nl": "add a real estate agent with name <val1> and phone <val2>", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "phone"}]}
+{"nl": "create agent with name <val1> email <val2> and mark active", "intent": "create", "table": "agent", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "active", "value": "true"}]}
+// attendee
+{"nl": "add an attendee with name <val1> and email <val2>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "email"}]}
+{"nl": "create attendee with name <val1> email <val2> and phone <val3>", "intent": "create", "table": "attendee", "assignments": [{"field": "name"}, {"field": "email"}, {"field": "phone"}]}
+// budget
+{"nl": "create a budget with name <val1> and amount <val2>", "intent": "create", "table": "budget", "assignments": [{"field": "name"}, {"field": "amount"}]}
+{"nl": "add budget with name <val1> amount <val2> and spent <val3>", "intent": "create", "table": "budget", "assignments": [{"field": "name"}, {"field": "amount"}, {"field": "spent"}]}
+// category
+{"nl": "create a category with name <val1> and description <val2>", "intent": "create", "table": "category", "assignments": [{"field": "name"}, {"field": "description"}]}
+{"nl": "add category with name <val>", "intent": "create", "table": "category", "assignments": [{"field": "name"}]}
+// role
+{"nl": "create a role with title <val1> and level <val2>", "intent": "create", "table": "role", "assignments": [{"field": "title"}, {"field": "level"}]}
+{"nl": "add role with title <val1> level <val2> and mark active", "intent": "create", "table": "role", "assignments": [{"field": "title"}, {"field": "level"}, {"field": "active", "value": "true"}]}
+// create9.jsonl — CREATE with literal values, varied NL phrasing
+// employee
+{"nl": "add a new full-time employee named Alice in engineering", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Alice"}, {"field": "department", "value": "Engineering"}, {"field": "active", "value": "true"}]}
+{"nl": "create an employee record for Bob in sales with salary 75000", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Bob"}, {"field": "department", "value": "Sales"}, {"field": "salary", "value": "75000"}]}
+{"nl": "I want to add a new employee Charlie as a manager", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Charlie"}, {"field": "role", "value": "Manager"}]}
+{"nl": "register a new hire with name Diana salary 60000", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Diana"}, {"field": "salary", "value": "60000"}]}
+{"nl": "please create an employee for Eve in HR and set active to true", "intent": "create", "table": "employee", "assignments": [{"field": "name", "value": "Eve"}, {"field": "department", "value": "HR"}, {"field": "active", "value": "true"}]}
+// product
+{"nl": "add a new product called Widget priced at 29.99", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Widget"}, {"field": "price", "value": "29.99"}]}
+{"nl": "create a product named Gadget with sku SKU-001 and stock 100", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Gadget"}, {"field": "sku", "value": "SKU-001"}, {"field": "stock", "value": "100"}]}
+{"nl": "I'd like to add a new active product called Doohickey at price 9.99", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Doohickey"}, {"field": "price", "value": "9.99"}, {"field": "active", "value": "true"}]}
+{"nl": "register product Thingamajig with 50 in stock", "intent": "create", "table": "product", "assignments": [{"field": "name", "value": "Thingamajig"}, {"field": "stock", "value": "50"}]}
+// customer
+{"nl": "add a new customer named John Smith with email john@example.com", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "John Smith"}, {"field": "email", "value": "john@example.com"}]}
+{"nl": "create customer record for Jane Doe with phone 555-0100", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Jane Doe"}, {"field": "phone", "value": "555-0100"}]}
+{"nl": "register a new customer called Acme Corp", "intent": "create", "table": "customer", "assignments": [{"field": "name", "value": "Acme Corp"}]}
+// order
+{"nl": "place a new order with status pending and total 150", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "pending"}, {"field": "total", "value": "150"}]}
+{"nl": "create an order for 250 dollars", "intent": "create", "table": "order", "assignments": [{"field": "total", "value": "250"}]}
+{"nl": "add a new shipped order with total 99", "intent": "create", "table": "order", "assignments": [{"field": "status", "value": "shipped"}, {"field": "total", "value": "99"}]}
+// appointment
+{"nl": "book a confirmed appointment with notes follow-up required", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}, {"field": "notes", "value": "follow-up required"}]}
+{"nl": "create a pending appointment", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "pending"}]}
+{"nl": "schedule a new appointment with status confirmed", "intent": "create", "table": "appointment", "assignments": [{"field": "status", "value": "confirmed"}]}
+// patient
+{"nl": "add a new insured patient named Mary Jones", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Mary Jones"}, {"field": "insured", "value": "true"}]}
+{"nl": "register patient Tom Brown with phone 555-0200", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Tom Brown"}, {"field": "phone", "value": "555-0200"}]}
+{"nl": "create a patient record for Sarah Lee with email sarah@example.com", "intent": "create", "table": "patient", "assignments": [{"field": "name", "value": "Sarah Lee"}, {"field": "email", "value": "sarah@example.com"}]}
+// doctor
+{"nl": "add a new cardiologist named Dr. Smith", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Smith"}, {"field": "specialty", "value": "Cardiology"}]}
+{"nl": "create a doctor record for Dr. Jones as a pediatrician", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Jones"}, {"field": "specialty", "value": "Pediatrics"}]}
+{"nl": "register new doctor Dr. Williams with rating 4.8", "intent": "create", "table": "doctor", "assignments": [{"field": "name", "value": "Dr. Williams"}, {"field": "rating", "value": "4.8"}]}
+// invoice
+{"nl": "create an unpaid invoice for 500 dollars", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "500"}, {"field": "paid", "value": "false"}]}
+{"nl": "add a new invoice with amount 1200 and mark as paid", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "1200"}, {"field": "paid", "value": "true"}]}
+{"nl": "generate an invoice for 350 dollars", "intent": "create", "table": "invoice", "assignments": [{"field": "amount", "value": "350"}]}
+// expense
+{"nl": "log a new expense of 200 for office supplies", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "200"}, {"field": "description", "value": "office supplies"}]}
+{"nl": "create an approved expense for 500 for travel", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "500"}, {"field": "description", "value": "travel"}, {"field": "approved", "value": "true"}]}
+{"nl": "add an unapproved expense of 75 for meals", "intent": "create", "table": "expense", "assignments": [{"field": "amount", "value": "75"}, {"field": "description", "value": "meals"}, {"field": "approved", "value": "false"}]}
+// shipment
+{"nl": "create a FedEx shipment with status pending", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "FedEx"}, {"field": "status", "value": "pending"}]}
+{"nl": "add a new UPS shipment weighing 5kg", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "UPS"}, {"field": "weight", "value": "5"}]}
+{"nl": "register a delivered DHL shipment", "intent": "create", "table": "shipment", "assignments": [{"field": "carrier", "value": "DHL"}, {"field": "status", "value": "delivered"}]}
+// review
+{"nl": "add a 5-star review saying it was excellent", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "5"}, {"field": "body", "value": "excellent"}]}
+{"nl": "create a review with rating 3 and body average experience", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "3"}, {"field": "body", "value": "average experience"}]}
+{"nl": "post a review with rating 4 from author JohnDoe", "intent": "create", "table": "review", "assignments": [{"field": "rating", "value": "4"}, {"field": "author", "value": "JohnDoe"}]}
+// ticket
+{"nl": "create an available ticket priced at 25", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "25"}, {"field": "status", "value": "available"}]}
+{"nl": "add a sold ticket for 100 dollars", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "100"}, {"field": "status", "value": "sold"}]}
+{"nl": "issue a new ticket at price 49.99", "intent": "create", "table": "ticket", "assignments": [{"field": "price", "value": "49.99"}]}
+// shift
+{"nl": "create a downtown shift that is unpaid", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Downtown"}, {"field": "paid", "value": "false"}]}
+{"nl": "add a paid shift at location Uptown", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Uptown"}, {"field": "paid", "value": "true"}]}
+{"nl": "register a new shift at location Warehouse", "intent": "create", "table": "shift", "assignments": [{"field": "location", "value": "Warehouse"}]}
+// listing
+{"nl": "create an active listing priced at 350000", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "350000"}, {"field": "status", "value": "active"}]}
+{"nl": "add a new sold listing for 500000", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "500000"}, {"field": "status", "value": "sold"}]}
+{"nl": "publish a listing at 175000", "intent": "create", "table": "listing", "assignments": [{"field": "price", "value": "175000"}]}
+// prescription
+{"nl": "create an active prescription for Amoxicillin 500mg", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Amoxicillin"}, {"field": "dosage", "value": "500mg"}, {"field": "active", "value": "true"}]}
+{"nl": "add a prescription for Ibuprofen with dosage 200mg", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Ibuprofen"}, {"field": "dosage", "value": "200mg"}]}
+{"nl": "issue a prescription for Lisinopril", "intent": "create", "table": "prescription", "assignments": [{"field": "drug", "value": "Lisinopril"}]}
+// enrollment
+{"nl": "create a completed enrollment with grade A", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "A"}, {"field": "completed", "value": "true"}]}
+{"nl": "add an incomplete enrollment with grade B", "intent": "create", "table": "enrollment", "assignments": [{"field": "grade", "value": "B"}, {"field": "completed", "value": "false"}]}
+// transaction
+{"nl": "create a completed transaction of 500 dollars type deposit", "intent": "create", "table": "transaction", "assignments": [{"field": "amount", "value": "500"}, {"field": "type", "value": "deposit"}, {"field": "status", "value": "completed"}]}
+{"nl": "add a pending withdrawal transaction of 200", "intent": "create", "table": "transaction", "assignments": [{"field": "amount", "value": "200"}, {"field": "type", "value": "withdrawal"}, {"field": "status", "value": "pending"}]}
+// account
+{"nl": "open a new savings account for John", "intent": "create", "table": "account", "assignments": [{"field": "name", "value": "John"}, {"field": "type", "value": "savings"}]}
+{"nl": "create a checking account with balance 1000", "intent": "create", "table": "account", "assignments": [{"field": "type", "value": "checking"}, {"field": "balance", "value": "1000"}]}
+// student
+{"nl": "enroll a new student named Alice with gpa 3.8", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Alice"}, {"field": "gpa", "value": "3.8"}, {"field": "enrolled", "value": "true"}]}
+{"nl": "create a student record for Bob with email bob@school.edu", "intent": "create", "table": "student", "assignments": [{"field": "name", "value": "Bob"}, {"field": "email", "value": "bob@school.edu"}]}
+// course
+{"nl": "create a new 3-credit Introduction to Python course", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Introduction to Python"}, {"field": "credits", "value": "3"}, {"field": "active", "value": "true"}]}
+{"nl": "add a course called Data Structures with 4 credits and capacity 30", "intent": "create", "table": "course", "assignments": [{"field": "name", "value": "Data Structures"}, {"field": "credits", "value": "4"}, {"field": "capacity", "value": "30"}]}
+// venue
+{"nl": "create a venue called Grand Hall with capacity 500", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "Grand Hall"}, {"field": "capacity", "value": "500"}]}
+{"nl": "add a venue named City Arena at 123 Main St", "intent": "create", "table": "venue", "assignments": [{"field": "name", "value": "City Arena"}, {"field": "address", "value": "123 Main St"}]}
+// event
+{"nl": "create an upcoming event called Summer Festival with capacity 1000", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Summer Festival"}, {"field": "status", "value": "upcoming"}, {"field": "capacity", "value": "1000"}]}
+{"nl": "add a new event called Tech Conference", "intent": "create", "table": "event", "assignments": [{"field": "name", "value": "Tech Conference"}]}
+// property
+{"nl": "list a 3-bedroom property at 456 Oak Ave priced at 300000", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "456 Oak Ave"}, {"field": "price", "value": "300000"}, {"field": "bedrooms", "value": "3"}]}
+{"nl": "add a new condo at 789 Elm St for 250000", "intent": "create", "table": "property", "assignments": [{"field": "address", "value": "789 Elm St"}, {"field": "price", "value": "250000"}, {"field": "type", "value": "condo"}]}
+// supplier
+{"nl": "add a new supplier called Global Supplies from USA", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "Global Supplies"}, {"field": "country", "value": "USA"}, {"field": "active", "value": "true"}]}
+{"nl": "create a supplier named TechParts from Germany with rating 4.5", "intent": "create", "table": "supplier", "assignments": [{"field": "name", "value": "TechParts"}, {"field": "country", "value": "Germany"}, {"field": "rating", "value": "4.5"}]}
+// warehouse
+{"nl": "create a warehouse called West Facility in Los Angeles", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "West Facility"}, {"field": "location", "value": "Los Angeles"}]}
+{"nl": "add East Warehouse with capacity 5000", "intent": "create", "table": "warehouse", "assignments": [{"field": "name", "value": "East Warehouse"}, {"field": "capacity", "value": "5000"}]}
+// department
+{"nl": "create an Engineering department with head Sarah", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Engineering"}, {"field": "head", "value": "Sarah"}]}
+{"nl": "add a Marketing department with budget 100000", "intent": "create", "table": "department", "assignments": [{"field": "name", "value": "Marketing"}, {"field": "budget", "value": "100000"}]}
+// instructor
+{"nl": "add instructor Prof. Johnson in Computer Science", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Prof. Johnson"}, {"field": "department", "value": "Computer Science"}]}
+{"nl": "create an instructor record for Dr. Brown with email dbrown@uni.edu", "intent": "create", "table": "instructor", "assignments": [{"field": "name", "value": "Dr. Brown"}, {"field": "email", "value": "dbrown@uni.edu"}]}
+// agent
+{"nl": "add a new real estate agent named Mike with rating 4.7", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Mike"}, {"field": "rating", "value": "4.7"}, {"field": "active", "value": "true"}]}
+{"nl": "create agent Laura with phone 555-0300", "intent": "create", "table": "agent", "assignments": [{"field": "name", "value": "Laura"}, {"field": "phone", "value": "555-0300"}]}
+// attendee
+{"nl": "register attendee Alice Smith with email alice@event.com", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Alice Smith"}, {"field": "email", "value": "alice@event.com"}]}
+{"nl": "add a new attendee Bob with phone 555-0400", "intent": "create", "table": "attendee", "assignments": [{"field": "name", "value": "Bob"}, {"field": "phone", "value": "555-0400"}]}
+// budget
+{"nl": "create a Q1 budget with amount 50000", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Q1 Budget"}, {"field": "amount", "value": "50000"}]}
+{"nl": "add annual budget with amount 200000 and spent 0", "intent": "create", "table": "budget", "assignments": [{"field": "name", "value": "Annual Budget"}, {"field": "amount", "value": "200000"}, {"field": "spent", "value": "0"}]}
+// category
+{"nl": "create a category called Electronics with description consumer electronics", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Electronics"}, {"field": "description", "value": "consumer electronics"}]}
+{"nl": "add a new category named Clothing", "intent": "create", "table": "category", "assignments": [{"field": "name", "value": "Clothing"}]}
+// role
+{"nl": "create an admin role with level 5 and mark active", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Admin"}, {"field": "level", "value": "5"}, {"field": "active", "value": "true"}]}
+{"nl": "add a viewer role with level 1", "intent": "create", "table": "role", "assignments": [{"field": "title", "value": "Viewer"}, {"field": "level", "value": "1"}]}
