@@ -131,30 +131,25 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let (full_seqs, pools, seq_lens) = self.model.encode_nl_batch(
             &batch_tokens, self.config.token_buckets, &self.device,
         );
-        let d = self.config.d_model;
 
         // Level-1 in one batched pass: table cross-attn + entity head for all datums.
         let (pool1s, entity_logits) = self.model.level1_batch(pools, &embs, &self.device);
 
-        // Accumulate all per-datum losses into one tensor, then single backward
+        // Batch all datums through slot heads simultaneously
+        let all_slots: Vec<_> = batch.iter().map(|d| d.slot_counts()).collect();
+        let entity_indices: Vec<Option<usize>> = batch.iter().map(|d| Some(d.entity)).collect();
+        let all_logits = self.model.head_scoring_batch(
+            pool1s, entity_logits, full_seqs, &seq_lens,
+            &all_slots, &entity_indices, &embs, &self.catalog, &self.device,
+        );
+
         let mut losses: Vec<Tensor<B, 1>> = Vec::new();
         let mut n_total = 0usize;
         let mut total_loss_val = 0.0f32;
 
-        for (i, datum) in batch.iter().enumerate() {
-            let pool_1 = pool1s.clone().slice([i..i+1, 0..d]).reshape([d]);
-            let n_tables = entity_logits.dims()[1];
-            let entity = entity_logits.clone().slice([i..i+1, 0..n_tables]).reshape([n_tables]);
-            let sl = seq_lens[i];
-            let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
-            let slots = datum.slot_counts();
-            let logits = self.model.head_scoring(
-                pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
-            );
-
-            let (loss, n) = self.datum_loss(&logits, datum);
+        for (datum, logits) in batch.iter().zip(all_logits.iter()) {
+            let (loss, n) = self.datum_loss(logits, datum);
             if n == 0 { continue; }
-
             total_loss_val += loss.clone().inner().into_scalar().elem::<f32>();
             n_total += n;
             losses.push(loss);
@@ -257,20 +252,17 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
                 &chunk_tokens, self.config.token_buckets, &self.device,
             );
-            let d = self.config.d_model;
 
             let (pool1s, entity_logits) = inner.level1_batch(pools, &embs, &self.device);
 
-            for (i, datum) in chunk.iter().enumerate() {
-                let pool_1 = pool1s.clone().slice([i..i+1, 0..d]).reshape([d]);
-                let n_tables = entity_logits.dims()[1];
-                let entity = entity_logits.clone().slice([i..i+1, 0..n_tables]).reshape([n_tables]);
-                let sl = seq_lens[i];
-                let nl_seq = full_seqs.clone().slice([i..i+1, 0..sl, 0..d]).reshape([sl, d]);
-                let slots = datum.slot_counts();
-                let logits = inner.head_scoring(
-                    pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
-                );
+            let chunk_slots: Vec<_> = chunk.iter().map(|d| d.slot_counts()).collect();
+            let chunk_entity_idxs: Vec<Option<usize>> = chunk.iter().map(|d| Some(d.entity)).collect();
+            let chunk_logits = inner.head_scoring_batch(
+                pool1s, entity_logits, full_seqs, &seq_lens,
+                &chunk_slots, &chunk_entity_idxs, &embs, &self.catalog, &self.device,
+            );
+
+            for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
 
                 // Loss
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
@@ -385,21 +377,18 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
                 &chunk_tokens, self.config.token_buckets, &self.device,
             );
-            let d = self.config.d_model;
 
             let (pool1s, entity_logits) = inner.level1_batch(pools, &embs, &self.device);
 
-            for (ci, datum) in chunk.iter().enumerate() {
+            let chunk_slots: Vec<_> = chunk.iter().map(|d| d.slot_counts()).collect();
+            let chunk_entity_idxs: Vec<Option<usize>> = chunk.iter().map(|d| Some(d.entity)).collect();
+            let chunk_logits = inner.head_scoring_batch(
+                pool1s, entity_logits, full_seqs, &seq_lens,
+                &chunk_slots, &chunk_entity_idxs, &embs, &self.catalog, &self.device,
+            );
+
+            for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
                 if datum.asgn_fields.is_empty() { continue; }
-                let pool_1 = pool1s.clone().slice([ci..ci+1, 0..d]).reshape([d]);
-                let n_tables = entity_logits.dims()[1];
-                let entity = entity_logits.clone().slice([ci..ci+1, 0..n_tables]).reshape([n_tables]);
-                let sl = seq_lens[ci];
-                let nl_seq = full_seqs.clone().slice([ci..ci+1, 0..sl, 0..d]).reshape([sl, d]);
-                let slots = datum.slot_counts();
-                let logits = inner.head_scoring(
-                    pool_1, entity, nl_seq, &slots, &self.catalog, Some(datum.entity), &embs, &self.device,
-                );
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
                 let ti = datum.entity;
 

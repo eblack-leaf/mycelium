@@ -618,6 +618,222 @@ impl<B: Backend> Lamella<B> {
         LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
     }
 
+    /// Batched head scoring: processes all datums in a batch simultaneously.
+    /// Eliminates bs × n_slots sequential GPU dispatches — all slot heads
+    /// run as single [bs, ...] ops instead of many [1, ...] ops.
+    pub fn head_scoring_batch(
+        &self,
+        pool1s: Tensor<B, 2>,              // [bs, d_model]
+        entity_logits: Tensor<B, 2>,       // [bs, n_tables]
+        full_seqs: Tensor<B, 3>,           // [bs, max_seq, d_model]
+        seq_lens: &[usize],
+        all_slots: &[SlotCounts],
+        entity_indices: &[Option<usize>],  // Some = teacher forcing, None = argmax
+        embs: &SchemaEmbs<B>,
+        catalog: &SchemaCatalog,
+        device: &B::Device,
+    ) -> Vec<LamellaLogits<B>> {
+        let d = self.d_model;
+        let scale = 1.0f32 / (d as f32).sqrt();
+        let bs = all_slots.len();
+        let max_seq = full_seqs.dims()[1];
+        let n_tables = embs.table_embs.dims()[0];
+        let n_ops    = embs.op_embs.dims()[0];
+        let n_cmps   = embs.cmp_embs.dims()[0];
+        let n_mods   = embs.mod_embs.dims()[0];
+
+        const T_INTENT:     usize = 0;
+        const T_PROJ:       usize = 2;
+        const T_COND_FIELD: usize = 3;
+        const T_COND_CMP:   usize = 4;
+        const T_ASGN:       usize = 5;
+        const T_MOD_TYPE:   usize = 6;
+        const T_MOD_FIELD:  usize = 7;
+
+        // ── Resolve entity indices ──────────────────────────────────────
+        let entity_idxs: Vec<usize> = entity_indices.iter().enumerate().map(|(b, opt)| {
+            match opt {
+                Some(idx) => *idx,
+                None => entity_logits.clone()
+                    .slice([b..b+1, 0..n_tables]).reshape([n_tables])
+                    .argmax(0).into_scalar().elem::<i32>() as usize,
+            }
+        }).collect();
+
+        // ── Padded field embeddings [bs, max_fields, d] ─────────────────
+        let n_fields_per: Vec<usize> = entity_idxs.iter()
+            .map(|&ei| catalog.table_field_indices[ei].len())
+            .collect();
+        let max_fields = n_fields_per.iter().copied().max().unwrap_or(0).max(1);
+
+        let mut gather_flat   = vec![0i32;   bs * max_fields];
+        let mut field_mask_flat = vec![0.0f32; bs * max_fields];
+        for (b, &ei) in entity_idxs.iter().enumerate() {
+            for (j, &gf) in catalog.table_field_indices[ei].iter().enumerate() {
+                gather_flat[b * max_fields + j]    = gf as i32;
+                field_mask_flat[b * max_fields + j] = 1.0;
+            }
+        }
+        let gather_idx = Tensor::<B, 1, Int>::from_ints(gather_flat.as_slice(), device);
+        let padded_field_embs = embs.field_embs.clone()
+            .select(0, gather_idx)
+            .reshape([bs as i32, max_fields as i32, d as i32]); // [bs, max_fields, d]
+
+        // field_bias [bs, max_fields]: -1e9 for padding, 0 for valid
+        let field_bias = (Tensor::<B, 1>::from_floats(field_mask_flat.as_slice(), device)
+            .reshape([bs as i32, max_fields as i32]) - 1.0f32) * 1e9f32;
+
+        // seq_bias [bs, max_seq, 1]: -1e9 for padding tokens
+        let mut seq_mask_flat = vec![0.0f32; bs * max_seq];
+        for (b, &sl) in seq_lens.iter().enumerate() {
+            for s in 0..sl { seq_mask_flat[b * max_seq + s] = 1.0; }
+        }
+        let seq_bias = (Tensor::<B, 1>::from_floats(seq_mask_flat.as_slice(), device)
+            .reshape([bs as i32, max_seq as i32, 1]) - 1.0f32) * 1e9f32;
+
+        // ── Level 2: field cross-attention → pool_2 [bs, d] ─────────────
+        let pool_2 = if n_fields_per.iter().any(|&n| n > 0) {
+            let q2 = self.xattn_field_q.forward(pool1s.clone()); // [bs, d]
+            let scores2 = q2.reshape([bs as i32, 1, d as i32])
+                .matmul(padded_field_embs.clone().transpose()) // [bs, 1, max_fields]
+                .reshape([bs as i32, max_fields as i32])
+                + field_bias.clone();
+            let attn2 = activation::softmax(scores2, 1);       // [bs, max_fields]
+            let ctx_2 = attn2.reshape([bs as i32, 1, max_fields as i32])
+                .matmul(padded_field_embs.clone())             // [bs, 1, d]
+                .reshape([bs as i32, d as i32]);
+            pool1s.clone() + ctx_2
+        } else {
+            pool1s.clone()
+        };
+
+        // ── Intent (pool only) ──────────────────────────────────────────
+        let st_intent = self.stype(T_INTENT, device).unsqueeze::<2>(); // [1, d]
+        let intent_logits_b = self.bi_intent
+            .forward(self.head_intent.forward(pool_2.clone() + st_intent))
+            .matmul(embs.op_embs.clone().transpose()); // [bs, n_ops]
+
+        // ── Precompute type embs (broadcast [1, d]) ─────────────────────
+        let st_proj   = self.stype(T_PROJ,       device).unsqueeze::<2>();
+        let st_cf     = self.stype(T_COND_FIELD,  device).unsqueeze::<2>();
+        let st_cc     = self.stype(T_COND_CMP,    device).unsqueeze::<2>();
+        let st_asgn   = self.stype(T_ASGN,        device).unsqueeze::<2>();
+        let st_mod_t  = self.stype(T_MOD_TYPE,    device).unsqueeze::<2>();
+        let st_mod_f  = self.stype(T_MOD_FIELD,   device).unsqueeze::<2>();
+
+        let max_proj  = all_slots.iter().map(|s| s.projections).max().unwrap_or(0);
+        let max_cond  = all_slots.iter().map(|s| s.conditions).max().unwrap_or(0);
+        let max_asgn  = all_slots.iter().map(|s| s.assignments).max().unwrap_or(0);
+        let max_mod_t = all_slots.iter().map(|s| s.mod_types).max().unwrap_or(0);
+        let max_mod_f = all_slots.iter().map(|s| s.mod_fields).max().unwrap_or(0);
+
+        // ── Helper: NL attention → ctx [bs, d] ─────────────────────────
+        // raw_scores [bs, max_seq, 1] = full_seqs @ q [bs, d, 1] * scale
+        // attn = softmax(raw + seq_bias - cov, dim=1)
+        // ctx  = full_seqs.T [bs, d, max_seq] @ attn [bs, max_seq, 1] → [bs, d]
+        let nl_attn = |q: Tensor<B, 2>, seq_bias: Tensor<B, 3>, cov: Tensor<B, 3>| {
+            let raw = full_seqs.clone()
+                .matmul(q.reshape([bs as i32, d as i32, 1])) * scale; // [bs, max_seq, 1]
+            let attn_w = activation::softmax(raw + seq_bias - cov, 1);
+            let ctx = full_seqs.clone().transpose()
+                .matmul(attn_w.clone())
+                .reshape([bs as i32, d as i32]); // [bs, d]
+            (ctx, attn_w)
+        };
+
+        // ── Field scoring: bi(ctx) [bs, d] → [bs, max_fields] ──────────
+        let field_score = |bi: &Linear<B>, ctx: Tensor<B, 2>| -> Tensor<B, 2> {
+            bi.forward(ctx)
+                .reshape([bs as i32, 1, d as i32])
+                .matmul(padded_field_embs.clone().transpose()) // [bs, 1, max_fields]
+                .reshape([bs as i32, max_fields as i32])
+                + field_bias.clone()
+        };
+
+        // ── Projection ─────────────────────────────────────────────────
+        let mut proj_cov: Tensor<B, 3> = Tensor::zeros([bs, max_seq, 1], device);
+        let mut proj_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_proj);
+        for i in 0..max_proj {
+            let slot_i = self.slot(i, device).unsqueeze::<2>();
+            let q = self.head_proj.forward(pool_2.clone() + st_proj.clone() + slot_i);
+            let (ctx, attn_w) = nl_attn(q, seq_bias.clone(), proj_cov.clone());
+            proj_cov = proj_cov + attn_w;
+            proj_logits.push(field_score(&self.bi_proj, ctx));
+        }
+
+        // ── Condition field + comparator ────────────────────────────────
+        let mut cond_cov: Tensor<B, 3> = Tensor::zeros([bs, max_seq, 1], device);
+        let mut cond_field_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_cond);
+        let mut cond_cmp_logits:   Vec<Tensor<B, 2>> = Vec::with_capacity(max_cond);
+        for i in 0..max_cond {
+            let slot_i = self.slot(i, device).unsqueeze::<2>();
+            let qf = self.head_cond_f.forward(pool_2.clone() + st_cf.clone() + slot_i.clone());
+            let (ctx, attn_w) = nl_attn(qf, seq_bias.clone(), cond_cov.clone());
+            cond_cov = cond_cov + attn_w;
+            cond_field_logits.push(field_score(&self.bi_cond_f, ctx));
+            let qc = self.head_cond_c.forward(pool_2.clone() + st_cc.clone() + slot_i);
+            cond_cmp_logits.push(
+                self.bi_cond_c.forward(qc).matmul(embs.cmp_embs.clone().transpose())
+            );
+        }
+
+        // ── Assignment ─────────────────────────────────────────────────
+        let mut asgn_cov: Tensor<B, 3> = Tensor::zeros([bs, max_seq, 1], device);
+        let mut asgn_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_asgn);
+        for i in 0..max_asgn {
+            let slot_i = self.slot(i, device).unsqueeze::<2>();
+            let q = self.head_asgn.forward(pool_2.clone() + st_asgn.clone() + slot_i);
+            let (ctx, attn_w) = nl_attn(q, seq_bias.clone(), asgn_cov.clone());
+            asgn_cov = asgn_cov + attn_w;
+            asgn_logits.push(field_score(&self.bi_asgn, ctx));
+        }
+
+        // ── Modifier type (pool only) ───────────────────────────────────
+        let mut mod_type_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_mod_t);
+        for i in 0..max_mod_t {
+            let slot_i = self.slot(i, device).unsqueeze::<2>();
+            let q = self.head_mod_t.forward(pool_2.clone() + st_mod_t.clone() + slot_i);
+            mod_type_logits.push(
+                self.bi_mod_t.forward(q).matmul(embs.mod_embs.clone().transpose())
+            );
+        }
+
+        // ── Modifier field (NL attention, no coverage) ──────────────────
+        let mut mod_field_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_mod_f);
+        for i in 0..max_mod_f {
+            let slot_i = self.slot(i, device).unsqueeze::<2>();
+            let q = self.head_mod_f.forward(pool_2.clone() + st_mod_f.clone() + slot_i);
+            let (ctx, _) = nl_attn(q, seq_bias.clone(), Tensor::zeros([bs, max_seq, 1], device));
+            mod_field_logits.push(field_score(&self.bi_mod_f, ctx));
+        }
+
+        // ── Split to Vec<LamellaLogits> ─────────────────────────────────
+        (0..bs).map(|b| {
+            let intent = intent_logits_b.clone().slice([b..b+1, 0..n_ops]).reshape([n_ops]);
+            let entity = entity_logits.clone().slice([b..b+1, 0..n_tables]).reshape([n_tables]);
+            let nf = max_fields;
+            let projection = (0..all_slots[b].projections).map(|i|
+                proj_logits[i].clone().slice([b..b+1, 0..nf]).reshape([nf])
+            ).collect();
+            let cond_field = (0..all_slots[b].conditions).map(|i|
+                cond_field_logits[i].clone().slice([b..b+1, 0..nf]).reshape([nf])
+            ).collect();
+            let cond_cmp = (0..all_slots[b].conditions).map(|i|
+                cond_cmp_logits[i].clone().slice([b..b+1, 0..n_cmps]).reshape([n_cmps])
+            ).collect();
+            let assignment = (0..all_slots[b].assignments).map(|i|
+                asgn_logits[i].clone().slice([b..b+1, 0..nf]).reshape([nf])
+            ).collect();
+            let mod_type = (0..all_slots[b].mod_types).map(|i|
+                mod_type_logits[i].clone().slice([b..b+1, 0..n_mods]).reshape([n_mods])
+            ).collect();
+            let mod_field = (0..all_slots[b].mod_fields).map(|i|
+                mod_field_logits[i].clone().slice([b..b+1, 0..nf]).reshape([nf])
+            ).collect();
+            LamellaLogits { intent, entity, projection, cond_field, cond_cmp, assignment, mod_type, mod_field }
+        }).collect()
+    }
+
     /// Gather specific rows from a [N, d] tensor.
     fn gather_rows(
         &self,
