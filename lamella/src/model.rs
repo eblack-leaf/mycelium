@@ -41,6 +41,44 @@ pub struct LamellaConfig {
 }
 
 // =============================================================================
+// Gather cache — fixed per catalog, computed once at startup
+// =============================================================================
+
+/// Per-entity gather index and field mask tensors, resident on device.
+/// Built once from the catalog and reused across all batches.
+pub struct GatherCache<B: Backend> {
+    /// [n_tables, max_fields] — global field indices per table row, padded with 0
+    pub gather_idx: Tensor<B, 2, Int>,
+    /// [n_tables, max_fields] — 1.0 for valid field slots, 0.0 for padding
+    pub field_mask: Tensor<B, 2>,
+    pub max_fields: usize,
+}
+
+impl<B: Backend> GatherCache<B> {
+    pub fn new(catalog: &SchemaCatalog, device: &B::Device) -> Self {
+        let n_tables  = catalog.table_field_indices.len();
+        let max_fields = catalog.table_field_indices.iter()
+            .map(|f| f.len()).max().unwrap_or(0).max(1);
+
+        let mut idx_flat  = vec![0i32;   n_tables * max_fields];
+        let mut mask_flat = vec![0.0f32; n_tables * max_fields];
+        for (t, fields) in catalog.table_field_indices.iter().enumerate() {
+            for (j, &gf) in fields.iter().enumerate() {
+                idx_flat [t * max_fields + j] = gf as i32;
+                mask_flat[t * max_fields + j] = 1.0;
+            }
+        }
+        Self {
+            gather_idx: Tensor::<B, 1, Int>::from_ints(idx_flat.as_slice(), device)
+                .reshape([n_tables as i32, max_fields as i32]),
+            field_mask: Tensor::<B, 1>::from_floats(mask_flat.as_slice(), device)
+                .reshape([n_tables as i32, max_fields as i32]),
+            max_fields,
+        }
+    }
+}
+
+// =============================================================================
 // Cached schema embeddings — computed once per batch
 // =============================================================================
 
@@ -239,18 +277,24 @@ impl<B: Backend> Lamella<B> {
     }
 
     /// Encode a batch of tokenized NL inputs in one transformer pass.
-    /// Returns (full_seq [bs, max_seq, d_model], pool [bs, d_model], seq_lens).
+    /// Returns (full_seq [bs, max_seq, d_model], pool [bs, d_model], seq_lens, seq_mask [bs, max_seq, 1]).
+    /// seq_mask is 1.0 for real tokens, 0.0 for padding — reused by head_scoring_batch.
     pub fn encode_nl_batch(
         &self,
         batch_tokens: &[Vec<String>],
         token_buckets: usize,
         device: &B::Device,
-    ) -> (Tensor<B, 3>, Tensor<B, 2>, Vec<usize>) {
+    ) -> (Tensor<B, 3>, Tensor<B, 2>, Vec<usize>, Tensor<B, 3>) {
         let d = self.d_model;
         let ed = self.embed_dim;
         let bs = batch_tokens.len();
         if bs == 0 {
-            return (Tensor::zeros([0, 1, d], device), Tensor::zeros([0, d], device), vec![]);
+            return (
+                Tensor::zeros([0, 1, d], device),
+                Tensor::zeros([0, d], device),
+                vec![],
+                Tensor::zeros([0, 1, 1], device),
+            );
         }
 
         // Per-token n-gram indices for each datum
@@ -309,10 +353,10 @@ impl<B: Backend> Lamella<B> {
         // Masked mean-pool over sequence dim → [bs, d_model]
         let seq_mask = pad_mask.float().reshape([bs as i32, max_seq as i32, 1]);
         let seq_counts = seq_mask.clone().sum_dim(1).clamp_min(1.0); // [bs, 1, 1]
-        let pooled = (h.clone() * seq_mask).sum_dim(1) / seq_counts; // [bs, 1, d_model]
+        let pooled = (h.clone() * seq_mask.clone()).sum_dim(1) / seq_counts; // [bs, 1, d_model]
         let pool = pooled.reshape([bs as i32, d as i32]);
 
-        (h, pool, seq_lens)
+        (h, pool, seq_lens, seq_mask)
     }
 
     /// Compute schema node embeddings from precomputed n-gram indices.
@@ -449,7 +493,7 @@ impl<B: Backend> Lamella<B> {
         device: &B::Device,
     ) -> LamellaLogits<B> {
         let d = self.d_model;
-        let (full_seq, pools, seq_lens) = self.encode_nl_batch(
+        let (full_seq, pools, seq_lens, _seq_mask) = self.encode_nl_batch(
             &[tokens.to_vec()], token_buckets, device,
         );
         let (pool1s, entity_logits) = self.level1_batch(pools, embs, device);
@@ -626,11 +670,11 @@ impl<B: Backend> Lamella<B> {
         pool1s: Tensor<B, 2>,              // [bs, d_model]
         entity_logits: Tensor<B, 2>,       // [bs, n_tables]
         full_seqs: Tensor<B, 3>,           // [bs, max_seq, d_model]
-        seq_lens: &[usize],
+        seq_mask: Tensor<B, 3>,            // [bs, max_seq, 1] — 1.0 real, 0.0 pad
         all_slots: &[SlotCounts],
         entity_indices: &[Option<usize>],  // Some = teacher forcing, None = argmax
+        cache: &GatherCache<B>,
         embs: &SchemaEmbs<B>,
-        catalog: &SchemaCatalog,
         device: &B::Device,
     ) -> Vec<LamellaLogits<B>> {
         let d = self.d_model;
@@ -641,6 +685,7 @@ impl<B: Backend> Lamella<B> {
         let n_ops    = embs.op_embs.dims()[0];
         let n_cmps   = embs.cmp_embs.dims()[0];
         let n_mods   = embs.mod_embs.dims()[0];
+        let max_fields = cache.max_fields;
 
         const T_INTENT:     usize = 0;
         const T_PROJ:       usize = 2;
@@ -661,38 +706,28 @@ impl<B: Backend> Lamella<B> {
         }).collect();
 
         // ── Padded field embeddings [bs, max_fields, d] ─────────────────
-        let n_fields_per: Vec<usize> = entity_idxs.iter()
-            .map(|&ei| catalog.table_field_indices[ei].len())
-            .collect();
-        let max_fields = n_fields_per.iter().copied().max().unwrap_or(0).max(1);
-
-        let mut gather_flat   = vec![0i32;   bs * max_fields];
-        let mut field_mask_flat = vec![0.0f32; bs * max_fields];
-        for (b, &ei) in entity_idxs.iter().enumerate() {
-            for (j, &gf) in catalog.table_field_indices[ei].iter().enumerate() {
-                gather_flat[b * max_fields + j]    = gf as i32;
-                field_mask_flat[b * max_fields + j] = 1.0;
-            }
-        }
-        let gather_idx = Tensor::<B, 1, Int>::from_ints(gather_flat.as_slice(), device);
+        // Gather entity rows from the pre-built cache — no CPU loop, no host transfer
+        // beyond the bs-element entity index array.
+        let batch_entity_idx = Tensor::<B, 1, Int>::from_ints(
+            entity_idxs.iter().map(|&i| i as i32).collect::<Vec<_>>().as_slice(), device,
+        );
+        let flat_gather = cache.gather_idx.clone()
+            .select(0, batch_entity_idx.clone())
+            .reshape([(bs * max_fields) as i32]);
+        let field_mask_2d = cache.field_mask.clone()
+            .select(0, batch_entity_idx);              // [bs, max_fields]
         let padded_field_embs = embs.field_embs.clone()
-            .select(0, gather_idx)
+            .select(0, flat_gather)
             .reshape([bs as i32, max_fields as i32, d as i32]); // [bs, max_fields, d]
 
         // field_bias [bs, max_fields]: -1e9 for padding, 0 for valid
-        let field_bias = (Tensor::<B, 1>::from_floats(field_mask_flat.as_slice(), device)
-            .reshape([bs as i32, max_fields as i32]) - 1.0f32) * 1e9f32;
+        let field_bias = (field_mask_2d - 1.0f32) * 1e9f32;
 
         // seq_bias [bs, max_seq, 1]: -1e9 for padding tokens
-        let mut seq_mask_flat = vec![0.0f32; bs * max_seq];
-        for (b, &sl) in seq_lens.iter().enumerate() {
-            for s in 0..sl { seq_mask_flat[b * max_seq + s] = 1.0; }
-        }
-        let seq_bias = (Tensor::<B, 1>::from_floats(seq_mask_flat.as_slice(), device)
-            .reshape([bs as i32, max_seq as i32, 1]) - 1.0f32) * 1e9f32;
+        let seq_bias = (seq_mask - 1.0f32) * 1e9f32;
 
         // ── Level 2: field cross-attention → pool_2 [bs, d] ─────────────
-        let pool_2 = if n_fields_per.iter().any(|&n| n > 0) {
+        let pool_2 = if max_fields > 0 {
             let q2 = self.xattn_field_q.forward(pool1s.clone()); // [bs, d]
             let scores2 = q2.reshape([bs as i32, 1, d as i32])
                 .matmul(padded_field_embs.clone().transpose()) // [bs, 1, max_fields]

@@ -13,7 +13,7 @@ use std::time::Instant;
 use crate::LamellaDatum;
 use crate::catalog::SchemaCatalog;
 use crate::embed::tokenize;
-use crate::model::{Lamella, LamellaConfig, LamellaLogits};
+use crate::model::{GatherCache, Lamella, LamellaConfig, LamellaLogits};
 
 // =============================================================================
 // Metrics + HeadAcc
@@ -82,6 +82,7 @@ pub struct LamellaTrainCtx<B: AutodiffBackend> {
     pub optimizer: OptimizerAdaptor<B>,
     pub lr_scheduler: CosineAnnealingLrScheduler,
     pub device: B::Device,
+    pub gather_cache: GatherCache<B>,
 }
 
 impl<B: AutodiffBackend> LamellaTrainCtx<B> {
@@ -98,7 +99,8 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             .with_min_lr(lr * 0.01)
             .init()
             .unwrap();
-        Self { model, catalog, config, optimizer, lr_scheduler, device: device.clone() }
+        let gather_cache = GatherCache::new(&catalog, device);
+        Self { model, catalog, config, optimizer, lr_scheduler, device: device.clone(), gather_cache }
     }
 }
 
@@ -128,7 +130,7 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let batch_tokens: Vec<Vec<String>> = batch.iter()
             .map(|d| tokenize(&d.nl).0)
             .collect();
-        let (full_seqs, pools, seq_lens) = self.model.encode_nl_batch(
+        let (full_seqs, pools, _seq_lens, seq_mask) = self.model.encode_nl_batch(
             &batch_tokens, self.config.token_buckets, &self.device,
         );
 
@@ -139,8 +141,8 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let all_slots: Vec<_> = batch.iter().map(|d| d.slot_counts()).collect();
         let entity_indices: Vec<Option<usize>> = batch.iter().map(|d| Some(d.entity)).collect();
         let all_logits = self.model.head_scoring_batch(
-            pool1s, entity_logits, full_seqs, &seq_lens,
-            &all_slots, &entity_indices, &embs, &self.catalog, &self.device,
+            pool1s, entity_logits, full_seqs, seq_mask,
+            &all_slots, &entity_indices, &self.gather_cache, &embs, &self.device,
         );
 
         let mut losses: Vec<Tensor<B, 1>> = Vec::new();
@@ -243,13 +245,14 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let mut head_acc = HeadAcc::default();
 
         let embs = inner.precompute_schema_embs(&self.catalog, &self.device);
+        let eval_cache = GatherCache::new(&self.catalog, &self.device);
 
         for chunk in data.chunks(32) {
             // Batch-encode all NL in one transformer pass
             let chunk_tokens: Vec<Vec<String>> = chunk.iter()
                 .map(|d| tokenize(&d.nl).0)
                 .collect();
-            let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
+            let (full_seqs, pools, _seq_lens, seq_mask) = inner.encode_nl_batch(
                 &chunk_tokens, self.config.token_buckets, &self.device,
             );
 
@@ -258,8 +261,8 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let chunk_slots: Vec<_> = chunk.iter().map(|d| d.slot_counts()).collect();
             let chunk_entity_idxs: Vec<Option<usize>> = chunk.iter().map(|d| Some(d.entity)).collect();
             let chunk_logits = inner.head_scoring_batch(
-                pool1s, entity_logits, full_seqs, &seq_lens,
-                &chunk_slots, &chunk_entity_idxs, &embs, &self.catalog, &self.device,
+                pool1s, entity_logits, full_seqs, seq_mask,
+                &chunk_slots, &chunk_entity_idxs, &eval_cache, &embs, &self.device,
             );
 
             for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
@@ -363,6 +366,7 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
     pub fn diagnose_asgn(&self, data: &[&LamellaDatum]) {
         let inner = self.model.valid();
         let embs = inner.precompute_schema_embs(&self.catalog, &self.device);
+        let eval_cache = GatherCache::new(&self.catalog, &self.device);
 
         // per-table: (correct, total, Vec<(actual_field, predicted_field)> misses)
         let n_tables = self.catalog.tables.len();
@@ -374,7 +378,7 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let chunk_tokens: Vec<Vec<String>> = chunk.iter()
                 .map(|d| tokenize(&d.nl).0)
                 .collect();
-            let (full_seqs, pools, seq_lens) = inner.encode_nl_batch(
+            let (full_seqs, pools, _seq_lens, seq_mask) = inner.encode_nl_batch(
                 &chunk_tokens, self.config.token_buckets, &self.device,
             );
 
@@ -383,8 +387,8 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             let chunk_slots: Vec<_> = chunk.iter().map(|d| d.slot_counts()).collect();
             let chunk_entity_idxs: Vec<Option<usize>> = chunk.iter().map(|d| Some(d.entity)).collect();
             let chunk_logits = inner.head_scoring_batch(
-                pool1s, entity_logits, full_seqs, &seq_lens,
-                &chunk_slots, &chunk_entity_idxs, &embs, &self.catalog, &self.device,
+                pool1s, entity_logits, full_seqs, seq_mask,
+                &chunk_slots, &chunk_entity_idxs, &eval_cache, &embs, &self.device,
             );
 
             for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
