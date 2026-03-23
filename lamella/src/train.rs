@@ -61,9 +61,9 @@ impl HeadAcc {
 pub struct TrainConfig {
     #[config(default = 50)]
     pub epochs: usize,
-    #[config(default = 3e-4)]
+    #[config(default = 3e-3)]
     pub learning_rate: f64,
-    #[config(default = 8)]
+    #[config(default = 5)]
     pub patience: usize,
     #[config(default = 32)]
     pub batch_size: usize,
@@ -113,9 +113,13 @@ fn cross_entropy<B: Backend>(logits: Tensor<B, 1>, target_idx: usize) -> Tensor<
     log_softmax.slice([target_idx..target_idx + 1]).neg()
 }
 
-fn argmax_eq<B: Backend>(logits: &Tensor<B, 1>, target: usize) -> bool {
-    let pred: i32 = logits.clone().argmax(0).into_scalar().elem();
-    pred as usize == target
+/// Returns a [1] float tensor: 1.0 if argmax matches target, 0.0 otherwise.
+/// Stays on GPU — no sync until the caller calls into_scalar().
+fn tensor_correct<B: Backend>(logit: &Tensor<B, 1>, target: usize) -> Tensor<B, 1> {
+    let device = logit.device();
+    let pred = logit.clone().argmax(0).float();                               // [1]
+    let tgt  = Tensor::<B, 1>::from_floats([target as f32].as_slice(), &device); // [1]
+    (1.0_f32 - (pred - tgt).abs()).clamp_min(0.0_f32)
 }
 
 // =============================================================================
@@ -147,27 +151,26 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
 
         let mut losses: Vec<Tensor<B, 1>> = Vec::new();
         let mut n_total = 0usize;
-        let mut total_loss_val = 0.0f32;
 
         for (datum, logits) in batch.iter().zip(all_logits.iter()) {
             let (loss, n) = self.datum_loss(logits, datum);
             if n == 0 { continue; }
-            total_loss_val += loss.clone().inner().into_scalar().elem::<f32>();
             n_total += n;
             losses.push(loss);
         }
 
         if n_total == 0 { return 0.0; }
 
-        // Single backward — normalize by total predictions so each slot has equal gradient weight
+        // Normalize by total slot predictions, then one backward pass
         let batch_loss = losses.into_iter().reduce(|a, b| a + b).unwrap() / n_total as f32;
-        let grads = batch_loss.backward();
+        let grads = batch_loss.clone().backward();
         let grads = GradientsParams::from_grads(grads, &self.model);
 
         let lr = self.lr_scheduler.step();
         self.model = self.optimizer.step(lr, self.model.clone(), grads);
 
-        total_loss_val / n_total as f32
+        // Single GPU→CPU sync per batch (was 32× per-datum syncs before backward)
+        batch_loss.inner().into_scalar().elem::<f32>()
     }
 
     fn datum_loss(&self, logits: &LamellaLogits<B>, datum: &LamellaDatum) -> (Tensor<B, 1>, usize) {
@@ -180,11 +183,11 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         // Entity
         losses.push(cross_entropy(logits.entity.clone(), datum.entity));
 
-        // Projections — target is index within the masked field set
+        // Projections — target is index within the masked field set (1.5× weight)
         for (i, &global_idx) in datum.proj_fields.iter().enumerate() {
             if i < logits.projection.len() {
                 if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                    losses.push(cross_entropy(logits.projection[i].clone(), local));
+                    losses.push(cross_entropy(logits.projection[i].clone(), local) * 1.5f32);
                 }
             }
         }
@@ -205,11 +208,11 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
             }
         }
 
-        // Assignment fields
+        // Assignment fields (2× weight — structurally harder than read heads)
         for (i, &global_idx) in datum.asgn_fields.iter().enumerate() {
             if i < logits.assignment.len() {
                 if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                    losses.push(cross_entropy(logits.assignment[i].clone(), local));
+                    losses.push(cross_entropy(logits.assignment[i].clone(), local) * 2.0f32);
                 }
             }
         }
@@ -242,22 +245,30 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         let inner = self.model.valid();
         let mut total_loss = 0.0f32;
         let mut count = 0usize;
-        let mut head_acc = HeadAcc::default();
+
+        // Per-head tensor-correct accumulators — no GPU→CPU sync until the very end.
+        // All tensor_correct([1]) values accumulate as a lazy GPU graph; we sync
+        // once per head (8 total) after all chunks instead of once per datum (~3000).
+        let mut tc_intent: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_entity: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_proj:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_cf:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_cc:     Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_asgn:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_modt:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+        let mut tc_modf:   Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
 
         let embs = inner.precompute_schema_embs(&self.catalog, &self.device);
         let eval_cache = GatherCache::new(&self.catalog, &self.device);
 
         for chunk in data.chunks(32) {
-            // Batch-encode all NL in one transformer pass
             let chunk_tokens: Vec<Vec<String>> = chunk.iter()
                 .map(|d| tokenize(&d.nl).0)
                 .collect();
             let (full_seqs, pools, _seq_lens, seq_mask) = inner.encode_nl_batch(
                 &chunk_tokens, self.config.token_buckets, &self.device,
             );
-
             let (pool1s, entity_logits) = inner.level1_batch(pools, &embs, &self.device);
-
             let chunk_slots: Vec<_> = chunk.iter().map(|d| d.slot_counts()).collect();
             let chunk_entity_idxs: Vec<Option<usize>> = chunk.iter().map(|d| Some(d.entity)).collect();
             let chunk_logits = inner.head_scoring_batch(
@@ -265,90 +276,115 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
                 &chunk_slots, &chunk_entity_idxs, &eval_cache, &embs, &self.device,
             );
 
+            let mut chunk_ces: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
+
             for (datum, logits) in chunk.iter().zip(chunk_logits.iter()) {
-
-                // Loss
                 let valid_fields = &self.catalog.table_field_indices[datum.entity];
-                let mut n = 0usize;
-                let mut loss_val = 0.0f32;
+                let mut datum_ces: Vec<Tensor<<B as AutodiffBackend>::InnerBackend, 1>> = Vec::new();
 
-                // We compute loss manually without autodiff for eval
-                let ce = |logits: &Tensor<<B as AutodiffBackend>::InnerBackend, 1>, target: usize| -> f32 {
-                    let ls = activation::log_softmax(logits.clone().unsqueeze::<2>(), 1).squeeze::<1>();
-                    ls.slice([target..target + 1]).neg().into_scalar().elem::<f32>()
-                };
+                macro_rules! ce_push {
+                    ($logit:expr, $target:expr) => {{
+                        let ls = activation::log_softmax($logit.clone().unsqueeze::<2>(), 1).squeeze::<1>();
+                        datum_ces.push(ls.slice([$target..$target + 1]).neg());
+                    }};
+                }
 
-                // Intent
-                loss_val += ce(&logits.intent, datum.intent); n += 1;
-                score(&mut head_acc.intent, argmax_eq(&logits.intent, datum.intent));
+                ce_push!(&logits.intent, datum.intent);
+                tc_intent.push(tensor_correct(&logits.intent, datum.intent));
 
-                // Entity
-                loss_val += ce(&logits.entity, datum.entity); n += 1;
-                score(&mut head_acc.entity, argmax_eq(&logits.entity, datum.entity));
+                ce_push!(&logits.entity, datum.entity);
+                tc_entity.push(tensor_correct(&logits.entity, datum.entity));
 
-                // Projections
                 for (i, &global_idx) in datum.proj_fields.iter().enumerate() {
                     if i < logits.projection.len() {
                         if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                            loss_val += ce(&logits.projection[i], local); n += 1;
-                            score(&mut head_acc.proj, argmax_eq(&logits.projection[i], local));
+                            ce_push!(&logits.projection[i], local);
+                            tc_proj.push(tensor_correct(&logits.projection[i], local));
                         }
                     }
                 }
-
-                // Condition fields
                 for (i, &global_idx) in datum.cond_fields.iter().enumerate() {
                     if i < logits.cond_field.len() {
                         if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                            loss_val += ce(&logits.cond_field[i], local); n += 1;
-                            score(&mut head_acc.cond_field, argmax_eq(&logits.cond_field[i], local));
+                            ce_push!(&logits.cond_field[i], local);
+                            tc_cf.push(tensor_correct(&logits.cond_field[i], local));
                         }
                     }
                 }
-
-                // Condition comparators
                 for (i, &cmp_idx) in datum.cond_cmps.iter().enumerate() {
                     if i < logits.cond_cmp.len() {
-                        loss_val += ce(&logits.cond_cmp[i], cmp_idx); n += 1;
-                        score(&mut head_acc.cond_cmp, argmax_eq(&logits.cond_cmp[i], cmp_idx));
+                        ce_push!(&logits.cond_cmp[i], cmp_idx);
+                        tc_cc.push(tensor_correct(&logits.cond_cmp[i], cmp_idx));
                     }
                 }
-
-                // Assignment fields
                 for (i, &global_idx) in datum.asgn_fields.iter().enumerate() {
                     if i < logits.assignment.len() {
                         if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                            loss_val += ce(&logits.assignment[i], local); n += 1;
-                            score(&mut head_acc.assign, argmax_eq(&logits.assignment[i], local));
+                            ce_push!(&logits.assignment[i], local);
+                            tc_asgn.push(tensor_correct(&logits.assignment[i], local));
                         }
                     }
                 }
-
-                // Modifier types
                 for (i, &mod_idx) in datum.mod_types.iter().enumerate() {
                     if i < logits.mod_type.len() {
-                        loss_val += ce(&logits.mod_type[i], mod_idx); n += 1;
-                        score(&mut head_acc.mod_type, argmax_eq(&logits.mod_type[i], mod_idx));
+                        ce_push!(&logits.mod_type[i], mod_idx);
+                        tc_modt.push(tensor_correct(&logits.mod_type[i], mod_idx));
                     }
                 }
-
-                // Modifier fields
                 for (i, &global_idx) in datum.mod_fields.iter().enumerate() {
                     if i < logits.mod_field.len() {
                         if let Some(local) = valid_fields.iter().position(|&f| f == global_idx) {
-                            loss_val += ce(&logits.mod_field[i], local); n += 1;
-                            score(&mut head_acc.mod_field, argmax_eq(&logits.mod_field[i], local));
+                            ce_push!(&logits.mod_field[i], local);
+                            tc_modf.push(tensor_correct(&logits.mod_field[i], local));
                         }
                     }
                 }
 
+                let n = datum_ces.len();
                 if n > 0 {
-                    total_loss += loss_val / n as f32;
+                    let datum_ce = datum_ces.into_iter().reduce(|a, b| a + b).unwrap() / n as f32;
+                    chunk_ces.push(datum_ce);
                     count += 1;
                 }
             }
+
+            // One GPU→CPU sync per chunk for CE (13 total)
+            if !chunk_ces.is_empty() {
+                let chunk_ce = chunk_ces.into_iter().reduce(|a, b| a + b).unwrap();
+                total_loss += chunk_ce.into_scalar().elem::<f32>();
+            }
+
             bar.inc(1);
         }
+
+        // 8 GPU→CPU syncs total — one per head (was ~3000 argmax syncs before)
+        macro_rules! sync_tc {
+            ($tc:expr) => {{
+                let tc = $tc;
+                let total = tc.len();
+                if total == 0 {
+                    (0usize, 0usize)
+                } else {
+                    let sum: f32 = tc.into_iter()
+                        .reduce(|a, b| a + b)
+                        .unwrap()
+                        .into_scalar()
+                        .elem::<f32>();
+                    (sum.round() as usize, total)
+                }
+            }};
+        }
+
+        let head_acc = HeadAcc {
+            intent:     sync_tc!(tc_intent),
+            entity:     sync_tc!(tc_entity),
+            proj:       sync_tc!(tc_proj),
+            cond_field: sync_tc!(tc_cf),
+            cond_cmp:   sync_tc!(tc_cc),
+            assign:     sync_tc!(tc_asgn),
+            mod_type:   sync_tc!(tc_modt),
+            mod_field:  sync_tc!(tc_modf),
+        };
 
         let val_loss = if count > 0 { total_loss / count as f32 } else { 0.0 };
         let total = head_acc.intent.1 + head_acc.entity.1 + head_acc.proj.1
@@ -451,11 +487,6 @@ impl<B: AutodiffBackend> LamellaTrainCtx<B> {
         self.model = self.model.clone().load_record(record);
         Ok(())
     }
-}
-
-fn score(pair: &mut (usize, usize), hit: bool) {
-    pair.1 += 1;
-    if hit { pair.0 += 1; }
 }
 
 // =============================================================================

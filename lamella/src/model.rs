@@ -138,19 +138,27 @@ pub struct Lamella<B: Backend> {
     head_mod_t: Linear<B>,
     head_mod_f: Linear<B>,
 
-    // 8 bilinear scoring matrices (no bias)
+    // bilinear scoring; proj+asgn use asymmetric left/right projections
     bi_intent: Linear<B>,
     bi_entity: Linear<B>,
-    bi_proj: Linear<B>,
+    bi_proj_l: Linear<B>,  // left (query) projection for projection head
+    bi_proj_r: Linear<B>,  // right (field) projection for projection head
     bi_cond_f: Linear<B>,
     bi_cond_c: Linear<B>,
-    bi_asgn: Linear<B>,
+    bi_asgn_l: Linear<B>,  // left (query) projection for assignment
+    bi_asgn_r: Linear<B>,  // right (field) projection for assignment
     bi_mod_t: Linear<B>,
     bi_mod_f: Linear<B>,
 
-    // Cross-attention Q projections for hierarchical schema enrichment
+    // Value-type embedding for assignment slots: 5 types × d_model
+    asgn_val_type_emb: Embedding<B>,
+
+    // Cross-attention Q projections — one per field head so gradients don't compete.
     xattn_table_q: Linear<B>,  // NL tokens → table cross-attention queries
-    xattn_field_q: Linear<B>,  // NL tokens → field cross-attention queries
+    xattn_proj_q:  Linear<B>,  // proj-specific field cross-attention
+    xattn_cond_q:  Linear<B>,  // cond_field-specific field cross-attention
+    xattn_asgn_q:  Linear<B>,  // assignment-specific field cross-attention
+    xattn_field_q: Linear<B>,  // mod_field-specific field cross-attention
 
     d_model: usize,
     embed_dim: usize,
@@ -192,13 +200,19 @@ impl LamellaConfig {
             head_mod_f: head(device),
             bi_intent: bilinear(device),
             bi_entity: bilinear(device),
-            bi_proj: bilinear(device),
+            bi_proj_l: bilinear(device),
+            bi_proj_r: bilinear(device),
             bi_cond_f: bilinear(device),
             bi_cond_c: bilinear(device),
-            bi_asgn: bilinear(device),
+            bi_asgn_l: bilinear(device),
+            bi_asgn_r: bilinear(device),
             bi_mod_t: bilinear(device),
             bi_mod_f: bilinear(device),
+            asgn_val_type_emb: EmbeddingConfig::new(5, d).init(device),
             xattn_table_q: head(device),
+            xattn_proj_q:  head(device),
+            xattn_cond_q:  head(device),
+            xattn_asgn_q:  head(device),
             xattn_field_q: head(device),
             d_model: d,
             embed_dim: self.embed_dim,
@@ -214,6 +228,7 @@ pub struct SlotCounts {
     pub projections: usize,
     pub conditions: usize,
     pub assignments: usize,
+    pub asgn_val_types: Vec<usize>, // 0=placeholder 1=bool 2=numeric 3=string 4=temporal
     pub mod_types: usize,
     pub mod_fields: usize,
 }
@@ -566,42 +581,46 @@ impl<B: Backend> Lamella<B> {
         let valid_field_indices = &catalog.table_field_indices[resolved_entity_idx];
         let masked_field_embs = self.gather_rows(&embs.field_embs, valid_field_indices, device);
 
-        let pool_2 = if !valid_field_indices.is_empty() {
-            let q2 = self.xattn_field_q.forward(pool_1.clone().unsqueeze::<2>()).squeeze::<1>();
-            let scores2 = q2.unsqueeze::<2>().matmul(masked_field_embs.clone().transpose());
-            let attn2 = activation::softmax(scores2, 1);             // [1, n_fields]
-            let ctx_2 = attn2.matmul(masked_field_embs.clone()).reshape([d]);
-            pool_1.clone() + ctx_2                                   // [d]
-        } else {
-            pool_1.clone()
+        // Per-head field cross-attention pools — each head gets its own Q projection
+        // so gradients don't compete. Structural heads (intent, cond_cmp, mod_type)
+        // use pool_1 directly; field heads attend their own copy of the field set.
+        let field_pool = |q_proj: &Linear<B>| -> Tensor<B, 1> {
+            if valid_field_indices.is_empty() { return pool_1.clone(); }
+            let q = q_proj.forward(pool_1.clone().unsqueeze::<2>()).squeeze::<1>();
+            let scores = q.unsqueeze::<2>().matmul(masked_field_embs.clone().transpose());
+            let attn = activation::softmax(scores, 1);
+            let ctx = attn.matmul(masked_field_embs.clone()).reshape([d]);
+            pool_1.clone() + ctx
         };
 
-        // Intent — pool_2 + type. Intent is clarified by field-level context.
+        let proj_pool = field_pool(&self.xattn_proj_q);
+        let cond_pool = field_pool(&self.xattn_cond_q);
+        let asgn_pool = field_pool(&self.xattn_asgn_q);
+        let modf_pool = field_pool(&self.xattn_field_q);
+
+        // Intent — pool_1 directly; intent is a structural choice not tied to any
+        // particular field, so field cross-attention adds noise rather than signal.
         let intent_q = self.head_intent.forward(
-            (pool_2.clone() + st[T_INTENT].clone()).unsqueeze::<2>()
+            (pool_1.clone() + st[T_INTENT].clone()).unsqueeze::<2>()
         ).squeeze::<1>();
         let intent = self.score(intent_q, &self.bi_intent, embs.op_embs.clone());
 
-        // Per-slot NL attention for field heads: query = pool_2 + type_emb + pos_emb,
-        // attends over NL tokens to find which name the schema element for this slot.
-        //
-        // Coverage: after slot i attends to tokens, those positions are penalised for slot i+1
-        // so each slot is pushed toward a *different* NL token. Without this, every slot for
-        // "show name salary role" collapses to the same peak token and proj/asgn plateau at ~50%.
         let seq_len = nl_seq.dims()[0];
 
-        // -- Projection: NL attention with coverage --
+        // -- Projection: uses proj_pool (decoupled from shared pool_2) --
         let mut proj_cov: Tensor<B, 2> = Tensor::zeros([seq_len, 1], device);
         let mut projection = Vec::with_capacity(slots.projections);
         for i in 0..slots.projections {
             let q = self.head_proj.forward(
-                (pool_2.clone() + st[T_PROJ].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (proj_pool.clone() + st[T_PROJ].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale; // [seq_len, 1]
             let attn_w = activation::softmax(raw - proj_cov.clone(), 0);
             proj_cov = proj_cov + attn_w.clone();
             let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
-            projection.push(self.score(ctx, &self.bi_proj, masked_field_embs.clone()));
+            let ctx_l = self.bi_proj_l.forward(ctx.unsqueeze::<2>()).squeeze::<1>(); // [d]
+            let fields_r = self.bi_proj_r.forward(masked_field_embs.clone());        // [n_fields, d]
+            projection.push(fields_r.matmul(ctx_l.unsqueeze::<2>()).squeeze::<1>()); // [n_fields]
         }
 
         // -- Condition field: NL attention with coverage --
@@ -609,7 +628,7 @@ impl<B: Backend> Lamella<B> {
         let mut cond_field = Vec::with_capacity(slots.conditions);
         for i in 0..slots.conditions {
             let q = self.head_cond_f.forward(
-                (pool_2.clone() + st[T_COND_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (cond_pool.clone() + st[T_COND_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
             let attn_w = activation::softmax(raw - cond_cov.clone(), 0);
@@ -621,29 +640,36 @@ impl<B: Backend> Lamella<B> {
         // Condition comparator — pool only; comparators are structural SurrealQL choices.
         let cond_cmp: Vec<Tensor<B, 1>> = (0..slots.conditions).map(|i| {
             let q = self.head_cond_c.forward(
-                (pool_2.clone() + st[T_COND_CMP].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (pool_1.clone() + st[T_COND_CMP].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             self.score(q, &self.bi_cond_c, embs.cmp_embs.clone())
         }).collect();
 
-        // -- Assignment field: NL attention with coverage --
+        // -- Assignment field: NL attention with coverage + asymmetric bilinear --
         let mut asgn_cov: Tensor<B, 2> = Tensor::zeros([seq_len, 1], device);
         let mut assignment = Vec::with_capacity(slots.assignments);
         for i in 0..slots.assignments {
+            let vtype_idx = slots.asgn_val_types.get(i).copied().unwrap_or(0);
+            let vtype_emb = self.asgn_val_type_emb
+                .forward(Tensor::<B, 1, Int>::from_ints([vtype_idx as i32].as_slice(), device).unsqueeze::<2>())
+                .reshape([d]);
             let q = self.head_asgn.forward(
-                (pool_2.clone() + st[T_ASGN].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (asgn_pool.clone() + st[T_ASGN].clone() + self.slot(i, device) + vtype_emb).unsqueeze::<2>()
             ).squeeze::<1>();
             let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
             let attn_w = activation::softmax(raw - asgn_cov.clone(), 0);
             asgn_cov = asgn_cov + attn_w.clone();
             let ctx = nl_seq.clone().transpose().matmul(attn_w).reshape([d]);
-            assignment.push(self.score(ctx, &self.bi_asgn, masked_field_embs.clone()));
+            // Asymmetric bilinear: left projects query, right projects field candidates
+            let ctx_l = self.bi_asgn_l.forward(ctx.unsqueeze::<2>()).squeeze::<1>(); // [d]
+            let fields_r = self.bi_asgn_r.forward(masked_field_embs.clone());        // [n_fields, d]
+            assignment.push(fields_r.matmul(ctx_l.unsqueeze::<2>()).squeeze::<1>()); // [n_fields]
         }
 
         // Modifier type — pool only; ORDER BY / LIMIT / FETCH are structural choices.
         let mod_type: Vec<Tensor<B, 1>> = (0..slots.mod_types).map(|i| {
             let q = self.head_mod_t.forward(
-                (pool_2.clone() + st[T_MOD_TYPE].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (pool_1.clone() + st[T_MOD_TYPE].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             self.score(q, &self.bi_mod_t, embs.mod_embs.clone())
         }).collect();
@@ -651,7 +677,7 @@ impl<B: Backend> Lamella<B> {
         // Modifier field — usually 1 slot, no coverage needed
         let mod_field: Vec<Tensor<B, 1>> = (0..slots.mod_fields).map(|i| {
             let q = self.head_mod_f.forward(
-                (pool_2.clone() + st[T_MOD_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
+                (modf_pool.clone() + st[T_MOD_FIELD].clone() + self.slot(i, device)).unsqueeze::<2>()
             ).squeeze::<1>();
             let raw = nl_seq.clone().matmul(q.unsqueeze::<2>().transpose()) * scale;
             let attn_w = activation::softmax(raw, 0);
@@ -726,26 +752,32 @@ impl<B: Backend> Lamella<B> {
         // seq_bias [bs, max_seq, 1]: -1e9 for padding tokens
         let seq_bias = (seq_mask - 1.0f32) * 1e9f32;
 
-        // ── Level 2: field cross-attention → pool_2 [bs, d] ─────────────
-        let pool_2 = if max_fields > 0 {
-            let q2 = self.xattn_field_q.forward(pool1s.clone()); // [bs, d]
-            let scores2 = q2.reshape([bs as i32, 1, d as i32])
-                .matmul(padded_field_embs.clone().transpose()) // [bs, 1, max_fields]
+        // ── Per-head field cross-attention pools [bs, d] ────────────────────
+        // Each head gets its own Q projection so gradients don't compete.
+        // Structural heads (intent, cond_cmp, mod_type) use pool1s directly.
+        let batch_field_pool = |q_proj: &Linear<B>| -> Tensor<B, 2> {
+            if max_fields == 0 { return pool1s.clone(); }
+            let q = q_proj.forward(pool1s.clone());
+            let scores = q.reshape([bs as i32, 1, d as i32])
+                .matmul(padded_field_embs.clone().transpose())
                 .reshape([bs as i32, max_fields as i32])
                 + field_bias.clone();
-            let attn2 = activation::softmax(scores2, 1);       // [bs, max_fields]
-            let ctx_2 = attn2.reshape([bs as i32, 1, max_fields as i32])
-                .matmul(padded_field_embs.clone())             // [bs, 1, d]
+            let attn = activation::softmax(scores, 1);
+            let ctx = attn.reshape([bs as i32, 1, max_fields as i32])
+                .matmul(padded_field_embs.clone())
                 .reshape([bs as i32, d as i32]);
-            pool1s.clone() + ctx_2
-        } else {
-            pool1s.clone()
+            pool1s.clone() + ctx
         };
 
-        // ── Intent (pool only) ──────────────────────────────────────────
+        let proj_pool = batch_field_pool(&self.xattn_proj_q);
+        let cond_pool = batch_field_pool(&self.xattn_cond_q);
+        let asgn_pool = batch_field_pool(&self.xattn_asgn_q);
+        let modf_pool = batch_field_pool(&self.xattn_field_q);
+
+        // ── Intent (pool1s — structural, not field-specific) ───────────────
         let st_intent = self.stype(T_INTENT, device).unsqueeze::<2>(); // [1, d]
         let intent_logits_b = self.bi_intent
-            .forward(self.head_intent.forward(pool_2.clone() + st_intent))
+            .forward(self.head_intent.forward(pool1s.clone() + st_intent))
             .matmul(embs.op_embs.clone().transpose()); // [bs, n_ops]
 
         // ── Precompute type embs (broadcast [1, d]) ─────────────────────
@@ -785,15 +817,23 @@ impl<B: Backend> Lamella<B> {
                 + field_bias.clone()
         };
 
-        // ── Projection ─────────────────────────────────────────────────
+        // ── Projection (uses proj_pool, not pool_2) ─────────────────────
         let mut proj_cov: Tensor<B, 3> = Tensor::zeros([bs, max_seq, 1], device);
         let mut proj_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_proj);
         for i in 0..max_proj {
             let slot_i = self.slot(i, device).unsqueeze::<2>();
-            let q = self.head_proj.forward(pool_2.clone() + st_proj.clone() + slot_i);
+            let q = self.head_proj.forward(proj_pool.clone() + st_proj.clone() + slot_i);
             let (ctx, attn_w) = nl_attn(q, seq_bias.clone(), proj_cov.clone());
             proj_cov = proj_cov + attn_w;
-            proj_logits.push(field_score(&self.bi_proj, ctx));
+            // Asymmetric bilinear: separate projections for query and field candidates
+            let ctx_l = self.bi_proj_l.forward(ctx); // [bs, d]
+            let fields_r = self.bi_proj_r.forward(padded_field_embs.clone()); // [bs, max_fields, d]
+            let scores = ctx_l
+                .reshape([bs as i32, 1, d as i32])
+                .matmul(fields_r.transpose()) // [bs, 1, max_fields]
+                .reshape([bs as i32, max_fields as i32])
+                + field_bias.clone();
+            proj_logits.push(scores);
         }
 
         // ── Condition field + comparator ────────────────────────────────
@@ -802,11 +842,11 @@ impl<B: Backend> Lamella<B> {
         let mut cond_cmp_logits:   Vec<Tensor<B, 2>> = Vec::with_capacity(max_cond);
         for i in 0..max_cond {
             let slot_i = self.slot(i, device).unsqueeze::<2>();
-            let qf = self.head_cond_f.forward(pool_2.clone() + st_cf.clone() + slot_i.clone());
+            let qf = self.head_cond_f.forward(cond_pool.clone() + st_cf.clone() + slot_i.clone());
             let (ctx, attn_w) = nl_attn(qf, seq_bias.clone(), cond_cov.clone());
             cond_cov = cond_cov + attn_w;
             cond_field_logits.push(field_score(&self.bi_cond_f, ctx));
-            let qc = self.head_cond_c.forward(pool_2.clone() + st_cc.clone() + slot_i);
+            let qc = self.head_cond_c.forward(pool1s.clone() + st_cc.clone() + slot_i);
             cond_cmp_logits.push(
                 self.bi_cond_c.forward(qc).matmul(embs.cmp_embs.clone().transpose())
             );
@@ -816,18 +856,33 @@ impl<B: Backend> Lamella<B> {
         let mut asgn_cov: Tensor<B, 3> = Tensor::zeros([bs, max_seq, 1], device);
         let mut asgn_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_asgn);
         for i in 0..max_asgn {
-            let slot_i = self.slot(i, device).unsqueeze::<2>();
-            let q = self.head_asgn.forward(pool_2.clone() + st_asgn.clone() + slot_i);
+            let slot_i = self.slot(i, device).unsqueeze::<2>(); // [1, d]
+            // Value-type embedding: one per datum in batch → [bs, d]
+            let vtype_indices: Vec<i32> = all_slots.iter()
+                .map(|s| s.asgn_val_types.get(i).copied().unwrap_or(0) as i32)
+                .collect();
+            let vtype_embs = self.asgn_val_type_emb
+                .forward(Tensor::<B, 1, Int>::from_ints(vtype_indices.as_slice(), device).unsqueeze::<2>())
+                .reshape([bs as i32, d as i32]); // [bs, d]
+            let q = self.head_asgn.forward(asgn_pool.clone() + st_asgn.clone() + slot_i + vtype_embs);
             let (ctx, attn_w) = nl_attn(q, seq_bias.clone(), asgn_cov.clone());
             asgn_cov = asgn_cov + attn_w;
-            asgn_logits.push(field_score(&self.bi_asgn, ctx));
+            // Asymmetric bilinear: left projects query ctx, right projects field candidates
+            let ctx_l = self.bi_asgn_l.forward(ctx); // [bs, d]
+            let fields_r = self.bi_asgn_r.forward(padded_field_embs.clone()); // [bs, max_fields, d]
+            let scores = ctx_l
+                .reshape([bs as i32, 1, d as i32])
+                .matmul(fields_r.transpose()) // [bs, 1, max_fields]
+                .reshape([bs as i32, max_fields as i32])
+                + field_bias.clone();
+            asgn_logits.push(scores);
         }
 
         // ── Modifier type (pool only) ───────────────────────────────────
         let mut mod_type_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_mod_t);
         for i in 0..max_mod_t {
             let slot_i = self.slot(i, device).unsqueeze::<2>();
-            let q = self.head_mod_t.forward(pool_2.clone() + st_mod_t.clone() + slot_i);
+            let q = self.head_mod_t.forward(pool1s.clone() + st_mod_t.clone() + slot_i);
             mod_type_logits.push(
                 self.bi_mod_t.forward(q).matmul(embs.mod_embs.clone().transpose())
             );
@@ -837,7 +892,7 @@ impl<B: Backend> Lamella<B> {
         let mut mod_field_logits: Vec<Tensor<B, 2>> = Vec::with_capacity(max_mod_f);
         for i in 0..max_mod_f {
             let slot_i = self.slot(i, device).unsqueeze::<2>();
-            let q = self.head_mod_f.forward(pool_2.clone() + st_mod_f.clone() + slot_i);
+            let q = self.head_mod_f.forward(modf_pool.clone() + st_mod_f.clone() + slot_i);
             let (ctx, _) = nl_attn(q, seq_bias.clone(), Tensor::zeros([bs, max_seq, 1], device));
             mod_field_logits.push(field_score(&self.bi_mod_f, ctx));
         }

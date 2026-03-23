@@ -222,6 +222,7 @@ fn cmd_infer(args: &[String]) {
         projections: 0,
         conditions: 0,
         assignments: 0,
+        asgn_val_types: vec![],
         mod_types: 0,
         mod_fields: 0,
     };

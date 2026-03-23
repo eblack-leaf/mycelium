@@ -55,12 +55,32 @@ impl DatumValues {
 
 impl LamellaDatum {
     pub fn slot_counts(&self) -> SlotCounts {
+        let asgn_val_types = self.values.asgn_values.iter()
+            .map(classify_value_ref)
+            .collect();
         SlotCounts {
             projections: self.proj_fields.len(),
             conditions: self.cond_fields.len(),
             assignments: self.asgn_fields.len(),
+            asgn_val_types,
             mod_types: self.mod_types.len(),
             mod_fields: self.mod_fields.len(),
+        }
+    }
+}
+
+/// Coarse value-type tag for an assignment slot.
+/// 0=placeholder  1=bool  2=numeric  3=string  4=temporal
+pub fn classify_value_ref(v: &ValueRef) -> usize {
+    match v {
+        ValueRef::Slot(_) => 0,
+        ValueRef::Temporal(_) => 4,
+        ValueRef::Literal(s) => {
+            let s = s.trim();
+            if s == "?" { 0 }
+            else if s.eq_ignore_ascii_case("true") || s.eq_ignore_ascii_case("false") { 1 }
+            else if s.parse::<f64>().is_ok() { 2 }
+            else { 3 }
         }
     }
 }
