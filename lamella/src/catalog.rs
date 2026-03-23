@@ -44,7 +44,7 @@ impl SchemaCatalog {
             for field in &table.fields {
                 let idx = fields.len();
                 fields.push((table.name.clone(), field.name.clone()));
-                field_ngrams.push(char_ngram_buckets(&field.name, ngram_buckets));
+                field_ngrams.push(char_ngram_buckets(&format!("{}.{}", table.name, field.name), ngram_buckets));
                 indices.push(idx);
             }
             table_field_indices.push(indices);
