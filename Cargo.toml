@@ -1,6 +1,10 @@
 [workspace]
-members = ["ui/src-tauri", "lamella"]
+members = ["ui/src-tauri", "lamella", "hyphae"]
 resolver = "2"
 
 [workspace.dependencies]
 burn = { version = "0.20.1", features = ["ndarray", "autodiff", "wgpu"] }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex      = "1"
+indicatif = "0.18.4"

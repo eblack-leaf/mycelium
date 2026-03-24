@@ -49,15 +49,14 @@ function usePlaceholderTyper() {
   return text;
 }
 
-export function QueryBar() {
-  const [input, setInput] = createSignal("");
+export function QueryBar(props: any) {
   const placeholder = usePlaceholderTyper();
 
   function handleInput(e: Event) {
     const el = e.currentTarget as HTMLTextAreaElement;
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
-    setInput(el.value);
+    props.set_input(el.value);
   }
 
   return (
@@ -65,7 +64,7 @@ export function QueryBar() {
       rows={2}
       placeholder={placeholder()}
       onInput={handleInput}
-      value={input()}
+      value={props.input()}
       class="w-full resize-none overflow-hidden bg-transparent text-neutral-100 placeholder-neutral-400 px-4 py-3 text-sm leading-relaxed outline-none"
       style={{ "min-height": "92px", "max-height": "240px" }}
     />

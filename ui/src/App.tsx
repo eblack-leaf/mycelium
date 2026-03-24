@@ -2,12 +2,15 @@ import "./App.css";
 import { QueryBar } from "./components/QueryBar.tsx";
 import { Settings } from "./components/Settings.tsx";
 import * as Icon from "./components/Feather.tsx";
-import { createSignal } from "solid-js";
+import {createSignal, For} from "solid-js";
 import { animate } from "motion";
+import {Block, BlockData} from "./components/Block.tsx";
+import {createStore} from "solid-js/store";
 
 export default function App() {
   const [open, setOpen] = createSignal(false);
-
+  const [blocks, set_blocks] = createStore<BlockData[]>([]);
+  const [prompt, set_prompt] = createSignal("");
   let containerRef!: HTMLDivElement;
   let inputRef!: HTMLDivElement;
   let settingsRef!: HTMLDivElement;
@@ -65,54 +68,78 @@ export default function App() {
       }).catch(() => {});
     }
   }
-
+  function execute() {
+    const block: BlockData = {
+      query: prompt(),
+    };
+    console.log("appending", block);
+    set_blocks([...blocks, block]);
+    set_prompt("");
+  }
   return (
-    <main class="relative h-screen w-screen bg-stone-800 flex flex-col overflow-hidden">
-
-      {/* Canvas — output blocks */}
-      <div class="flex-1 overflow-hidden" />
-
-      {/* Query row */}
-      <div class="flex items-end gap-3 p-4">
+      <main class="relative h-screen w-screen bg-stone-800 flex flex-col overflow-hidden">
         <div
-          ref={containerRef!}
-          class="relative w-full overflow-hidden rounded-2xl bg-stone-700"
-        >
-          {/* Input */}
-          <div ref={inputRef!}>
-            <QueryBar />
+            class={"absolute right-2 top-2 rounded-md bg-stone-600 h-10 w-10 z-10 items-center justify-center flex"}>
+          <Icon.Settings size={16} stroke={"#d4d4d4"}/>
+        </div>
+        {/* Canvas — output blocks */}
+        <div class="relative flex-1 overflow-y-scroll">
+          <div class={" w-full min-h-full flex flex-col gap-4 p-4"}>
+            <For each={blocks} fallback={<div>{"nothing"}</div>}>{(bd) => {
+              return <Block data={bd}/>;
+            }}</For>
           </div>
-          {/* Settings overlay */}
+        </div>
+
+        {/* Query row */}
+        <div class="flex items-end gap-3 p-4">
           <div
-            ref={settingsRef!}
-            class="absolute inset-0 overflow-auto"
-            style={{ opacity: "0", "pointer-events": open() ? "auto" : "none" }}
+              ref={containerRef!}
+              class="relative w-full overflow-hidden rounded-2xl bg-stone-700"
           >
-            <Settings />
+            {/* Input */}
+            <div ref={inputRef!}>
+              <QueryBar input={prompt} set_input={set_prompt}/>
+            </div>
+            {/* Settings overlay */}
+            <div
+                ref={settingsRef!}
+                class="absolute inset-0 overflow-auto"
+                style={{opacity: "0", "pointer-events": open() ? "auto" : "none"}}
+            >
+              <Settings/>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 shrink-0">
+            <button
+                ref={settingsBtnRef!}
+                onClick={toggle}
+                class="relative w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center focus:outline-none cursor-pointer"
+            >
+              <div ref={gearRef!} class="absolute">
+                <Icon.Settings size={16} stroke="#d4d4d4"/>
+              </div>
+              <div ref={chevRef!} class="absolute" style={{opacity: "0"}}>
+                <Icon.ChevronDown size={16} stroke="#1a1a1a" strokeWidth={2.2}/>
+              </div>
+            </button>
+            <button
+                onKeyDown={(e) => {
+                  if (e.key == "Enter" && e.shiftKey) {
+                    execute()
+                  }
+                }}
+                onClick={(_) => {
+                  execute()
+                }}
+                class="w-10 h-10 rounded-full flex items-center justify-center focus:outline-none bg-orange-300"
+            >
+              <Icon.Terminal size={17} stroke="#1a1a1a" strokeWidth={2.2}/>
+            </button>
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 shrink-0">
-          <button
-            ref={settingsBtnRef!}
-            onClick={toggle}
-            class="relative w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center focus:outline-none cursor-pointer"
-          >
-            <div ref={gearRef!} class="absolute">
-              <Icon.Settings size={16} stroke="#d4d4d4" />
-            </div>
-            <div ref={chevRef!} class="absolute" style={{ opacity: "0" }}>
-              <Icon.ChevronDown size={16} stroke="#1a1a1a" strokeWidth={2.2} />
-            </div>
-          </button>
-          <button
-            class="w-10 h-10 rounded-full flex items-center justify-center focus:outline-none bg-orange-300"
-          >
-            <Icon.Terminal size={17} stroke="#1a1a1a" strokeWidth={2.2} />
-          </button>
-        </div>
-      </div>
-
-    </main>
+      </main>
   );
 }
