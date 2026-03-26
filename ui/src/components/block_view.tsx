@@ -4,7 +4,7 @@ import {Controls} from "./controls.tsx";
 export type Block = {
     query: string,
 };
-export function BlockView(props: { data: Block, getter: () => string, setter: (str: string) => void }) {
+export function BlockView(_props: { data: Block, getter: () => string, setter: (str: string) => void }) {
     const composing = createSignal(true);
     return <>
         <div class={"w-full rounded-sm bg-stone-800 min-h-24 "}>
