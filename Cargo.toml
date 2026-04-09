@@ -1,5 +1,5 @@
 [workspace]
-members = ["ui/src-tauri", "lamella", "hyphae"]
+members = ["ui/src-tauri", "hyphae"]
 resolver = "2"
 
 [workspace.dependencies]
