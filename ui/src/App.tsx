@@ -1,34 +1,20 @@
 import "./App.css";
 import * as Icon from "./components/feather.tsx";
-import {createStore} from "solid-js/store";
-import {BlockView, Block} from "./components/block_view.tsx";
-import {For} from "solid-js";
+import {BlockView} from "./components/block_view.tsx";
+import {createResource, For} from "solid-js";
+import {invoke} from "@tauri-apps/api/core";
+import {Block} from "./bindings/Block.ts";
 
-type Session = {
-    blocks: Block[],
-    current: number
-}
 export default function App() {
-    const session = createStore<Session>({
-        blocks: [{
-            query: "",
-        }],
-        current: 0
-    });
-    function set_query(str: string) {
-        session[1]("blocks", [session[0].current], "query", str);
-    }
-    function get_query() {
-        return session[0].blocks[session[0].current].query;
-    }
+    const [blocks] = createResource(async () => await invoke<Block[]>("blocks"));
     return (
         <main class="relative h-screen w-screen bg-stone-900 flex overflow-hidden gap-2 p-2">
-            <div class={"flex-1 "}>
-                <For each={session[0].blocks}>
-                    {(bd) => <BlockView data={bd} getter={get_query} setter={set_query}/>}
+            <div class={"flex-1"}>
+                <For each={blocks()}>
+                    {(block) => <BlockView block={block}/>}
                 </For>
             </div>
-            <div class={"w-10 flex flex-col gap-6"}>
+            <div class={"w-10 flex flex-col gap-4"}>
                 <div class={"h-8 flex-none"}>
                     <div class={"rounded-md bg-orange-400 flex items-center justify-center h-10"}>
                         <Icon.Terminal stroke={"#333333"} size={20}></Icon.Terminal>
