@@ -1,10 +1,11 @@
 import "./App.css";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as Icon from "./components/feather.tsx";
 import { BlockView } from "./components/block_view.tsx";
 import { CompletionPanel } from "./components/completion_panel.tsx";
 import { Sidebar } from "./components/sidebar.tsx";
 import { Backend } from "./backend.tsx";
+import { jumpToComposing } from "./composing.ts";
 
 type SidebarTab = "values" | "settings" | null;
 
@@ -14,12 +15,24 @@ export default function App() {
 
     onMount(async () => {
         await backend.init();
+
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                // Don't intercept Escape inside inputs/textareas (let them handle it first)
+                const tag = (e.target as HTMLElement).tagName;
+                if (tag === "INPUT") return;
+                e.preventDefault();
+                jumpToComposing();
+            }
+        }
+        document.addEventListener("keydown", onKeyDown);
+        onCleanup(() => document.removeEventListener("keydown", onKeyDown));
     });
 
     return (
         <main class="h-screen w-screen bg-stone-900 flex overflow-hidden text-stone-200">
             {/* Single scroll context */}
-            <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0">
+            <div id="scroll-root" class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0">
                 <div class="pl-3 pr-0 pt-3 pb-8 space-y-2">
                     <For each={backend.blocks[0]}>
                         {(block) => <BlockView block={block} backend={backend} />}

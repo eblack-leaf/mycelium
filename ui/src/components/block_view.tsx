@@ -4,6 +4,7 @@ import { Backend } from "../backend.tsx";
 import { HighlightedTextarea, HighlightedTextareaRef } from "./highlighted_textarea.tsx";
 import { ResultView } from "./result_view.tsx";
 import { panelRef } from "./completion_panel.tsx";
+import { setComposingEls } from "../composing.ts";
 import * as Icon from "./feather.tsx";
 
 export function BlockView(props: { block: Block; backend: Backend }) {
@@ -11,9 +12,13 @@ export function BlockView(props: { block: Block; backend: Backend }) {
     const [submitting, setSubmitting] = createSignal(false);
     let textareaRef: HighlightedTextareaRef | null = null;
 
+    // History walk: index into previous blocks when ↑ pressed in empty textarea
+    let historyIdx = -1;
+
     async function submit() {
         const q = query().trim();
         if (!q || submitting()) return;
+        historyIdx = -1;
         setSubmitting(true);
         await props.backend.submitBlock(props.block.id, q);
         setSubmitting(false);
@@ -21,6 +26,21 @@ export function BlockView(props: { block: Block; backend: Backend }) {
 
     function onArrowNav(dir: "up" | "down" | "left" | "right") {
         panelRef?.navigate(dir);
+    }
+
+    function onHistory(dir: "up" | "down") {
+        const done = props.backend.blocks[0]
+            .filter((b) => b.state === "Done" && b.query.trim())
+            .map((b) => b.query);
+        if (!done.length) return;
+
+        if (dir === "up") {
+            historyIdx = Math.min(historyIdx + 1, done.length - 1);
+        } else {
+            historyIdx = Math.max(historyIdx - 1, -1);
+        }
+
+        setQuery(historyIdx === -1 ? "" : done[done.length - 1 - historyIdx]);
     }
 
     function onTab() {
@@ -31,13 +51,10 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         const cursor = textareaRef.getCursorPos();
         const text = query();
 
-        // Walk backwards from cursor to find start of current word
         let wordStart = cursor;
         while (wordStart > 0 && !/[\s\n]/.test(text[wordStart - 1])) {
             wordStart--;
         }
-
-        // Always replace the current partial word with the completion
         textareaRef.insertAt(wordStart, cursor, completion);
     }
 
@@ -61,8 +78,16 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                 </div>
             }
         >
-            {/* Composing block — no ring, orange submit button top-right */}
-            <div class="relative rounded bg-stone-800 px-3 pt-2 pb-2">
+            {/* Composing block */}
+            <div
+                ref={(el) => {
+                    requestAnimationFrame(() => {
+                        const ta = el.querySelector("textarea");
+                        if (ta) setComposingEls(ta as HTMLTextAreaElement, el);
+                    });
+                }}
+                class="relative rounded bg-stone-800 px-3 pt-2 pb-2"
+            >
                 <button
                     onClick={submit}
                     disabled={submitting()}
@@ -77,11 +102,12 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                 <div class="pr-6">
                     <HighlightedTextarea
                         value={query()}
-                        onChange={(v) => setQuery(v)}
+                        onChange={(v) => { setQuery(v); historyIdx = -1; }}
                         prefix={props.backend.settings[0].placeholder_prefix}
                         onSubmit={submit}
                         onTab={onTab}
                         onArrowNav={onArrowNav}
+                        onHistory={onHistory}
                         ref={(r) => { textareaRef = r; }}
                     />
                 </div>
@@ -91,6 +117,8 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                     <span>⇧↵ newline</span>
                     <span>Tab complete</span>
                     <span>↑↓ navigate</span>
+                    <span>⌥↑↓ history</span>
+                    <span>Esc focus</span>
                 </div>
             </div>
         </Show>

@@ -65,6 +65,7 @@ interface Props {
     onSubmit: () => void;
     onTab: () => void;
     onArrowNav: (dir: "up" | "down" | "left" | "right") => void;
+    onHistory: (dir: "up" | "down") => void;
     ref?: (r: HighlightedTextareaRef) => void;
 }
 
@@ -87,6 +88,12 @@ export function HighlightedTextarea(props: Props) {
         } else if (e.key === "Tab") {
             e.preventDefault();
             props.onTab();
+        } else if (e.key === "ArrowDown" && e.altKey) {
+            e.preventDefault();
+            props.onHistory("down");
+        } else if (e.key === "ArrowUp" && e.altKey) {
+            e.preventDefault();
+            props.onHistory("up");
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
             props.onArrowNav("down");
