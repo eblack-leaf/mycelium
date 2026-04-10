@@ -39,7 +39,7 @@ pub(crate) async fn suggestions(handle: State<'_, DataM>) -> Result<Suggestions,
         .iter()
         .map(|v| crate::bridge::Suggestion {
             text: format!("{}{}", data.settings.placeholder_prefix, v.name),
-            metadata: v.value.chars().take(24).collect(),
+            metadata: "placeholder".to_string(),
         })
         .collect();
     Ok(suggestions)

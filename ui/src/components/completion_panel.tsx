@@ -5,8 +5,8 @@ import { Backend } from "../backend.tsx";
 const MAX_K = 4;
 
 function categoryColor(metadata: string): string {
-    if (metadata.includes("placeholder")) return "text-amber-500";
-    if (metadata.includes("keyword")) return "text-orange-400";
+    if (metadata.includes("placeholder")) return "text-stone-400";
+    if (metadata.includes("keyword")) return "text-stone-400";
     if (metadata.includes("table")) return "text-orange-300";
     if (metadata.includes("field")) return "text-amber-300";
     return "text-stone-500";
@@ -30,7 +30,8 @@ export function CompletionPanel(props: { backend: Backend }) {
                 {(item, i) => (
                     <div
                         onClick={() => insertCompletionFn?.(item.text)}
-                        class="flex items-center justify-between px-3 py-1.5 gap-4 cursor-pointer hover:bg-stone-700/50"
+                        class={`flex items-center justify-between px-3 py-1.5 gap-4 cursor-pointer hover:bg-stone-700/50
+                            ${i() === 0 ? "bg-lime-300/30" : ""}`}
                     >
                         <span class={`font-mono text-sm ${
                             item.metadata === "placeholder"
@@ -46,7 +47,7 @@ export function CompletionPanel(props: { backend: Backend }) {
                                 {item.metadata}
                             </span>
                             {i() === 0 && (
-                                <kbd class="px-1 py-0.5 rounded text-xs bg-stone-900 text-orange-400 border border-stone-700 border-b-2 leading-none select-none">
+                                <kbd class="px-1 py-0.5 rounded text-xs bg-lime-800 text-stone-400 border border-lime-700 border-b-2 leading-none select-none">
                                     tab
                                 </kbd>
                             )}

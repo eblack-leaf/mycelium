@@ -47,6 +47,7 @@ function FlatJsonRow(props: {
     const [saving, setSaving] = createSignal(false);
     const [name, setName] = createSignal("");
     const [loading, setLoading] = createSignal(false);
+    let inputEl!: HTMLInputElement;
 
     async function openSave() {
         if (saving()) { setSaving(false); return; }
@@ -57,6 +58,7 @@ function FlatJsonRow(props: {
         );
         setName(suggested);
         setLoading(false);
+        requestAnimationFrame(() => { inputEl?.select(); });
     }
 
     async function confirm() {
@@ -95,6 +97,7 @@ function FlatJsonRow(props: {
                 <Show when={loading()} fallback={
                     <span class="inline-flex items-center gap-2 shrink-0">
                         <input
+                            ref={inputEl!}
                             class="bg-stone-700 text-stone-100 text-sm font-mono
                                    rounded px-2.5 outline-none w-32 h-6"
                             value={name()}

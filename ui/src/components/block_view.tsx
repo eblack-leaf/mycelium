@@ -9,7 +9,7 @@ import * as Icon from "./feather.tsx";
 
 function Kbd(props: { children: JSX.Element }) {
     return (
-        <kbd class="inline-flex items-center gap-0.5 px-1 py-1 rounded
+        <kbd class="inline-flex items-center gap-0.5 px-1 h-5 rounded
                     bg-stone-900 text-stone-500 border border-stone-700 border-b-2
                     leading-none select-none">
             {props.children}
