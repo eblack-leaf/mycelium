@@ -1,6 +1,6 @@
-use tauri::{State};
-use crate::bridge::{Block, Suggestion, Suggestions};
+use crate::bridge::{Block, Suggestions};
 use crate::state::DataM;
+use tauri::State;
 
 #[tauri::command]
 pub(crate) async fn blocks(handle: State<'_, DataM>) -> Result<Vec<Block>, ()> {

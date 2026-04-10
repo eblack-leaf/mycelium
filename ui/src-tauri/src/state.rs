@@ -1,5 +1,5 @@
+use crate::bridge::{Block, Suggestions};
 use std::sync::Mutex;
-use crate::bridge::{Block, Suggestion, Suggestions};
 
 pub(crate) type DataM = Mutex<Data>;
 pub(crate) struct Data {

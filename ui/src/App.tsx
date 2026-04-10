@@ -8,7 +8,7 @@ export default function App() {
     const backend = new Backend();
     return (
         <main class="relative h-screen w-screen bg-stone-900 flex overflow-hidden gap-2 p-2">
-            <div class={"flex-1"}>
+            <div class={"flex-1 overflow-y-scroll"}>
                 <For each={backend.blocks()}>
                     {(block) => <BlockView block={block} backend={backend}/>}
                 </For>

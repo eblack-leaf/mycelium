@@ -8,7 +8,7 @@ function SuggestionView(data: { suggestion: Suggestion }) {
     </div>
 }
 
-function ControlSuggestion(data: { items: Suggestion[] | undefined }) {
+function SuggestionGroup(data: { items: Suggestion[] | undefined }) {
     return <div class={"flex flex-col gap-4"}>
         <For each={data.items}>
             {(ph) => {
@@ -25,9 +25,9 @@ export function Controls(data: {
 }) {
     return <>
         <div class={"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 grid-rows-1 bg-none text-stone-400 gap-4 p-2"}>
-            <ControlSuggestion items={data.placeholders}/>
-            <ControlSuggestion items={data.ids}/>
-            <ControlSuggestion items={data.schema}/>
+            <SuggestionGroup items={data.placeholders}/>
+            <SuggestionGroup items={data.ids}/>
+            <SuggestionGroup items={data.schema}/>
         </div>
     </>
 }
