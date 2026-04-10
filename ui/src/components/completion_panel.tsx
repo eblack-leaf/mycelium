@@ -1,63 +1,36 @@
-import { createSignal, For } from "solid-js";
+import { For } from "solid-js";
 import { Suggestion } from "../bindings/Suggestion.ts";
 import { Backend } from "../backend.tsx";
 
 const MAX_K = 4;
 
-// Category tag colors
-const CATEGORY_COLOR: Record<string, string> = {
-    placeholder: "text-amber-500",
-    keyword: "text-orange-400",
-    table: "text-orange-300",
-    field: "text-amber-300",
-    "": "text-stone-500",
-};
-
 function categoryColor(metadata: string): string {
-    for (const [key, cls] of Object.entries(CATEGORY_COLOR)) {
-        if (key && metadata.toLowerCase().includes(key)) return cls;
-    }
+    if (metadata.includes("placeholder")) return "text-amber-500";
+    if (metadata.includes("keyword")) return "text-orange-400";
+    if (metadata.includes("table")) return "text-orange-300";
+    if (metadata.includes("field")) return "text-amber-300";
     return "text-stone-500";
 }
 
 export function CompletionPanel(props: { backend: Backend }) {
-    const [selectedIndex, setSelectedIndex] = createSignal(0);
-
-    // Merge all suggestion groups into one flat list, placeholders first
     const items = (): Suggestion[] => {
         const s = props.backend.suggestions[0];
         return [...s.placeholders, ...s.schema, ...s.other].slice(0, MAX_K);
     };
 
-    function navigate(dir: "up" | "down" | "left" | "right") {
-        const count = items().length;
-        if (!count) return;
-        if (dir === "down" || dir === "right") {
-            setSelectedIndex((i) => Math.min(i + 1, count - 1));
-        } else if (dir === "up" || dir === "left") {
-            setSelectedIndex((i) => Math.max(i - 1, 0));
-        }
-    }
-
-    function currentCompletion(): string | null {
-        return items()[selectedIndex()]?.text ?? null;
-    }
-
-    function resetIndex() { setSelectedIndex(0); }
-
-    // Module-level ref updated each render so BlockView can call navigate/currentCompletion
-    panelRef = { navigate, currentCompletion, resetIndex };
+    panelRef = {
+        currentCompletion: () => items()[0]?.text ?? null,
+        getItemAt: (i: number) => items()[i]?.text ?? null,
+        resetIndex: () => {},
+    };
 
     return (
         <div class="mt-1 overflow-hidden" style={{ "min-height": `${MAX_K * 2}rem` }}>
             <For each={items()}>
                 {(item, i) => (
                     <div
-                        class={`flex items-baseline justify-between px-3 py-1.5 gap-4
-                            ${i() === selectedIndex()
-                                ? "bg-stone-700"
-                                : "hover:bg-stone-750"
-                            }`}
+                        onClick={() => insertCompletionFn?.(item.text)}
+                        class="flex items-center justify-between px-3 py-1.5 gap-4 cursor-pointer hover:bg-stone-700/50"
                     >
                         <span class={`font-mono text-sm ${
                             item.metadata === "placeholder"
@@ -68,8 +41,18 @@ export function CompletionPanel(props: { backend: Backend }) {
                         }`}>
                             {item.text}
                         </span>
-                        <span class={`text-xs shrink-0 ${categoryColor(item.metadata)}`}>
-                            {item.metadata}
+                        <span class="flex items-center gap-1.5 shrink-0">
+                            <span class={`text-xs ${categoryColor(item.metadata)}`}>
+                                {item.metadata}
+                            </span>
+                            {i() === 0 && (
+                                <kbd class="px-1 py-0.5 rounded text-xs bg-stone-900 text-orange-400 border border-stone-700 border-b-2 leading-none select-none">
+                                    tab
+                                </kbd>
+                            )}
+                            <kbd class="px-1 py-0.5 rounded text-xs bg-stone-900 text-stone-500 border border-stone-700 border-b-2 leading-none select-none">
+                                {i() + 1}
+                            </kbd>
                         </span>
                     </div>
                 )}
@@ -79,7 +62,13 @@ export function CompletionPanel(props: { backend: Backend }) {
 }
 
 export let panelRef: {
-    navigate: (dir: "up" | "down" | "left" | "right") => void;
     currentCompletion: () => string | null;
+    getItemAt: (i: number) => string | null;
     resetIndex: () => void;
 } | null = null;
+
+// Registered by the active BlockView
+export let insertCompletionFn: ((text: string) => void) | null = null;
+export function registerInsertCompletion(fn: (text: string) => void) {
+    insertCompletionFn = fn;
+}

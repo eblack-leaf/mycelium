@@ -3,7 +3,7 @@ import { Block } from "../bindings/Block.ts";
 import { Backend } from "../backend.tsx";
 import { HighlightedTextarea, HighlightedTextareaRef } from "./highlighted_textarea.tsx";
 import { ResultView } from "./result_view.tsx";
-import { panelRef } from "./completion_panel.tsx";
+import { panelRef, registerInsertCompletion } from "./completion_panel.tsx";
 import { setComposingEls } from "../composing.ts";
 import * as Icon from "./feather.tsx";
 
@@ -34,10 +34,6 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         setSubmitting(false);
     }
 
-    function onArrowNav(dir: "up" | "down" | "left" | "right") {
-        panelRef?.navigate(dir);
-    }
-
     async function pasteTransform(text: string): Promise<string> {
         const name = await props.backend.pasteValue(text.slice(0, 48), text);
         return `${props.backend.settings[0].placeholder_prefix}${name}`;
@@ -58,19 +54,22 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         setQuery(historyIdx === -1 ? "" : done[done.length - 1 - historyIdx]);
     }
 
-    function onTab() {
-        if (!textareaRef || !panelRef) return;
-        const completion = panelRef.currentCompletion();
-        if (!completion) return;
-
+    function insertCompletion(completion: string) {
+        if (!textareaRef) return;
         const cursor = textareaRef.getCursorPos();
         const text = query();
-
         let wordStart = cursor;
         while (wordStart > 0 && !/[\s\n]/.test(text[wordStart - 1])) {
             wordStart--;
         }
         textareaRef.insertAt(wordStart, cursor, completion);
+    }
+
+    registerInsertCompletion(insertCompletion);
+
+    function onTab() {
+        const completion = panelRef?.currentCompletion();
+        if (completion) insertCompletion(completion);
     }
 
     return (
@@ -122,7 +121,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                             historyIdx = -1;
                             requestAnimationFrame(() => {
                                 const scroller = document.getElementById("scroll-root");
-                                if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+                                if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
                                 // Extract current word at cursor for fuzzy completion
                                 const cursor = textareaRef?.getCursorPos() ?? 0;
                                 let ws = cursor;
@@ -134,7 +133,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                         prefix={props.backend.settings[0].placeholder_prefix}
                         onSubmit={submit}
                         onTab={onTab}
-                        onArrowNav={onArrowNav}
+                        onSelectCompletion={(i) => { const c = panelRef?.getItemAt(i); if (c) insertCompletion(c); }}
                         onHistory={onHistory}
                         pasteTransform={pasteTransform}
                         ref={(r) => { textareaRef = r; }}
@@ -144,8 +143,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                 <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-stone-400 text-xs select-none items-center">
                     <span class="inline-flex items-center gap-1"><Kbd><Icon.CornerDownLeft size={11} /></Kbd> submit</span>
                     <span class="inline-flex items-center gap-1"><Kbd><Icon.ShiftKey size={11} /><Icon.CornerDownLeft size={11} /></Kbd> newline</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.TabKey size={11} /></Kbd> complete</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> navigate</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.TabKey size={11} /></Kbd><Kbd><span class="text-xs font-mono">ctrl 1–4</span></Kbd> complete</span>
                     <span class="inline-flex items-center gap-1"><Kbd><Icon.Option size={11} /><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> history</span>
                     <span class="inline-flex items-center gap-1"><Kbd><span class="text-xs font-mono">ctrl</span><span class="text-xs font-mono">/</span></Kbd> focus</span>
                 </div>

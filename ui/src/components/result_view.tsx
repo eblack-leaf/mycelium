@@ -162,7 +162,9 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
                 if (!scroller) return;
                 const rect = el.getBoundingClientRect();
                 const scrollerRect = scroller.getBoundingClientRect();
-                const delta = (rect.top + rect.height / 2) - (scrollerRect.top + scrollerRect.height / 2);
+                // Target slightly above center (40% down) so last row has breathing room below
+                const target = scrollerRect.top + scrollerRect.height * 0.3;
+                const delta = (rect.top + rect.height / 2) - target;
                 if (delta > 0) scroller.scrollTop += delta;
             }, { at: t + 0.05 }]);
         });

@@ -1,20 +1,22 @@
-import { createEffect, createMemo, For } from "solid-js";
+import { createMemo, For } from "solid-js";
 
 interface TextSegment {
     text: string;
-    kind: "plain" | "placeholder" | "keyword";
+    kind: "plain" | "placeholder" | "keyword" | "operator";
 }
+
+// SurrealDB-specific operators and graph traversal symbols
+const OPERATOR_RE = /<->|->|<-|<\+=|>=|<=|!=|\*=|\?=|\+=|-=|~=|!~|::|\.\.\.|\.\.|=>/g;
 
 function tokenize(text: string, prefix: string): TextSegment[] {
     if (!text) return [{ text: "", kind: "plain" }];
 
     const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Match placeholder tokens OR keyword tokens, left to right
     const placeholderRe = new RegExp(`${escapedPrefix}[\\w-]+`, "g");
     const keywordRe = new RegExp(`\\b(${SURREAL_KEYWORDS.join("|")})\\b`, "gi");
+    const operatorRe = new RegExp(OPERATOR_RE.source, "g");
 
-    // Build a sorted list of all matches with their kind
-    type Match = { start: number; end: number; kind: "placeholder" | "keyword" };
+    type Match = { start: number; end: number; kind: "placeholder" | "keyword" | "operator" };
     const matches: Match[] = [];
 
     let m: RegExpExecArray | null;
@@ -25,6 +27,10 @@ function tokenize(text: string, prefix: string): TextSegment[] {
     keywordRe.lastIndex = 0;
     while ((m = keywordRe.exec(text)) !== null) {
         matches.push({ start: m.index, end: m.index + m[0].length, kind: "keyword" });
+    }
+    operatorRe.lastIndex = 0;
+    while ((m = operatorRe.exec(text)) !== null) {
+        matches.push({ start: m.index, end: m.index + m[0].length, kind: "operator" });
     }
 
     // Sort by start position; remove overlaps (placeholder wins)
@@ -64,7 +70,7 @@ interface Props {
     prefix: string;
     onSubmit: () => void;
     onTab: () => void;
-    onArrowNav: (dir: "up" | "down" | "left" | "right") => void;
+    onSelectCompletion: (index: number) => void;
     onHistory: (dir: "up" | "down") => void;
     pasteTransform?: (text: string) => Promise<string>;
     ref?: (r: HighlightedTextareaRef) => void;
@@ -75,12 +81,7 @@ export function HighlightedTextarea(props: Props) {
 
     const segments = createMemo(() => tokenize(props.value, props.prefix));
 
-    // Sync textarea scroll with the mirror div
     let mirrorEl!: HTMLDivElement;
-    createEffect(() => {
-        // Re-run whenever value changes to keep mirror scroll in sync
-        props.value;
-    });
 
     function onKeyDown(e: KeyboardEvent) {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -95,18 +96,9 @@ export function HighlightedTextarea(props: Props) {
         } else if (e.key === "ArrowUp" && e.altKey) {
             e.preventDefault();
             props.onHistory("up");
-        } else if (e.key === "ArrowDown") {
+        } else if (e.ctrlKey && e.key >= "1" && e.key <= "4") {
             e.preventDefault();
-            props.onArrowNav("down");
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            props.onArrowNav("up");
-        } else if (e.key === "ArrowLeft" && e.altKey) {
-            e.preventDefault();
-            props.onArrowNav("left");
-        } else if (e.key === "ArrowRight" && e.altKey) {
-            e.preventDefault();
-            props.onArrowNav("right");
+            props.onSelectCompletion(parseInt(e.key) - 1);
         }
     }
 
@@ -147,12 +139,12 @@ export function HighlightedTextarea(props: Props) {
 
     return (
         <div class="relative font-mono text-sm leading-relaxed min-h-16">
-            {/* Mirror layer — colored spans */}
+            {/* Mirror layer — in normal flow, drives container height */}
             <div
                 ref={mirrorEl!}
                 aria-hidden="true"
-                class="absolute inset-0 whitespace-pre-wrap break-words pointer-events-none
-                       text-stone-300 p-0 overflow-hidden"
+                class="w-full whitespace-pre-wrap break-words pointer-events-none
+                       text-stone-300 p-0"
             >
                 <For each={segments()}>
                     {(seg) => (
@@ -162,6 +154,8 @@ export function HighlightedTextarea(props: Props) {
                                     ? "text-amber-400"
                                     : seg.kind === "keyword"
                                     ? "text-orange-400"
+                                    : seg.kind === "operator"
+                                    ? "text-sky-400"
                                     : "text-stone-300"
                             }
                         >
@@ -169,10 +163,10 @@ export function HighlightedTextarea(props: Props) {
                         </span>
                     )}
                 </For>
-                {/* Invisible trailing character to prevent mirror height collapse */}
+                {/* Trailing space keeps height from collapsing on empty value */}
                 <span class="invisible"> </span>
             </div>
-            {/* Actual textarea — transparent text, visible caret */}
+            {/* Actual textarea — absolute over mirror, transparent text, visible caret */}
             <textarea
                 ref={textareaEl!}
                 value={props.value}
@@ -181,27 +175,42 @@ export function HighlightedTextarea(props: Props) {
                 onPaste={pasteTransformHandler}
                 spellcheck={false}
                 autocomplete="off"
-                class="relative w-full bg-transparent caret-white text-transparent
-                       resize-none outline-none font-mono text-sm leading-relaxed
-                       whitespace-pre-wrap break-words min-h-16"
-                style={{ "min-height": "4rem" }}
-                rows={1}
+                class="absolute inset-0 w-full h-full bg-transparent caret-white text-transparent
+                       resize-none outline-none p-0 font-mono text-sm leading-relaxed
+                       whitespace-pre-wrap break-words overflow-hidden"
             />
         </div>
     );
 }
 
 const SURREAL_KEYWORDS = [
+    // Statements
     "SELECT", "CREATE", "UPDATE", "DELETE", "RELATE", "RETURN", "INSERT",
     "UPSERT", "DEFINE", "REMOVE", "INFO", "USE", "LET", "IF", "ELSE",
-    "FOR", "BREAK", "CONTINUE", "BEGIN", "COMMIT", "CANCEL", "THROW",
-    "SLEEP", "SHOW", "LIVE", "KILL",
+    "THEN", "END", "FOR", "BREAK", "CONTINUE", "BEGIN", "COMMIT", "CANCEL",
+    "THROW", "SLEEP", "SHOW", "LIVE", "KILL", "REBUILD", "OPTION",
+    // Clauses
     "FROM", "WHERE", "SET", "MERGE", "CONTENT", "REPLACE", "UNSET",
     "LIMIT", "ORDER", "GROUP", "SPLIT", "FETCH", "START", "BY", "ONLY",
-    "WITH", "TIMEOUT", "PARALLEL", "EXPLAIN",
+    "WITH", "TIMEOUT", "PARALLEL", "EXPLAIN", "TEMPFILES", "OMIT",
+    "BEFORE", "AFTER", "DIFF", "WHEN", "OVERWRITE", "NOINDEX",
+    // Operators / logic
     "ASC", "DESC", "AND", "OR", "NOT", "IS", "IN", "NONE", "NULL",
-    "TRUE", "FALSE", "TYPE", "ASSERT", "VALUE", "DEFAULT", "READONLY",
-    "PERMISSIONS", "FLEXIBLE", "SCHEMAFULL", "SCHEMALESS",
+    "CONTAINS", "CONTAINSALL", "CONTAINSANY", "CONTAINSNONE",
+    "INSIDE", "NOTINSIDE", "ALLINSIDE", "ANYINSIDE", "NONEINSIDE",
+    "OUTSIDE", "INTERSECTS",
+    // Values
+    "TRUE", "FALSE", "FUTURE",
+    // Schema
+    "TYPE", "ASSERT", "VALUE", "DEFAULT", "READONLY", "FLEXIBLE",
+    "PERMISSIONS", "SCHEMAFULL", "SCHEMALESS", "ENFORCED",
     "ON", "FIELD", "INDEX", "TABLE", "SCOPE", "PARAM", "FUNCTION",
     "UNIQUE", "SEARCH", "ANALYZER", "NAMESPACE", "DATABASE",
+    "EVENT", "RELATION", "REFERENCES",
+    // Types
+    "ANY", "ARRAY", "BOOL", "BYTES", "DATETIME", "DECIMAL", "DURATION",
+    "FLOAT", "GEOMETRY", "INT", "NUMBER", "OBJECT", "RECORD", "STRING",
+    "UUID",
+    // Auth
+    "SIGNIN", "SIGNUP", "AUTHENTICATE", "TOKEN", "SESSION",
 ];

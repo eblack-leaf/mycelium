@@ -47,21 +47,42 @@ impl Data {
 }
 
 const SURREAL_KEYWORDS: &[&str] = &[
+    // Statements
     "SELECT", "CREATE", "UPDATE", "DELETE", "RELATE", "RETURN", "INSERT",
     "UPSERT", "DEFINE", "REMOVE", "INFO", "USE", "LET", "IF", "ELSE",
-    "FOR", "BREAK", "CONTINUE", "BEGIN", "COMMIT", "CANCEL", "THROW",
-    "SLEEP", "SHOW", "LIVE", "KILL",
+    "THEN", "END", "FOR", "BREAK", "CONTINUE", "BEGIN", "COMMIT", "CANCEL",
+    "THROW", "SLEEP", "SHOW", "LIVE", "KILL", "REBUILD", "OPTION",
+    // Clauses
     "FROM", "WHERE", "SET", "MERGE", "CONTENT", "REPLACE", "UNSET",
     "LIMIT", "ORDER", "GROUP", "SPLIT", "FETCH", "START", "BY", "ONLY",
-    "WITH", "TIMEOUT", "PARALLEL", "EXPLAIN", "TEMPFILES",
+    "WITH", "TIMEOUT", "PARALLEL", "EXPLAIN", "TEMPFILES", "OMIT",
+    "BEFORE", "AFTER", "DIFF", "WHEN", "OVERWRITE", "NOINDEX",
+    // Operators / logic
     "ASC", "DESC", "AND", "OR", "NOT", "IS", "IN", "NONE", "NULL",
-    "TRUE", "FALSE", "TYPE", "ASSERT", "VALUE", "DEFAULT", "READONLY",
-    "PERMISSIONS", "FLEXIBLE", "SCHEMAFULL", "SCHEMALESS",
-    "ON", "FOR", "FIELD", "INDEX", "TABLE", "SCOPE", "PARAM", "FUNCTION",
+    "CONTAINS", "CONTAINSALL", "CONTAINSANY", "CONTAINSNONE",
+    "INSIDE", "NOTINSIDE", "ALLINSIDE", "ANYINSIDE", "NONEINSIDE",
+    "OUTSIDE", "INTERSECTS",
+    // Values
+    "TRUE", "FALSE", "FUTURE",
+    // Schema
+    "TYPE", "ASSERT", "VALUE", "DEFAULT", "READONLY", "FLEXIBLE",
+    "PERMISSIONS", "SCHEMAFULL", "SCHEMALESS", "ENFORCED",
+    "ON", "FIELD", "INDEX", "TABLE", "SCOPE", "PARAM", "FUNCTION",
     "UNIQUE", "SEARCH", "ANALYZER", "NAMESPACE", "DATABASE",
-    "math::sum", "math::mean", "math::min", "math::max",
-    "array::len", "array::push", "array::pop", "array::distinct",
-    "string::len", "string::lowercase", "string::uppercase",
-    "time::now", "type::thing", "type::string", "type::int", "type::float",
-    "count", "rand", "rand::uuid",
+    "EVENT", "RELATION", "REFERENCES",
+    // Types
+    "ANY", "ARRAY", "BOOL", "BYTES", "DATETIME", "DECIMAL", "DURATION",
+    "FLOAT", "GEOMETRY", "INT", "NUMBER", "OBJECT", "RECORD", "STRING",
+    "UUID",
+    // Auth
+    "SIGNIN", "SIGNUP", "AUTHENTICATE", "TOKEN", "SESSION",
+    // Built-in functions
+    "math::sum", "math::mean", "math::min", "math::max", "math::abs",
+    "array::len", "array::push", "array::pop", "array::distinct", "array::flatten",
+    "string::len", "string::lowercase", "string::uppercase", "string::trim", "string::concat",
+    "time::now", "time::day", "time::month", "time::year", "time::format",
+    "type::thing", "type::string", "type::int", "type::float", "type::bool", "type::uuid",
+    "crypto::md5", "crypto::sha1", "crypto::sha256",
+    "count", "rand", "rand::uuid", "rand::string", "rand::int", "rand::float",
+    "meta::id", "meta::tb",
 ];
