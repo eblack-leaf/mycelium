@@ -46,3 +46,28 @@ export const Settings = icon(() => (
 export const ChevronDown = icon(() => (
     <polyline points="6 9 12 15 18 9"/>
 ));
+
+export const X = icon(() => (
+    <>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+    </>
+));
+
+export const ChevronsRight = icon(() => (
+    <>
+        <polyline points="13 17 18 12 13 7" />
+        <polyline points="6 17 11 12 6 7" />
+    </>
+));
+
+export const List = icon(() => (
+    <>
+        <line x1="8" x2="21" y1="6" y2="6"/>
+        <line x1="8" x2="21" y1="12" y2="12"/>
+        <line x1="8" x2="21" y1="18" y2="18"/>
+        <line x1="3" x2="3.01" y1="6" y2="6"/>
+        <line x1="3" x2="3.01" y1="12" y2="12"/>
+        <line x1="3" x2="3.01" y1="18" y2="18"/>
+    </>
+));

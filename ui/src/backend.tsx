@@ -1,43 +1,86 @@
-import {invoke} from "@tauri-apps/api/core";
-import {createStore, SetStoreFunction, Store} from "solid-js/store";
-import {Block} from "./bindings/Block.ts";
-import {Suggestions} from "./bindings/Suggestions.ts";
+import { invoke } from "@tauri-apps/api/core";
+import { createStore, reconcile, SetStoreFunction, Store } from "solid-js/store";
+import { Block } from "./bindings/Block.ts";
+import { PlaceholderValue } from "./bindings/PlaceholderValue.ts";
+import { Settings } from "./bindings/Settings.ts";
+import { Suggestions } from "./bindings/Suggestions.ts";
 
 export class Backend {
-    blocks_store: [Store<Block[]>, SetStoreFunction<Block[]>];
+    blocks: [Store<Block[]>, SetStoreFunction<Block[]>];
     suggestions: [Store<Suggestions>, SetStoreFunction<Suggestions>];
+    values: [Store<PlaceholderValue[]>, SetStoreFunction<PlaceholderValue[]>];
+    settings: [Store<Settings>, SetStoreFunction<Settings>];
 
-    public constructor() {
-        this.blocks_store = createStore<Block[]>([]);
-        this.suggestions = createStore<Suggestions>({
-            placeholders: [],
-            ids: [],
-            schema: [],
+    constructor() {
+        this.blocks = createStore<Block[]>([]);
+        this.suggestions = createStore<Suggestions>({ placeholders: [], schema: [], other: [] });
+        this.values = createStore<PlaceholderValue[]>([]);
+        this.settings = createStore<Settings>({
+            surreal_endpoint: "ws://localhost:8000",
+            placeholder_prefix: "@",
         });
     }
 
-    public blocks() {
-        return this.blocks_store[0]
+    composingBlock(): Block | undefined {
+        const all = this.blocks[0];
+        return all[all.length - 1]?.state === "Composing"
+            ? all[all.length - 1]
+            : undefined;
     }
 
-    async update() {
-        this.blocks_store[1](await invoke("blocks"))
-        this.suggestions[1](await invoke("suggestions"))
+    async init(): Promise<void> {
+        const [blocks, sugs, vals, cfg] = await Promise.all([
+            invoke<Block[]>("blocks"),
+            invoke<Suggestions>("suggestions"),
+            invoke<PlaceholderValue[]>("get_values"),
+            invoke<Settings>("get_settings"),
+        ]);
+        this.blocks[1](reconcile(blocks));
+        this.suggestions[1](reconcile(sugs));
+        this.values[1](reconcile(vals));
+        this.settings[1](reconcile(cfg));
     }
 
-    async add_block(text: string) {
-        this.blocks_store[1]([...this.blocks_store[0], {text: text}]);
+    async submitBlock(id: string, query: string): Promise<void> {
+        const blocks = await invoke<Block[]>("submit_block", { id, query });
+        this.blocks[1](reconcile(blocks));
+        // Refresh suggestions so placeholders stay in sync
+        const sugs = await invoke<Suggestions>("suggestions");
+        this.suggestions[1](reconcile(sugs));
     }
 
-    public placeholders() {
-        return this.suggestions[0].placeholders
+    async saveValue(name: string, value: string): Promise<void> {
+        const vals = await invoke<PlaceholderValue[]>("save_value", { name, value });
+        this.values[1](reconcile(vals));
+        const sugs = await invoke<Suggestions>("suggestions");
+        this.suggestions[1](reconcile(sugs));
     }
 
-    public ids() {
-        return this.suggestions[0].ids
+    async deleteValue(name: string): Promise<void> {
+        const vals = await invoke<PlaceholderValue[]>("delete_value", { name });
+        this.values[1](reconcile(vals));
+        const sugs = await invoke<Suggestions>("suggestions");
+        this.suggestions[1](reconcile(sugs));
     }
 
-    public schema() {
-        return this.suggestions[0].schema
+    async renameValue(oldName: string, newName: string): Promise<void> {
+        const vals = await invoke<PlaceholderValue[]>("rename_value", {
+            oldName,
+            newName,
+        });
+        this.values[1](reconcile(vals));
+        const sugs = await invoke<Suggestions>("suggestions");
+        this.suggestions[1](reconcile(sugs));
+    }
+
+    async updateSettings(patch: Partial<Settings>): Promise<void> {
+        const current = this.settings[0];
+        const next: Settings = { ...current, ...patch };
+        const cfg = await invoke<Settings>("update_settings", { settings: next });
+        this.settings[1](reconcile(cfg));
+    }
+
+    async suggestName(context: string): Promise<string> {
+        return invoke<string>("suggest_name", { context });
     }
 }

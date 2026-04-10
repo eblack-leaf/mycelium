@@ -1,39 +1,77 @@
 import "./App.css";
+import { createSignal, For, onMount, Show } from "solid-js";
 import * as Icon from "./components/feather.tsx";
-import {BlockView} from "./components/block_view.tsx";
-import {For} from "solid-js";
-import {Backend} from "./backend.tsx";
+import { BlockView } from "./components/block_view.tsx";
+import { CompletionPanel } from "./components/completion_panel.tsx";
+import { Sidebar } from "./components/sidebar.tsx";
+import { Backend } from "./backend.tsx";
+
+type SidebarTab = "values" | "settings" | null;
 
 export default function App() {
     const backend = new Backend();
+    const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>(null);
+
+    onMount(async () => {
+        await backend.init();
+    });
+
     return (
-        <main class="relative h-screen w-screen bg-stone-900 flex overflow-hidden gap-2 p-2">
-            <div class={"flex-1 overflow-y-scroll"}>
-                <For each={backend.blocks()}>
-                    {(block) => <BlockView block={block} backend={backend}/>}
-                </For>
+        <main class="h-screen w-screen bg-stone-900 flex overflow-hidden text-stone-200">
+            {/* Single scroll context */}
+            <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0">
+                <div class="pl-3 pr-0 pt-3 pb-8 space-y-2">
+                    <For each={backend.blocks[0]}>
+                        {(block) => <BlockView block={block} backend={backend} />}
+                    </For>
+                    <Show when={backend.composingBlock()}>
+                        <CompletionPanel backend={backend} />
+                    </Show>
+                </div>
             </div>
-            <div class={"w-10 flex flex-col gap-4"}>
-                <div class={"h-8 flex-none"}>
-                    <div class={"rounded-md bg-orange-400 flex items-center justify-center h-10"}
-                         onClick={async () => {
-                             await backend.update();
-                         }}>
-                        <Icon.Terminal stroke={"#333333"} size={20}></Icon.Terminal>
-                    </div>
-                </div>
-                <div class={"h-10 flex-none"}>
-                    <div class={"rounded-md bg-stone-800 flex items-center justify-center h-10"}
-                         onClick={async () => {
-                             await backend.add_block("hello world");
-                         }}>
-                        <Icon.ChevronDown size={20} stroke={"#d4d4d4"}></Icon.ChevronDown>
-                    </div>
-                </div>
-                <div class={"flex-1 flex items-end  justify-center"}>
-                    <div class={"rounded-full bg-stone-800 flex items-center justify-center h-10 w-10"}>
-                        <Icon.Settings stroke={"#888888"} size={20}></Icon.Settings>
-                    </div>
+
+            {/* Sidebar panel */}
+            <Show when={sidebarTab()}>
+                <Sidebar
+                    tab={sidebarTab()!}
+                    backend={backend}
+                    onClose={() => setSidebarTab(null)}
+                />
+            </Show>
+
+            {/* Right button column — values top, TBD mid, settings bottom */}
+            <div class="w-12 flex flex-col items-center gap-3 py-3 shrink-0">
+                <button
+                    onClick={() => setSidebarTab(sidebarTab() === "values" ? null : "values")}
+                    class={`rounded-md w-8 h-8 flex items-center justify-center transition-colors
+                        ${sidebarTab() === "values"
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-stone-800 text-stone-500 hover:text-stone-300"}`}
+                    title="Values"
+                >
+                    <Icon.List size={15} stroke="currentColor" />
+                </button>
+                {/* TBD */}
+                <button
+                    class="rounded-md w-8 h-8 flex items-center justify-center
+                           bg-stone-800 text-stone-700 cursor-not-allowed"
+                    title="Coming soon"
+                    disabled
+                >
+                    <Icon.Terminal size={15} stroke="currentColor" />
+                </button>
+                {/* Settings at bottom */}
+                <div class="flex-1 flex items-end pb-1">
+                    <button
+                        onClick={() => setSidebarTab(sidebarTab() === "settings" ? null : "settings")}
+                        class={`rounded-md w-8 h-8 flex items-center justify-center transition-colors
+                            ${sidebarTab() === "settings"
+                                ? "bg-stone-700 text-stone-200"
+                                : "bg-stone-800 text-stone-500 hover:text-stone-300"}`}
+                        title="Settings"
+                    >
+                        <Icon.Settings size={15} stroke="currentColor" />
+                    </button>
                 </div>
             </div>
         </main>
