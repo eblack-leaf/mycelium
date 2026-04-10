@@ -32,7 +32,7 @@ function ValuesView(props: { backend: Backend }) {
                                             {item.value.slice(0, 80)}{item.value.length > 80 ? "…" : ""}
                                         </div>
                                     </div>
-                                    <div class="flex gap-0.5 shrink-0">
+                                    <div class="flex flex-col gap-0.5 shrink-0">
                                         <button
                                             onClick={() => { setEditingName(item.name); setEditValue(item.name); }}
                                             class="w-5 h-5 flex items-center justify-center rounded
@@ -153,7 +153,7 @@ function SettingsView(props: { backend: Backend }) {
 
 export function Sidebar(props: Props) {
     return (
-        <div class="w-60 bg-stone-900 flex flex-col overflow-hidden shrink-0">
+        <div class="w-72 bg-stone-900 flex flex-col overflow-hidden shrink-0">
             <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <Show when={props.tab === "values"}>
                     <ValuesView backend={props.backend} />
