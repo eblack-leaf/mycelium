@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, JSX, Show } from "solid-js";
 import { Block } from "../bindings/Block.ts";
 import { Backend } from "../backend.tsx";
 import { HighlightedTextarea, HighlightedTextareaRef } from "./highlighted_textarea.tsx";
@@ -7,9 +7,9 @@ import { panelRef } from "./completion_panel.tsx";
 import { setComposingEls } from "../composing.ts";
 import * as Icon from "./feather.tsx";
 
-function Kbd(props: { children: string }) {
+function Kbd(props: { children: JSX.Element }) {
     return (
-        <kbd class="inline-flex items-center px-1 py-1 text-xs font-mono rounded
+        <kbd class="inline-flex items-center gap-0.5 px-1 py-1 rounded
                     bg-stone-900 text-stone-500 border border-stone-700 border-b-2
                     leading-none select-none">
             {props.children}
@@ -112,7 +112,14 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                 <div class="pr-6">
                     <HighlightedTextarea
                         value={query()}
-                        onChange={(v) => { setQuery(v); historyIdx = -1; }}
+                        onChange={(v) => {
+                            setQuery(v);
+                            historyIdx = -1;
+                            requestAnimationFrame(() => {
+                                const scroller = document.getElementById("scroll-root");
+                                if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+                            });
+                        }}
                         prefix={props.backend.settings[0].placeholder_prefix}
                         onSubmit={submit}
                         onTab={onTab}
@@ -123,12 +130,12 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                 </div>
 
                 <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-stone-400 text-xs select-none items-center">
-                    <span class="inline-flex items-center gap-1"><Kbd>↵</Kbd> submit</span>
-                    <span class="inline-flex items-center gap-1"><Kbd>⇧↵</Kbd> newline</span>
-                    <span class="inline-flex items-center gap-1"><Kbd>Tab</Kbd> complete</span>
-                    <span class="inline-flex items-center gap-1"><Kbd>↑↓</Kbd> navigate</span>
-                    <span class="inline-flex items-center gap-1"><Kbd>⌥↑↓</Kbd> history</span>
-                    <span class="inline-flex items-center gap-1"><Kbd>^/</Kbd> focus</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.CornerDownLeft size={11} /></Kbd> submit</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.ShiftKey size={11} /><Icon.CornerDownLeft size={11} /></Kbd> newline</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.TabKey size={11} /></Kbd> complete</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> navigate</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><Icon.Option size={11} /><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> history</span>
+                    <span class="inline-flex items-center gap-1"><Kbd><span class="text-xs font-mono">ctrl</span><span class="text-xs font-mono">/</span></Kbd> focus</span>
                 </div>
             </div>
         </Show>

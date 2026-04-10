@@ -61,6 +61,54 @@ export const ChevronsRight = icon(() => (
     </>
 ));
 
+export const CornerDownLeft = icon(() => (
+    <>
+        <polyline points="9 10 4 15 9 20"/>
+        <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+    </>
+));
+
+export const ArrowUp = icon(() => (
+    <>
+        <line x1="12" y1="19" x2="12" y2="5"/>
+        <polyline points="5 12 12 5 19 12"/>
+    </>
+));
+
+export const ArrowDown = icon(() => (
+    <>
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <polyline points="19 12 12 19 5 12"/>
+    </>
+));
+
+// ⇧ Shift — outlined upward arrow with stem
+export const ShiftKey = icon(() => (
+    <>
+        <polyline points="5 12 12 4 19 12"/>
+        <polyline points="9 12 9 20 15 20 15 12"/>
+    </>
+));
+
+// ⇥ Tab — left bar + right-pointing arrow
+export const TabKey = icon(() => (
+    <>
+        <line x1="4" y1="5" x2="4" y2="19"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <polyline points="14 6 20 12 14 18"/>
+    </>
+));
+
+// ⌥ Option/Alt symbol
+export const Option = icon(() => (
+    <>
+        <line x1="4" y1="8" x2="11" y2="8"/>
+        <line x1="11" y1="8" x2="20" y2="17"/>
+        <line x1="15" y1="17" x2="20" y2="17"/>
+        <line x1="15" y1="8" x2="20" y2="8"/>
+    </>
+));
+
 export const List = icon(() => (
     <>
         <line x1="8" x2="21" y1="6" y2="6"/>
