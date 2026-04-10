@@ -81,7 +81,7 @@ function FlatJsonRow(props: {
 
             <button
                 onClick={openSave}
-                onKeyDown={(e) => { if (e.key === "Escape") setSaving(false); }}
+                onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setSaving(false); } }}
                 class={`shrink-0 flex items-center rounded-sm px-1 py-0.5 transition-colors
                     ${saving()
                         ? "text-amber-400 bg-stone-700"
@@ -101,7 +101,7 @@ function FlatJsonRow(props: {
                             onInput={(e) => setName(e.currentTarget.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") confirm();
-                                if (e.key === "Escape") setSaving(false);
+                                if (e.key === "Escape") { e.stopPropagation(); setSaving(false); }
                             }}
                             onBlur={(e) => {
                                 const related = e.relatedTarget as HTMLElement | null;
