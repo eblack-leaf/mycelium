@@ -162,9 +162,8 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
                 if (!scroller) return;
                 const rect = el.getBoundingClientRect();
                 const scrollerRect = scroller.getBoundingClientRect();
-                if (rect.bottom > scrollerRect.bottom) {
-                    scroller.scrollTop += rect.bottom - scrollerRect.bottom + 8;
-                }
+                const delta = (rect.top + rect.height / 2) - (scrollerRect.top + scrollerRect.height / 2);
+                if (delta > 0) scroller.scrollTop += delta;
             }, { at: t + 0.05 }]);
         });
         const finalT = (rowEls.length - 1) * 0.075 + 0.06;
