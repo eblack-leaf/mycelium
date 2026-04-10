@@ -1,16 +1,11 @@
 import {createSignal, Show} from "solid-js";
 import {Controls} from "./controls.tsx";
-import {invoke} from "@tauri-apps/api/core";
-import {createResource} from "solid-js";
-import {Suggestion} from "../bindings/Suggestion.ts";
 import {Block} from "../bindings/Block.ts";
+import {Backend} from "../backend.tsx";
 
 
-export function BlockView(_data: { block: Block }) {
+export function BlockView(data: { block: Block, backend: Backend }) {
     const composing = createSignal(true);
-    const [placeholders] = createResource(async () => await invoke<Suggestion[]>("placeholders"));
-    const [ids] = createResource(async () => await invoke<Suggestion[]>("ids"));
-    const [schema] = createResource(async () => await invoke<Suggestion[]>("schema"));
     return <>
         <div class={"text-stone-500 text-sm"}>{"ctx:user - "}{" specs / metrics / ... "}</div>
         <div class={"w-full rounded-sm bg-stone-800 min-h-24"}>
@@ -19,8 +14,8 @@ export function BlockView(_data: { block: Block }) {
             </div>
         </div>
         <Show when={composing[0]()} fallback={<></>}>
-            <Controls placeholders={placeholders()} ids={ids()}
-                      schema={schema()}/>
+            <Controls placeholders={data.backend.placeholders()} ids={data.backend.ids()}
+                      schema={data.backend.schema()}/>
         </Show>
     </>
 }

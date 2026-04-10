@@ -7,7 +7,7 @@ mod state;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![cmds::placeholders, cmds::ids, cmds::schema, cmds::blocks])
+        .invoke_handler(tauri::generate_handler![cmds::suggestions, cmds::blocks])
         .manage(DataM::new(Data::new()))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
