@@ -85,6 +85,11 @@ export class Backend {
         return invoke<string>("suggest_name", { context });
     }
 
+    async filterSuggestions(word: string): Promise<void> {
+        const sugs = await invoke<Suggestions>("filter_suggestions", { word });
+        this.suggestions[1](reconcile(sugs));
+    }
+
     async pasteValue(context: string, value: string): Promise<string> {
         const result = await invoke<PasteResult>("paste_value", { context, value });
         this.values[1](reconcile(result.values));

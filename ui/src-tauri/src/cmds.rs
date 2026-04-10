@@ -1,4 +1,4 @@
-use crate::bridge::{Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestions};
+use crate::bridge::{Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestion, Suggestions};
 use crate::state::DataM;
 use tauri::State;
 
@@ -146,6 +146,89 @@ pub(crate) async fn paste_value(
     }
     data.values.push(PlaceholderValue { name: name.clone(), value });
     Ok(PasteResult { name, values: data.values.clone() })
+}
+
+/// Score a partial word against a candidate for autocomplete.
+/// Prefix matches score highest (0.8–1.0), substring matches score mid (0.5–0.7),
+/// fuzzy similarity fills the rest so typos still surface results.
+fn completion_score(word: &str, candidate: &str) -> f64 {
+    if word.is_empty() { return 0.0; }
+    let w = word.to_lowercase();
+    let c = candidate.to_lowercase();
+    if c.starts_with(&w) {
+        // Reward full prefix matches; longer remaining tail = slightly lower
+        0.8 + 0.2 * (w.len() as f64 / c.len() as f64)
+    } else if c.contains(&w) {
+        0.5
+    } else {
+        strsim::jaro_winkler(&w, &c) * 0.6 // scale down pure fuzzy so prefix always wins
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn filter_suggestions(
+    word: String,
+    handle: State<'_, DataM>,
+) -> Result<Suggestions, ()> {
+    let data = handle.lock().unwrap();
+    let prefix = &data.settings.placeholder_prefix;
+
+    // Build placeholder list from saved values
+    let placeholders: Vec<Suggestion> = data.values.iter()
+        .map(|v| Suggestion {
+            text: format!("{}{}", prefix, v.name),
+            metadata: "placeholder".to_string(),
+        })
+        .collect();
+
+    // If the word starts with the placeholder prefix, only suggest placeholders
+    if word.starts_with(prefix.as_str()) {
+        let query = &word[prefix.len()..];
+        let mut scored: Vec<(f64, Suggestion)> = placeholders.iter()
+            .map(|s| {
+                let name = s.text.trim_start_matches(prefix.as_str());
+                let score = completion_score(query, name);
+                (score, s.clone())
+            })
+            .collect();
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        return Ok(Suggestions {
+            placeholders: scored.into_iter().take(4).map(|(_, s)| s).collect(),
+            schema: vec![],
+            other: vec![],
+        });
+    }
+
+    // General mode: score everything together, return top 4 by relevance.
+    // When word is empty, keywords come first (schema pool), then placeholders.
+    let mut all: Vec<(f64, Suggestion)> = vec![];
+    for (i, s) in data.suggestions.schema.iter().enumerate() {
+        let score = if word.is_empty() {
+            1.0 - (i as f64 * 0.001) // preserve seeded order when idle
+        } else {
+            completion_score(&word, &s.text)
+        };
+        all.push((score, s.clone()));
+    }
+    for s in &placeholders {
+        let name = s.text.trim_start_matches(prefix.as_str());
+        let score = if word.is_empty() { 0.4 } else { completion_score(&word, name) };
+        all.push((score, s.clone()));
+    }
+    // TODO: schema pool from DB INFO traversal or file-based schema sources
+    // will be injected into data.suggestions.other here once implemented
+    for s in &data.suggestions.other {
+        let score = if word.is_empty() { 0.3 } else { completion_score(&word, &s.text) };
+        all.push((score, s.clone()));
+    }
+    all.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let ranked: Vec<Suggestion> = all.into_iter().take(4).map(|(_, s)| s).collect();
+
+    Ok(Suggestions {
+        placeholders: vec![],
+        schema: ranked,
+        other: vec![],
+    })
 }
 
 fn mock_result(query: &str) -> String {

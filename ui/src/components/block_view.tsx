@@ -38,7 +38,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         panelRef?.navigate(dir);
     }
 
-    async function onPaste(text: string): Promise<string> {
+    async function pasteTransform(text: string): Promise<string> {
         const name = await props.backend.pasteValue(text.slice(0, 48), text);
         return `${props.backend.settings[0].placeholder_prefix}${name}`;
     }
@@ -123,6 +123,12 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                             requestAnimationFrame(() => {
                                 const scroller = document.getElementById("scroll-root");
                                 if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+                                // Extract current word at cursor for fuzzy completion
+                                const cursor = textareaRef?.getCursorPos() ?? 0;
+                                let ws = cursor;
+                                while (ws > 0 && !/[\s\n]/.test(v[ws - 1])) ws--;
+                                props.backend.filterSuggestions(v.slice(ws, cursor));
+                                panelRef?.resetIndex();
                             });
                         }}
                         prefix={props.backend.settings[0].placeholder_prefix}
@@ -130,7 +136,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                         onTab={onTab}
                         onArrowNav={onArrowNav}
                         onHistory={onHistory}
-                        onPaste={onPaste}
+                        pasteTransform={pasteTransform}
                         ref={(r) => { textareaRef = r; }}
                     />
                 </div>

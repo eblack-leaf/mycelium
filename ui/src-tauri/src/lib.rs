@@ -20,6 +20,7 @@ pub fn run() {
             cmds::update_settings,
             cmds::suggest_name,
             cmds::paste_value,
+            cmds::filter_suggestions,
         ])
         .manage(DataM::new(Data::new()))
         .run(tauri::generate_context!())

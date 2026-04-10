@@ -18,4 +18,5 @@ tauri-plugin-opener = "2"
 serde = { workspace = true }
 serde_json = {  workspace = true }
 ts-rs = "12.0.1"
+strsim = "0.11"
 

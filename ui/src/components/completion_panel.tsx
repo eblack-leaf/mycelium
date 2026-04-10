@@ -43,11 +43,13 @@ export function CompletionPanel(props: { backend: Backend }) {
         return items()[selectedIndex()]?.text ?? null;
     }
 
+    function resetIndex() { setSelectedIndex(0); }
+
     // Module-level ref updated each render so BlockView can call navigate/currentCompletion
-    panelRef = { navigate, currentCompletion };
+    panelRef = { navigate, currentCompletion, resetIndex };
 
     return (
-        <div class="mt-1 overflow-hidden">
+        <div class="mt-1 overflow-hidden" style={{ "min-height": `${MAX_K * 2}rem` }}>
             <For each={items()}>
                 {(item, i) => (
                     <div
@@ -79,4 +81,5 @@ export function CompletionPanel(props: { backend: Backend }) {
 export let panelRef: {
     navigate: (dir: "up" | "down" | "left" | "right") => void;
     currentCompletion: () => string | null;
+    resetIndex: () => void;
 } | null = null;

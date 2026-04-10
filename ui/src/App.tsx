@@ -60,7 +60,7 @@ export default function App() {
                             : "bg-stone-800 text-stone-500 hover:text-stone-300"}`}
                     title="Values"
                 >
-                    <Icon.List size={15} stroke="currentColor" />
+                    <Icon.Database size={15} stroke="currentColor" />
                 </button>
                 <button
                     onClick={() => setSidebarTab(sidebarTab() === "nav" ? null : "nav")}

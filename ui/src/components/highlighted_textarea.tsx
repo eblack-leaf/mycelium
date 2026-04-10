@@ -66,7 +66,7 @@ interface Props {
     onTab: () => void;
     onArrowNav: (dir: "up" | "down" | "left" | "right") => void;
     onHistory: (dir: "up" | "down") => void;
-    onPaste?: (text: string) => Promise<string>;
+    pasteTransform?: (text: string) => Promise<string>;
     ref?: (r: HighlightedTextareaRef) => void;
 }
 
@@ -110,12 +110,12 @@ export function HighlightedTextarea(props: Props) {
         }
     }
 
-    async function onPasteHandler(e: ClipboardEvent) {
-        if (!props.onPaste) return;
+    async function pasteTransformHandler(e: ClipboardEvent) {
+        if (!props.pasteTransform) return;
         e.preventDefault();
         const text = e.clipboardData?.getData("text") ?? "";
         if (!text) return;
-        const replacement = await props.onPaste(text);
+        const replacement = await props.pasteTransform(text);
         const start = textareaEl.selectionStart ?? 0;
         const end = textareaEl.selectionEnd ?? start;
         const next = props.value.slice(0, start) + replacement + props.value.slice(end);
@@ -178,7 +178,7 @@ export function HighlightedTextarea(props: Props) {
                 value={props.value}
                 onInput={(e) => props.onChange(e.currentTarget.value)}
                 onKeyDown={onKeyDown}
-                onPaste={onPasteHandler}
+                onPaste={pasteTransformHandler}
                 spellcheck={false}
                 autocomplete="off"
                 class="relative w-full bg-transparent caret-white text-transparent
