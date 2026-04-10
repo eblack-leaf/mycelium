@@ -25,6 +25,5 @@ export function focusComposing() {
 /** Scroll composing block to top of viewport then focus — called by global Escape. */
 export function jumpToComposing() {
     containerEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Slight delay so scroll finishes before focus (avoids browser fighting the scroll)
-    setTimeout(() => textareaEl?.focus({ preventScroll: true }), 80);
+    textareaEl?.focus({ preventScroll: true });
 }

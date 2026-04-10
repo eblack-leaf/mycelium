@@ -15,12 +15,10 @@ export default function App() {
 
     onMount(async () => {
         await backend.init();
+        requestAnimationFrame(() => jumpToComposing());
 
         function onKeyDown(e: KeyboardEvent) {
-            if (e.key === "Escape") {
-                // Don't intercept Escape inside inputs/textareas (let them handle it first)
-                const tag = (e.target as HTMLElement).tagName;
-                if (tag === "INPUT") return;
+            if (e.ctrlKey && e.key === "/") {
                 e.preventDefault();
                 jumpToComposing();
             }

@@ -7,6 +7,16 @@ import { panelRef } from "./completion_panel.tsx";
 import { setComposingEls } from "../composing.ts";
 import * as Icon from "./feather.tsx";
 
+function Kbd(props: { children: string }) {
+    return (
+        <kbd class="inline-flex items-center px-1 py-1 text-xs font-mono rounded
+                    bg-stone-900 text-stone-500 border border-stone-700 border-b-2
+                    leading-none select-none">
+            {props.children}
+        </kbd>
+    );
+}
+
 export function BlockView(props: { block: Block; backend: Backend }) {
     const [query, setQuery] = createSignal(props.block.query);
     const [submitting, setSubmitting] = createSignal(false);
@@ -112,13 +122,13 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                     />
                 </div>
 
-                <div class="flex gap-4 mt-1.5 text-stone-500 text-xs select-none">
-                    <span>↵ submit</span>
-                    <span>⇧↵ newline</span>
-                    <span>Tab complete</span>
-                    <span>↑↓ navigate</span>
-                    <span>⌥↑↓ history</span>
-                    <span>Esc focus</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-stone-400 text-xs select-none items-center">
+                    <span class="inline-flex items-center gap-1"><Kbd>↵</Kbd> submit</span>
+                    <span class="inline-flex items-center gap-1"><Kbd>⇧↵</Kbd> newline</span>
+                    <span class="inline-flex items-center gap-1"><Kbd>Tab</Kbd> complete</span>
+                    <span class="inline-flex items-center gap-1"><Kbd>↑↓</Kbd> navigate</span>
+                    <span class="inline-flex items-center gap-1"><Kbd>⌥↑↓</Kbd> history</span>
+                    <span class="inline-flex items-center gap-1"><Kbd>^/</Kbd> focus</span>
                 </div>
             </div>
         </Show>
