@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createStore, reconcile, SetStoreFunction, Store } from "solid-js/store";
 import { Block } from "./bindings/Block.ts";
+import { PasteResult } from "./bindings/PasteResult.ts";
 import { PlaceholderValue } from "./bindings/PlaceholderValue.ts";
 import { Settings } from "./bindings/Settings.ts";
 import { Suggestions } from "./bindings/Suggestions.ts";
@@ -82,5 +83,13 @@ export class Backend {
 
     async suggestName(context: string): Promise<string> {
         return invoke<string>("suggest_name", { context });
+    }
+
+    async pasteValue(context: string, value: string): Promise<string> {
+        const result = await invoke<PasteResult>("paste_value", { context, value });
+        this.values[1](reconcile(result.values));
+        const sugs = await invoke<Suggestions>("suggestions");
+        this.suggestions[1](reconcile(sugs));
+        return result.name;
     }
 }

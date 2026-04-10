@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 import { Backend } from "../backend.tsx";
 
-type Tab = "values" | "settings";
+type Tab = "values" | "settings" | "nav";
 
 interface Props {
     tab: Tab;
@@ -151,15 +151,66 @@ function SettingsView(props: { backend: Backend }) {
     );
 }
 
+function resultMeta(result: string | null): string {
+    if (!result) return "—";
+    try {
+        const p = JSON.parse(result);
+        if (Array.isArray(p)) return `array [${p.length}]`;
+        if (typeof p === "object" && p !== null) return `object {${Object.keys(p).length}}`;
+        if (typeof p === "string") return `string`;
+        if (typeof p === "number") return String(p);
+        if (typeof p === "boolean") return String(p);
+        return typeof p;
+    } catch { return "error"; }
+}
+
+function NavView(props: { backend: Backend }) {
+    const done = () => props.backend.blocks[0].filter(b => b.state === "Done" && b.query.trim());
+
+    return (
+        <div class="flex flex-col gap-1 p-3">
+            <For each={done()}>
+                {(block) => (
+                    <button
+                        onClick={() => {
+                            const scroller = document.getElementById("scroll-root");
+                            const el = document.getElementById(`block-${block.id}`);
+                            if (el && scroller) {
+                                const top = el.offsetTop - 12;
+                                scroller.scrollTo({ top, behavior: "smooth" });
+                            }
+                        }}
+                        class="text-left rounded bg-stone-800 px-3 py-2 hover:bg-stone-700
+                               transition-colors group"
+                    >
+                        <div class="text-stone-300 text-sm font-mono truncate">
+                            {block.query.length > 60 ? block.query.slice(0, 60) + "…" : block.query}
+                        </div>
+                        <div class="text-stone-600 text-xs font-mono mt-0.5">
+                            {resultMeta(block.result)}
+                        </div>
+                    </button>
+                )}
+            </For>
+            <Show when={done().length === 0}>
+                <div class="text-stone-600 text-sm italic px-3 py-2">no executed queries</div>
+            </Show>
+        </div>
+    );
+}
+
 export function Sidebar(props: Props) {
     return (
-        <div class="w-72 bg-stone-900 flex flex-col overflow-hidden shrink-0">
+        <div class="w-1/3 min-w-72 bg-stone-900 flex flex-col overflow-hidden shrink-0">
             <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <Show when={props.tab === "values"}>
                     <ValuesView backend={props.backend} />
                 </Show>
                 <Show when={props.tab === "settings"}>
                     <SettingsView backend={props.backend} />
+                </Show>
+                <Show when={props.tab === "nav"}>
+                    <NavView backend={props.backend} />
                 </Show>
             </div>
         </div>

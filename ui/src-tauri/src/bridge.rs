@@ -47,6 +47,13 @@ pub(crate) struct Settings {
     pub(crate) placeholder_prefix: String,
 }
 
+#[derive(Serialize, Deserialize, TS, Clone)]
+#[ts(export)]
+pub(crate) struct PasteResult {
+    pub(crate) name: String,
+    pub(crate) values: Vec<PlaceholderValue>,
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {

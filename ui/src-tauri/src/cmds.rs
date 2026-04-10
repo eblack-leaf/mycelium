@@ -1,4 +1,4 @@
-use crate::bridge::{Block, BlockState, PlaceholderValue, Settings, Suggestions};
+use crate::bridge::{Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestions};
 use crate::state::DataM;
 use tauri::State;
 
@@ -103,9 +103,7 @@ pub(crate) async fn update_settings(
     Ok(data.settings.clone())
 }
 
-#[tauri::command]
-pub(crate) async fn suggest_name(context: String) -> Result<String, ()> {
-    // Stub: slugify the first 32 chars of the value
+fn slugify(context: &str) -> String {
     let slug: String = context
         .chars()
         .take(32)
@@ -113,7 +111,6 @@ pub(crate) async fn suggest_name(context: String) -> Result<String, ()> {
         .collect::<String>()
         .trim_matches('-')
         .to_string();
-    // Collapse consecutive dashes
     let mut name = String::new();
     let mut last_dash = false;
     for c in slug.chars() {
@@ -125,7 +122,30 @@ pub(crate) async fn suggest_name(context: String) -> Result<String, ()> {
             last_dash = false;
         }
     }
-    Ok(name)
+    name
+}
+
+#[tauri::command]
+pub(crate) async fn suggest_name(context: String) -> Result<String, ()> {
+    Ok(slugify(&context))
+}
+
+#[tauri::command]
+pub(crate) async fn paste_value(
+    context: String,
+    value: String,
+    handle: State<'_, DataM>,
+) -> Result<PasteResult, ()> {
+    let mut data = handle.lock().unwrap();
+    let base = slugify(&context);
+    let mut name = base.clone();
+    let mut n = 2u32;
+    while data.values.iter().any(|v| v.name == name) {
+        name = format!("{}-{}", base, n);
+        n += 1;
+    }
+    data.values.push(PlaceholderValue { name: name.clone(), value });
+    Ok(PasteResult { name, values: data.values.clone() })
 }
 
 fn mock_result(query: &str) -> String {

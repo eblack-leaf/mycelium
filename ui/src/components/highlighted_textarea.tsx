@@ -66,6 +66,7 @@ interface Props {
     onTab: () => void;
     onArrowNav: (dir: "up" | "down" | "left" | "right") => void;
     onHistory: (dir: "up" | "down") => void;
+    onPaste?: (text: string) => Promise<string>;
     ref?: (r: HighlightedTextareaRef) => void;
 }
 
@@ -107,6 +108,22 @@ export function HighlightedTextarea(props: Props) {
             e.preventDefault();
             props.onArrowNav("right");
         }
+    }
+
+    async function onPasteHandler(e: ClipboardEvent) {
+        if (!props.onPaste) return;
+        e.preventDefault();
+        const text = e.clipboardData?.getData("text") ?? "";
+        if (!text) return;
+        const replacement = await props.onPaste(text);
+        const start = textareaEl.selectionStart ?? 0;
+        const end = textareaEl.selectionEnd ?? start;
+        const next = props.value.slice(0, start) + replacement + props.value.slice(end);
+        props.onChange(next);
+        requestAnimationFrame(() => {
+            const pos = start + replacement.length;
+            textareaEl.setSelectionRange(pos, pos);
+        });
     }
 
     if (props.ref) {
@@ -161,6 +178,7 @@ export function HighlightedTextarea(props: Props) {
                 value={props.value}
                 onInput={(e) => props.onChange(e.currentTarget.value)}
                 onKeyDown={onKeyDown}
+                onPaste={onPasteHandler}
                 spellcheck={false}
                 autocomplete="off"
                 class="relative w-full bg-transparent caret-white text-transparent

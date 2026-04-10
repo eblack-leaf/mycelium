@@ -109,6 +109,11 @@ export const Option = icon(() => (
     </>
 ));
 
+// Navigation marker / jump-to
+export const Navigation2 = icon(() => (
+    <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+));
+
 export const List = icon(() => (
     <>
         <line x1="8" x2="21" y1="6" y2="6"/>

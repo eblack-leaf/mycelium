@@ -38,6 +38,11 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         panelRef?.navigate(dir);
     }
 
+    async function onPaste(text: string): Promise<string> {
+        const name = await props.backend.pasteValue(text.slice(0, 48), text);
+        return `${props.backend.settings[0].placeholder_prefix}${name}`;
+    }
+
     function onHistory(dir: "up" | "down") {
         const done = props.backend.blocks[0]
             .filter((b) => b.state === "Done" && b.query.trim())
@@ -72,7 +77,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         <Show
             when={props.block.state === "Composing"}
             fallback={
-                <div class={`rounded bg-stone-800 ${props.block.state === "Executing" ? "opacity-50" : ""}`}>
+                <div id={`block-${props.block.id}`} class={`rounded bg-stone-800 ${props.block.state === "Executing" ? "opacity-50" : ""}`}>
                     <pre class="text-stone-500 text-sm font-mono px-3 pt-2 pb-2
                                 whitespace-pre-wrap break-words">
                         {props.block.query || <span class="italic text-stone-700">empty</span>}
@@ -125,6 +130,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                         onTab={onTab}
                         onArrowNav={onArrowNav}
                         onHistory={onHistory}
+                        onPaste={onPaste}
                         ref={(r) => { textareaRef = r; }}
                     />
                 </div>

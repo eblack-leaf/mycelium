@@ -7,7 +7,7 @@ import { Sidebar } from "./components/sidebar.tsx";
 import { Backend } from "./backend.tsx";
 import { jumpToComposing } from "./composing.ts";
 
-type SidebarTab = "values" | "settings" | null;
+type SidebarTab = "values" | "settings" | "nav" | null;
 
 export default function App() {
     const backend = new Backend();
@@ -62,14 +62,15 @@ export default function App() {
                 >
                     <Icon.List size={15} stroke="currentColor" />
                 </button>
-                {/* TBD */}
                 <button
-                    class="rounded-md w-8 h-8 flex items-center justify-center
-                           bg-stone-800 text-stone-700 cursor-not-allowed"
-                    title="Coming soon"
-                    disabled
+                    onClick={() => setSidebarTab(sidebarTab() === "nav" ? null : "nav")}
+                    class={`rounded-md w-8 h-8 flex items-center justify-center transition-colors
+                        ${sidebarTab() === "nav"
+                            ? "bg-stone-700/50 text-stone-200"
+                            : "bg-stone-800 text-stone-500 hover:text-stone-300"}`}
+                    title="Query history"
                 >
-                    <Icon.Terminal size={15} stroke="currentColor" />
+                    <Icon.List size={15} stroke="currentColor" />
                 </button>
                 {/* Settings at bottom */}
                 <div class="flex-1 flex items-end pb-1">
