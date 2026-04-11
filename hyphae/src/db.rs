@@ -9,16 +9,15 @@
 ///   body: <SurrealQL query>
 ///
 /// Response: [{ "status": "OK", "result": <value>, "time": "..." }]
-
-use crate::schema::{parse_db_info, parse_table_info, SchemaCompletions};
+use crate::schema::{SchemaCompletions, parse_db_info, parse_table_info};
 use reqwest::Client;
 
 pub struct ConnConfig {
-    pub endpoint:  String,  // any of: ws:// wss:// http:// https:// or bare host:port
+    pub endpoint: String, // any of: ws:// wss:// http:// https:// or bare host:port
     pub namespace: String,
-    pub database:  String,
-    pub username:  String,
-    pub password:  String,
+    pub database: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl ConnConfig {
@@ -37,7 +36,9 @@ impl ConnConfig {
         }
     }
 
-    fn sql_url(&self) -> String { format!("{}/sql", self.http_base()) }
+    fn sql_url(&self) -> String {
+        format!("{}/sql", self.http_base())
+    }
 }
 
 /// Run one SurrealQL statement, return the raw JSON body.
@@ -58,11 +59,15 @@ pub async fn query(cfg: &ConnConfig, surql: &str) -> Result<String, String> {
         .map_err(|e| format!("POST {} — {}", url, e))?;
 
     let status = resp.status();
-    let body   = resp.text().await.map_err(|e| e.to_string())?;
+    let body = resp.text().await.map_err(|e| e.to_string())?;
 
     if !status.is_success() {
-        return Err(format!("HTTP {} from {} — {}", status.as_u16(), url,
-            body.chars().take(200).collect::<String>()));
+        return Err(format!(
+            "HTTP {} from {} — {}",
+            status.as_u16(),
+            url,
+            body.chars().take(200).collect::<String>()
+        ));
     }
 
     Ok(body)
@@ -74,7 +79,10 @@ pub async fn fetch_schema(cfg: &ConnConfig) -> Result<SchemaCompletions, String>
 
     let Some(db_info) = parse_db_info(&db_json) else {
         // Parsed OK but result wasn't DbInfo shaped — return what we have
-        return Ok(SchemaCompletions { table_names: vec![], field_names: vec![] });
+        return Ok(SchemaCompletions {
+            table_names: vec![],
+            field_names: vec![],
+        });
     };
 
     let mut table_infos = Vec::new();

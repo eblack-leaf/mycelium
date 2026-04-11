@@ -5,7 +5,6 @@
 ///   Hacker   — terse, irreverent: "dead-loop", "ghost-wire", "null-gate"
 ///
 /// Names are random; call `generate` whenever a placeholder value needs a name.
-
 use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,27 +14,59 @@ pub enum Style {
 }
 
 const CREATIVE_ADJ: &[&str] = &[
-    "silver", "hollow", "woven", "drifting", "amber", "crimson", "distant",
-    "fading", "ancient", "quiet", "fleeting", "wandering", "luminous",
-    "broken", "hidden", "sunken", "velvet", "ashen", "gilded", "borrowed",
+    "silver",
+    "hollow",
+    "woven",
+    "drifting",
+    "amber",
+    "crimson",
+    "distant",
+    "fading",
+    "ancient",
+    "quiet",
+    "fleeting",
+    "wandering",
+    "luminous",
+    "broken",
+    "hidden",
+    "sunken",
+    "velvet",
+    "ashen",
+    "gilded",
+    "borrowed",
 ];
 
 const CREATIVE_NOUN: &[&str] = &[
-    "thread", "echo", "lantern", "current", "ember", "threshold", "tide",
-    "mirror", "signal", "ridge", "vessel", "glimmer", "compass", "fragment",
-    "lattice", "veil", "canopy", "mantle", "cipher", "relic",
+    "thread",
+    "echo",
+    "lantern",
+    "current",
+    "ember",
+    "threshold",
+    "tide",
+    "mirror",
+    "signal",
+    "ridge",
+    "vessel",
+    "glimmer",
+    "compass",
+    "fragment",
+    "lattice",
+    "veil",
+    "canopy",
+    "mantle",
+    "cipher",
+    "relic",
 ];
 
 const HACKER_ADJ: &[&str] = &[
-    "raw", "zero", "dark", "ghost", "dead", "live", "dirty", "loose",
-    "cold", "fast", "silent", "spare", "sharp", "null", "void",
-    "soft", "hard", "deep", "flat", "open",
+    "raw", "zero", "dark", "ghost", "dead", "live", "dirty", "loose", "cold", "fast", "silent",
+    "spare", "sharp", "null", "void", "soft", "hard", "deep", "flat", "open",
 ];
 
 const HACKER_NOUN: &[&str] = &[
-    "wire", "bus", "stack", "loop", "flag", "gate", "node", "hook",
-    "mask", "tick", "salt", "sink", "core", "edge", "root",
-    "pipe", "fork", "trap", "lock", "patch",
+    "wire", "bus", "stack", "loop", "flag", "gate", "node", "hook", "mask", "tick", "salt", "sink",
+    "core", "edge", "root", "pipe", "fork", "trap", "lock", "patch",
 ];
 
 /// Generate a random 2-word name in the given style.
@@ -43,9 +74,9 @@ pub fn generate(style: Style) -> String {
     let mut rng = rand::thread_rng();
     let (adjs, nouns) = match style {
         Style::Creative => (CREATIVE_ADJ, CREATIVE_NOUN),
-        Style::Hacker   => (HACKER_ADJ,   HACKER_NOUN),
+        Style::Hacker => (HACKER_ADJ, HACKER_NOUN),
     };
-    let adj  = adjs[rng.gen_range(0..adjs.len())];
+    let adj = adjs[rng.gen_range(0..adjs.len())];
     let noun = nouns[rng.gen_range(0..nouns.len())];
     format!("{}-{}", adj, noun)
 }

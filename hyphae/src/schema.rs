@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Parsed output of `INFO FOR DB` — top-level DB info.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DbInfo {
-    pub tables: HashMap<String, String>,     // name → definition
+    pub tables: HashMap<String, String>, // name → definition
     pub functions: HashMap<String, String>,
     pub analyzers: HashMap<String, String>,
 }
@@ -20,7 +20,7 @@ pub struct TableInfo {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FieldInfo {
-    pub kind: Option<String>,  // "string", "int", "record<user>", etc.
+    pub kind: Option<String>, // "string", "int", "record<user>", etc.
     pub value: Option<String>,
     pub assert: Option<String>,
 }
@@ -41,7 +41,10 @@ impl SchemaCompletions {
             .collect();
         field_names.sort();
         field_names.dedup();
-        Self { table_names, field_names }
+        Self {
+            table_names,
+            field_names,
+        }
     }
 
     /// Flatten into (text, metadata) pairs for the completion suggestion pool.

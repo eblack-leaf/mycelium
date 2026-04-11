@@ -1,4 +1,6 @@
-use crate::bridge::{Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestion, Suggestions};
+use crate::bridge::{
+    Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestion, Suggestions,
+};
 use crate::state::DataM;
 use tauri::State;
 
@@ -17,11 +19,11 @@ pub(crate) async fn submit_block(
         let data = handle.lock().unwrap();
 
         let cfg = hyphae::db::ConnConfig {
-            endpoint:  data.settings.surreal_endpoint.clone(),
+            endpoint: data.settings.surreal_endpoint.clone(),
             namespace: data.settings.surreal_namespace.clone(),
-            database:  data.settings.surreal_database.clone(),
-            username:  data.settings.surreal_username.clone(),
-            password:  data.settings.surreal_password.clone(),
+            database: data.settings.surreal_database.clone(),
+            username: data.settings.surreal_username.clone(),
+            password: data.settings.surreal_password.clone(),
         };
 
         // Substitute @placeholder tokens with saved values.
@@ -41,10 +43,9 @@ pub(crate) async fn submit_block(
 
     // Run the query — fall back to an error string as the result so the block
     // still completes rather than leaving the user in Executing state.
-    let result = match hyphae::db::query(&cfg, &resolved).await {
-        Ok(json) => json,
-        Err(e)   => serde_json::json!([{ "error": e }]).to_string(),
-    };
+    let result = hyphae::db::query(&cfg, &resolved)
+        .await
+        .unwrap_or_else(|e| serde_json::json!([{ "error": e }]).to_string());
 
     let mut data = handle.lock().unwrap();
     if let Some(block) = data.blocks.iter_mut().find(|b| b.id == id) {
@@ -154,15 +155,23 @@ pub(crate) async fn paste_value(
     while data.values.iter().any(|v| v.name == name) {
         name = hyphae::namer::generate_random();
     }
-    data.values.push(PlaceholderValue { name: name.clone(), value });
-    Ok(PasteResult { name, values: data.values.clone() })
+    data.values.push(PlaceholderValue {
+        name: name.clone(),
+        value,
+    });
+    Ok(PasteResult {
+        name,
+        values: data.values.clone(),
+    })
 }
 
 /// Score a partial word against a candidate for autocomplete.
 /// Prefix matches score highest (0.8–1.0), substring matches score mid (0.5–0.7),
 /// fuzzy similarity fills the rest so typos still surface results.
 fn completion_score(word: &str, candidate: &str) -> f64 {
-    if word.is_empty() { return 0.0; }
+    if word.is_empty() {
+        return 0.0;
+    }
     let w = word.to_lowercase();
     let c = candidate.to_lowercase();
     if c.starts_with(&w) {
@@ -184,7 +193,9 @@ pub(crate) async fn filter_suggestions(
     let prefix = &data.settings.placeholder_prefix;
 
     // Build placeholder list from saved values
-    let placeholders: Vec<Suggestion> = data.values.iter()
+    let placeholders: Vec<Suggestion> = data
+        .values
+        .iter()
         .map(|v| Suggestion {
             text: format!("{}{}", prefix, v.name),
             metadata: "placeholder".to_string(),
@@ -194,7 +205,8 @@ pub(crate) async fn filter_suggestions(
     // If the word starts with the placeholder prefix, only suggest placeholders
     if word.starts_with(prefix.as_str()) {
         let query = &word[prefix.len()..];
-        let mut scored: Vec<(f64, Suggestion)> = placeholders.iter()
+        let mut scored: Vec<(f64, Suggestion)> = placeholders
+            .iter()
             .map(|s| {
                 let name = s.text.trim_start_matches(prefix.as_str());
                 let score = completion_score(query, name);
@@ -222,11 +234,19 @@ pub(crate) async fn filter_suggestions(
     }
     for s in &placeholders {
         let name = s.text.trim_start_matches(prefix.as_str());
-        let score = if word.is_empty() { 0.4 } else { completion_score(&word, name) };
+        let score = if word.is_empty() {
+            0.4
+        } else {
+            completion_score(&word, name)
+        };
         all.push((score, s.clone()));
     }
     for s in &data.suggestions.other {
-        let score = if word.is_empty() { 0.3 } else { completion_score(&word, &s.text) };
+        let score = if word.is_empty() {
+            0.3
+        } else {
+            completion_score(&word, &s.text)
+        };
         all.push((score, s.clone()));
     }
     all.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
@@ -243,15 +263,17 @@ pub(crate) async fn filter_suggestions(
 /// the `other` suggestions group with table and field names.
 /// Called from the frontend when the user opens settings or on demand.
 #[tauri::command]
-pub(crate) async fn refresh_schema(handle: State<'_, DataM>) -> Result<Vec<crate::bridge::Suggestion>, String> {
+pub(crate) async fn refresh_schema(
+    handle: State<'_, DataM>,
+) -> Result<Vec<crate::bridge::Suggestion>, String> {
     let settings = handle.lock().unwrap().settings.clone();
 
     let cfg = hyphae::db::ConnConfig {
-        endpoint:  settings.surreal_endpoint,
+        endpoint: settings.surreal_endpoint,
         namespace: settings.surreal_namespace,
-        database:  settings.surreal_database,
-        username:  settings.surreal_username,
-        password:  settings.surreal_password,
+        database: settings.surreal_database,
+        username: settings.surreal_username,
+        password: settings.surreal_password,
     };
 
     let completions = hyphae::db::fetch_schema(&cfg).await?;
@@ -265,4 +287,3 @@ pub(crate) async fn refresh_schema(handle: State<'_, DataM>) -> Result<Vec<crate
     handle.lock().unwrap().suggestions.other = schema_suggestions.clone();
     Ok(schema_suggestions)
 }
-

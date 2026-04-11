@@ -26,7 +26,9 @@ pub fn run() {
             cmds::refresh_schema,
         ])
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()
+            let data_dir = app
+                .path()
+                .app_data_dir()
                 .unwrap_or_else(|_| PathBuf::from("."));
             std::fs::create_dir_all(&data_dir).ok();
             app.manage(DataM::new(Data::new(data_dir)));
