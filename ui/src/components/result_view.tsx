@@ -174,8 +174,8 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const seq: any[] = [];
         rowEls.forEach((el, i) => {
-            const t = i * 0.075;
-            seq.push([el, { opacity: 1 }, { duration: 0.1, at: t }]);
+            const t = i * 0.05;
+            seq.push([el, { opacity: 1 }, { duration: 0.05, at: t }]);
             seq.push([() => {
                 if (!scroller) return;
                 const rect = el.getBoundingClientRect();
@@ -186,7 +186,7 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
                 if (delta > 0) scroller.scrollTop += delta;
             }, { at: t + 0.05 }]);
         });
-        const finalT = (rowEls.length - 1) * 0.075 + 0.06;
+        const finalT = (rowEls.length - 1) * 0.05 + 0.06;
         seq.push([() => focusComposing(), { at: finalT }]);
 
         animate(seq);
