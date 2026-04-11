@@ -76,7 +76,7 @@ function FlatJsonRow(props: {
             </Show>
 
             <span
-                class="font-mono text-sm flex-1 min-w-0 truncate"
+                class="font-mono text-sm min-w-0 truncate"
                 title={typeof props.row.value === "string"
                     ? props.row.value
                     : JSON.stringify(props.row.value)}
