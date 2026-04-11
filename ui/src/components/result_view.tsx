@@ -38,6 +38,16 @@ function valueDisplay(value: unknown): JSX.Element {
     return <span class="text-stone-400">{String(value)}</span>;
 }
 
+// Serialize a value for saving as a placeholder.
+// Record IDs (table:identifier) are stored raw so they work in SurrealQL directly.
+// All other strings get JSON-stringified so they arrive quoted as string literals.
+function serializeForSave(value: unknown): string {
+    if (typeof value === "string" && /^[A-Za-z_][A-Za-z0-9_]*:[^\s"',]+$/.test(value)) {
+        return value; // record ID — keep raw
+    }
+    return JSON.stringify(value);
+}
+
 // Single flat row — no recursion into children
 function FlatJsonRow(props: {
     row: FlatRow;
@@ -62,7 +72,7 @@ function FlatJsonRow(props: {
     }
 
     async function confirm() {
-        await props.backend.saveValue(name(), JSON.stringify(props.row.value));
+        await props.backend.saveValue(name(), serializeForSave(props.row.value));
         setSaving(false);
     }
 

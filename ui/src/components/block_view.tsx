@@ -59,7 +59,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
         const cursor = textareaRef.getCursorPos();
         const text = query();
         let wordStart = cursor;
-        while (wordStart > 0 && !/[\s\n]/.test(text[wordStart - 1])) {
+        while (wordStart > 0 && !/[\s\n:,()\[\]{};]/.test(text[wordStart - 1])) {
             wordStart--;
         }
         textareaRef.insertAt(wordStart, cursor, completion);
@@ -125,7 +125,7 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                                 // Extract current word at cursor for fuzzy completion
                                 const cursor = textareaRef?.getCursorPos() ?? 0;
                                 let ws = cursor;
-                                while (ws > 0 && !/[\s\n]/.test(v[ws - 1])) ws--;
+                                while (ws > 0 && !/[\s\n:,()\[\]{};]/.test(v[ws - 1])) ws--;
                                 props.backend.filterSuggestions(v.slice(ws, cursor));
                                 panelRef?.resetIndex();
                             });
