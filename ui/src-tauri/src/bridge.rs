@@ -43,7 +43,11 @@ pub(crate) struct PlaceholderValue {
 #[derive(Serialize, Deserialize, TS, Clone)]
 #[ts(export)]
 pub(crate) struct Settings {
-    pub(crate) surreal_endpoint: String,
+    pub(crate) surreal_endpoint:  String,
+    pub(crate) surreal_namespace: String,
+    pub(crate) surreal_database:  String,
+    pub(crate) surreal_username:  String,
+    pub(crate) surreal_password:  String,
     pub(crate) placeholder_prefix: String,
 }
 
@@ -57,7 +61,11 @@ pub(crate) struct PasteResult {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            surreal_endpoint: "ws://localhost:8000".to_string(),
+            surreal_endpoint:  "ws://localhost:8000".to_string(),
+            surreal_namespace: "test".to_string(),
+            surreal_database:  "test".to_string(),
+            surreal_username:  "root".to_string(),
+            surreal_password:  "root".to_string(),
             placeholder_prefix: "@".to_string(),
         }
     }

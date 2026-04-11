@@ -1,4 +1,6 @@
 use crate::state::{Data, DataM};
+use std::path::PathBuf;
+use tauri::Manager;
 
 mod bridge;
 mod cmds;
@@ -21,8 +23,15 @@ pub fn run() {
             cmds::suggest_name,
             cmds::paste_value,
             cmds::filter_suggestions,
+            cmds::refresh_schema,
         ])
-        .manage(DataM::new(Data::new()))
+        .setup(|app| {
+            let data_dir = app.path().app_data_dir()
+                .unwrap_or_else(|_| PathBuf::from("."));
+            std::fs::create_dir_all(&data_dir).ok();
+            app.manage(DataM::new(Data::new(data_dir)));
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

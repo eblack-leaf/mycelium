@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show, Match, Switch } from "solid-js";
 import { Backend } from "../backend.tsx";
 
 type Tab = "values" | "settings" | "nav";
@@ -114,39 +114,139 @@ function ValuesView(props: { backend: Backend }) {
     );
 }
 
+type ConnStatus = "idle" | "connecting" | "ok" | "error";
+
 function SettingsView(props: { backend: Backend }) {
     const cfg = () => props.backend.settings[0];
+    const [connStatus, setConnStatus] = createSignal<ConnStatus>("idle");
+    const [connError, setConnError] = createSignal("");
+
+    const save = (patch: Parameters<typeof props.backend.updateSettings>[0]) =>
+        props.backend.updateSettings(patch);
+
+    const connect = async () => {
+        setConnStatus("connecting");
+        setConnError("");
+        const err = await props.backend.refreshSchema();
+        if (err === null) {
+            setConnStatus("ok");
+        } else {
+            setConnStatus("error");
+            setConnError(err);
+        }
+    };
+
+    const inputCls = "bg-stone-800 text-stone-200 text-sm font-mono rounded px-3 py-2 outline-none w-full";
+    const labelCls = "text-stone-500 text-xs mb-1";
 
     return (
-        <div class="flex flex-col gap-4 p-3">
-            <div class="flex flex-col gap-1.5">
-                <label class="text-stone-400 text-sm">SurrealDB endpoint</label>
-                <input
-                    class="bg-stone-800 text-stone-200 text-sm font-mono rounded px-3 py-2 outline-none"
-                    value={cfg().surreal_endpoint}
-                    onBlur={(e) => props.backend.updateSettings({ surreal_endpoint: e.currentTarget.value })}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                            props.backend.updateSettings({ surreal_endpoint: (e.target as HTMLInputElement).value });
-                    }}
-                />
+        <div class="flex flex-col gap-5 p-3">
+
+            {/* Connection */}
+            <div class="flex flex-col gap-3">
+                <div class="text-stone-400 text-xs uppercase tracking-widest">Connection</div>
+
+                <div class="flex flex-col gap-1">
+                    <div class={labelCls}>Endpoint</div>
+                    <input
+                        class={inputCls}
+                        value={cfg().surreal_endpoint}
+                        placeholder="ws://localhost:8000"
+                        onBlur={(e) => save({ surreal_endpoint: e.currentTarget.value })}
+                        onKeyDown={(e) => e.key === "Enter" && save({ surreal_endpoint: (e.target as HTMLInputElement).value })}
+                    />
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex flex-col gap-1">
+                        <div class={labelCls}>Namespace</div>
+                        <input
+                            class={inputCls}
+                            value={cfg().surreal_namespace}
+                            placeholder="test"
+                            onBlur={(e) => save({ surreal_namespace: e.currentTarget.value })}
+                            onKeyDown={(e) => e.key === "Enter" && save({ surreal_namespace: (e.target as HTMLInputElement).value })}
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class={labelCls}>Database</div>
+                        <input
+                            class={inputCls}
+                            value={cfg().surreal_database}
+                            placeholder="test"
+                            onBlur={(e) => save({ surreal_database: e.currentTarget.value })}
+                            onKeyDown={(e) => e.key === "Enter" && save({ surreal_database: (e.target as HTMLInputElement).value })}
+                        />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex flex-col gap-1">
+                        <div class={labelCls}>Username</div>
+                        <input
+                            class={inputCls}
+                            value={cfg().surreal_username}
+                            placeholder="root"
+                            onBlur={(e) => save({ surreal_username: e.currentTarget.value })}
+                            onKeyDown={(e) => e.key === "Enter" && save({ surreal_username: (e.target as HTMLInputElement).value })}
+                        />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class={labelCls}>Password</div>
+                        <input
+                            class={inputCls}
+                            type="password"
+                            value={cfg().surreal_password}
+                            placeholder="root"
+                            onBlur={(e) => save({ surreal_password: e.currentTarget.value })}
+                            onKeyDown={(e) => e.key === "Enter" && save({ surreal_password: (e.target as HTMLInputElement).value })}
+                        />
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 mt-1">
+                    <button
+                        onClick={connect}
+                        disabled={connStatus() === "connecting"}
+                        class="px-4 py-1.5 rounded bg-stone-700 text-stone-200 text-sm
+                               hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed
+                               transition-colors"
+                    >
+                        {connStatus() === "connecting" ? "Connecting…" : "Connect"}
+                    </button>
+                    <Switch>
+                        <Match when={connStatus() === "ok"}>
+                            <span class="text-emerald-400 text-xs">Schema loaded</span>
+                        </Match>
+                        <Match when={connStatus() === "error"}>
+                            <span class="text-red-400 text-xs break-all">
+                                {connError()}
+                            </span>
+                        </Match>
+                    </Switch>
+                </div>
             </div>
-            <div class="flex flex-col gap-1.5">
-                <label class="text-stone-400 text-sm">Placeholder prefix</label>
-                <input
-                    class="bg-stone-800 text-stone-200 text-sm font-mono rounded px-3 py-2 outline-none w-20"
-                    value={cfg().placeholder_prefix}
-                    maxLength={4}
-                    onBlur={(e) => props.backend.updateSettings({ placeholder_prefix: e.currentTarget.value })}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                            props.backend.updateSettings({ placeholder_prefix: (e.target as HTMLInputElement).value });
-                    }}
-                />
-                <span class="text-stone-600 text-xs">
-                    e.g. <span class="text-amber-400 font-mono">{cfg().placeholder_prefix}last-id</span>
-                </span>
+
+            {/* App */}
+            <div class="flex flex-col gap-3">
+                <div class="text-stone-400 text-xs uppercase tracking-widest">App</div>
+                <div class="flex flex-col gap-1">
+                    <div class={labelCls}>Placeholder prefix</div>
+                    <div class="flex items-center gap-3">
+                        <input
+                            class="bg-stone-800 text-stone-200 text-sm font-mono rounded px-3 py-2 outline-none w-20"
+                            value={cfg().placeholder_prefix}
+                            maxLength={4}
+                            onBlur={(e) => save({ placeholder_prefix: e.currentTarget.value })}
+                            onKeyDown={(e) => e.key === "Enter" && save({ placeholder_prefix: (e.target as HTMLInputElement).value })}
+                        />
+                        <span class="text-stone-600 text-xs">
+                            e.g. <span class="text-amber-400 font-mono">{cfg().placeholder_prefix}last-id</span>
+                        </span>
+                    </div>
+                </div>
             </div>
+
         </div>
     );
 }

@@ -57,20 +57,21 @@ impl SchemaCompletions {
     }
 }
 
-/// Parse the raw JSON result of `INFO FOR DB` into `DbInfo`.
-/// SurrealDB returns `[{ tables: {...}, ... }]` as the result array.
+/// Parse the raw JSON body from POST /sql into `DbInfo`.
+/// REST response: `[{ "status": "OK", "result": { "tables": {...}, ... }, "time": "..." }]`
 pub fn parse_db_info(json: &str) -> Option<DbInfo> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
-    // Result is wrapped in an array by SurrealDB
-    let obj = v.get(0).unwrap_or(&v);
-    serde_json::from_value(obj.clone()).ok()
+    let envelope = v.get(0).unwrap_or(&v);
+    let inner = envelope.get("result").unwrap_or(envelope);
+    serde_json::from_value(inner.clone()).ok()
 }
 
-/// Parse the raw JSON result of `INFO FOR TABLE <name>` into `TableInfo`.
+/// Parse the raw JSON body from POST /sql into `TableInfo`.
 pub fn parse_table_info(name: &str, json: &str) -> Option<TableInfo> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
-    let obj = v.get(0).unwrap_or(&v);
-    let mut info: TableInfo = serde_json::from_value(obj.clone()).ok()?;
+    let envelope = v.get(0).unwrap_or(&v);
+    let inner = envelope.get("result").unwrap_or(envelope);
+    let mut info: TableInfo = serde_json::from_value(inner.clone()).ok()?;
     info.name = name.to_string();
     Some(info)
 }

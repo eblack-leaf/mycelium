@@ -17,7 +17,11 @@ export class Backend {
         this.suggestions = createStore<Suggestions>({ placeholders: [], schema: [], other: [] });
         this.values = createStore<PlaceholderValue[]>([]);
         this.settings = createStore<Settings>({
-            surreal_endpoint: "ws://localhost:8000",
+            surreal_endpoint:  "ws://localhost:8000",
+            surreal_namespace: "test",
+            surreal_database:  "test",
+            surreal_username:  "root",
+            surreal_password:  "root",
             placeholder_prefix: "@",
         });
     }
@@ -40,6 +44,8 @@ export class Backend {
         this.suggestions[1](reconcile(sugs));
         this.values[1](reconcile(vals));
         this.settings[1](reconcile(cfg));
+        // Attempt schema refresh in background — fails silently if DB not reachable
+        this.refreshSchema();
     }
 
     async submitBlock(id: string, query: string): Promise<void> {
@@ -88,6 +94,17 @@ export class Backend {
     async filterSuggestions(word: string): Promise<void> {
         const sugs = await invoke<Suggestions>("filter_suggestions", { word });
         this.suggestions[1](reconcile(sugs));
+    }
+
+    async refreshSchema(): Promise<string | null> {
+        try {
+            await invoke("refresh_schema");
+            const sugs = await invoke<Suggestions>("suggestions");
+            this.suggestions[1](reconcile(sugs));
+            return null;
+        } catch (e) {
+            return String(e);
+        }
     }
 
     async pasteValue(context: string, value: string): Promise<string> {

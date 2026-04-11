@@ -1,34 +1,40 @@
 use crate::bridge::{Block, BlockState, PlaceholderValue, Settings, Suggestions};
-use std::sync::Mutex;
+use std::{path::PathBuf, sync::Mutex};
 
 pub(crate) type DataM = Mutex<Data>;
 
 pub(crate) struct Data {
-    pub(crate) blocks: Vec<Block>,
+    pub(crate) blocks:      Vec<Block>,
     pub(crate) suggestions: Suggestions,
-    pub(crate) values: Vec<PlaceholderValue>,
-    pub(crate) settings: Settings,
-    next_id: u64,
+    pub(crate) values:      Vec<PlaceholderValue>,
+    pub(crate) settings:    Settings,
+    settings_path:          PathBuf,
+    next_id:                u64,
 }
 
 impl Data {
-    pub fn new() -> Self {
+    pub fn new(data_dir: PathBuf) -> Self {
+        let settings_path = data_dir.join("settings.json");
+        let settings = std::fs::read_to_string(&settings_path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
+            .unwrap_or_default();
+
         let mut data = Self {
-            blocks: vec![],
-            suggestions: Suggestions::default(),
-            values: vec![],
-            settings: Settings::default(),
-            next_id: 0,
+            blocks:        vec![],
+            suggestions:   Suggestions::default(),
+            values:        vec![],
+            settings,
+            settings_path,
+            next_id:       0,
         };
-        // Seed schema suggestions with SurrealQL keywords
         data.suggestions.schema = SURREAL_KEYWORDS
             .iter()
             .map(|kw| crate::bridge::Suggestion {
-                text: kw.to_string(),
+                text:     kw.to_string(),
                 metadata: "keyword".to_string(),
             })
             .collect();
-        // Start with one empty composing block
         let id = data.new_id();
         data.blocks.push(Block {
             id,
@@ -37,6 +43,12 @@ impl Data {
             result: None,
         });
         data
+    }
+
+    pub(crate) fn save_settings(&self) {
+        if let Ok(json) = serde_json::to_string_pretty(&self.settings) {
+            std::fs::write(&self.settings_path, json).ok();
+        }
     }
 
     pub(crate) fn new_id(&mut self) -> String {

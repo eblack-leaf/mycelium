@@ -68,14 +68,19 @@ function FlatJsonRow(props: {
 
     return (
         <div
-            class={`${props.rowClass} flex items-center gap-2 h-8 group`}
+            class={`${props.rowClass} flex items-center gap-2 h-8 group overflow-hidden`}
             style={{ opacity: 0, "padding-left": `${props.row.depth * 14}px` }}
         >
             <Show when={props.row.label !== null}>
                 <span class="text-stone-400 font-mono text-sm shrink-0">"{props.row.label}":</span>
             </Show>
 
-            <span class="font-mono text-sm shrink-0">
+            <span
+                class="font-mono text-sm flex-1 min-w-0 truncate"
+                title={typeof props.row.value === "string"
+                    ? props.row.value
+                    : JSON.stringify(props.row.value)}
+            >
                 {valueDisplay(props.row.value)}
             </span>
 

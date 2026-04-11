@@ -9,3 +9,5 @@ serde      = { workspace = true }
 serde_json = {  workspace = true }
 regex      = {  workspace = true }
 indicatif  = {  workspace = true }
+rand       = "0.8"
+reqwest    = { version = "0.12", features = ["json"] }
