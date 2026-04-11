@@ -1,0 +1,2002 @@
+[
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "comment:2y05",
+    "name": "the-entry"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "{\"name\":\"carol\"}",
+    "name": "carol"
+  },
+  {
+    "value": "session:bftw",
+    "name": "this-session"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "event:qcap",
+    "name": "the-guy"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "product:fc65",
+    "name": "that-product"
+  },
+  {
+    "value": "event:rptv",
+    "name": "our-guy"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "comment:p7uy",
+    "name": "this-guy"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "{}",
+    "name": "empty-blob"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "product:xbec",
+    "name": "thingy"
+  },
+  {
+    "value": "comment:h801",
+    "name": "suspect"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "{\"user\":\"alice\",\"action\":\"login\"}",
+    "name": "alice"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "{}",
+    "name": "empty-blob"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "user:7hoh",
+    "name": "suspect"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "session:nnfc",
+    "name": "this-session"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "session:ug8h",
+    "name": "this-session"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "product:0xa0",
+    "name": "that-product"
+  },
+  {
+    "value": "order:lmms",
+    "name": "order-thing"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "user:cfu4",
+    "name": "the-dude"
+  },
+  {
+    "value": "event:lf7f",
+    "name": "our-guy"
+  },
+  {
+    "value": "log:cny1",
+    "name": "that-user"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "{}",
+    "name": "empty-blob"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "event:9v68",
+    "name": "our-guy"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "event:9jqf",
+    "name": "the-guy"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "product:rey3",
+    "name": "that-product"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "{\"payload\":\"data\"}",
+    "name": "payload"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "user:2ogf",
+    "name": "suspect"
+  },
+  {
+    "value": "user:kazh",
+    "name": "suspect"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "comment:3ohv",
+    "name": "the-entry"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "order:f9tw",
+    "name": "the-order"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "product:71ng",
+    "name": "that-product"
+  },
+  {
+    "value": "log:rgsx",
+    "name": "culprit"
+  },
+  {
+    "value": "session:vg7e",
+    "name": "the-sesh"
+  },
+  {
+    "value": "{\"payload\":\"data\"}",
+    "name": "payload"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "file:temp",
+    "name": "temp-file"
+  },
+  {
+    "value": "{}",
+    "name": "empty-blob"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "session:u5mi",
+    "name": "this-session"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "order:erc8",
+    "name": "the-order"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "product:ex5a",
+    "name": "the-item"
+  },
+  {
+    "value": "order:1s5x",
+    "name": "that-order"
+  },
+  {
+    "value": "false",
+    "name": "nah"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "order:gow7",
+    "name": "that-order"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "session:kwg9",
+    "name": "this-session"
+  },
+  {
+    "value": "file:temp",
+    "name": "temp-file"
+  },
+  {
+    "value": "comment:i1os",
+    "name": "that-user"
+  },
+  {
+    "value": "order:hfrs",
+    "name": "the-order"
+  },
+  {
+    "value": "{\"foo\":\"bar\"}",
+    "name": "whatever-obj"
+  },
+  {
+    "value": "event:33o6",
+    "name": "that-user"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "file:temp",
+    "name": "temp-file"
+  },
+  {
+    "value": "product:1nb6",
+    "name": "the-item"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "user:nlsh",
+    "name": "suspect"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "log:i2ja",
+    "name": "our-guy"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "file:temp",
+    "name": "temp-file"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "event:zd9z",
+    "name": "suspect"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "user:jpth",
+    "name": "that-user"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "session:905h",
+    "name": "active-guy"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "user:in19",
+    "name": "suspect"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "session:ioxl",
+    "name": "the-sesh"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "42",
+    "name": "magic-num"
+  },
+  {
+    "value": "event:lspo",
+    "name": "culprit"
+  },
+  {
+    "value": "{\"name\":\"carol\"}",
+    "name": "carol"
+  },
+  {
+    "value": "log:qyao",
+    "name": "the-thing"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "session:hs6n",
+    "name": "this-session"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "product:ep7x",
+    "name": "the-item"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "order:x36i",
+    "name": "that-order"
+  },
+  {
+    "value": "{}",
+    "name": "empty-blob"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "order:1pva",
+    "name": "the-order"
+  },
+  {
+    "value": "log:7r1c",
+    "name": "the-guy"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "user:abc123",
+    "name": "that-user"
+  },
+  {
+    "value": "product:10d0",
+    "name": "that-product"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "order:eibv",
+    "name": "the-order"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "false",
+    "name": "nah"
+  },
+  {
+    "value": "{\"payload\":\"data\"}",
+    "name": "payload"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "session:52hm",
+    "name": "active-guy"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "log:s265",
+    "name": "the-guy"
+  },
+  {
+    "value": "order:w10r",
+    "name": "order-thing"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "session:a7jb",
+    "name": "the-sesh"
+  },
+  {
+    "value": "{\"payload\":\"data\"}",
+    "name": "payload"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "{\"foo\":\"bar\"}",
+    "name": "whatever-obj"
+  },
+  {
+    "value": "session:2b6y",
+    "name": "this-session"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "order:ysby",
+    "name": "order-thing"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "order:4rsj",
+    "name": "the-order"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "order:ow56",
+    "name": "the-order"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "event:q2av",
+    "name": "the-thing"
+  },
+  {
+    "value": "true",
+    "name": "yep"
+  },
+  {
+    "value": "{\"user\":\"alice\",\"action\":\"login\"}",
+    "name": "alice"
+  },
+  {
+    "value": "user:abc123",
+    "name": "that-user"
+  },
+  {
+    "value": "order:gxg3",
+    "name": "order-thing"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "user:p057",
+    "name": "our-guy"
+  },
+  {
+    "value": "log:opkm",
+    "name": "suspect"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "product:ilr3",
+    "name": "the-item"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "42",
+    "name": "magic-num"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "{\"payload\":\"data\"}",
+    "name": "payload"
+  },
+  {
+    "value": "log:zx4o",
+    "name": "suspect"
+  },
+  {
+    "value": "{\"id\":\"user:1\",\"name\":\"Bob\",\"role\":\"admin\"}",
+    "name": "the-boss"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "redis://cache:6379",
+    "name": "cache-guy"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "comment:gxls",
+    "name": "the-thing"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "order:yg6w",
+    "name": "order-thing"
+  },
+  {
+    "value": "comment:ba1s",
+    "name": "the-entry"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "order:zgzo",
+    "name": "that-order"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "user:u7us",
+    "name": "that-user"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "log:error",
+    "name": "error-buddy"
+  },
+  {
+    "value": "event:azci",
+    "name": "some-record"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "product:hy05",
+    "name": "thingy"
+  },
+  {
+    "value": "log:7j4k",
+    "name": "suspect"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "user:abc123",
+    "name": "that-user"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "order:x9f",
+    "name": "the-order"
+  },
+  {
+    "value": "product:slxt",
+    "name": "that-product"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "{\"foo\":\"bar\"}",
+    "name": "whatever-obj"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "event:3ywf",
+    "name": "our-guy"
+  },
+  {
+    "value": "comment:nmhf",
+    "name": "suspect"
+  },
+  {
+    "value": "user:v9jn",
+    "name": "that-user"
+  },
+  {
+    "value": "event:pwgh",
+    "name": "whatever"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "comment:dqlv",
+    "name": "the-thing"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "product:3ugc",
+    "name": "the-item"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "order:y2dg",
+    "name": "that-order"
+  },
+  {
+    "value": "product:3wer",
+    "name": "the-item"
+  },
+  {
+    "value": "false",
+    "name": "nah"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "log:ojzz",
+    "name": "suspect"
+  },
+  {
+    "value": "session:2r2i",
+    "name": "the-sesh"
+  },
+  {
+    "value": "user:jh6c",
+    "name": "our-guy"
+  },
+  {
+    "value": "event:seej",
+    "name": "culprit"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "comment:foo",
+    "name": "that-comment"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "session:x6ng",
+    "name": "the-sesh"
+  },
+  {
+    "value": "Bob",
+    "name": "bob"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "42",
+    "name": "magic-num"
+  },
+  {
+    "value": "undefined",
+    "name": "uh-oh"
+  },
+  {
+    "value": "{\"name\":\"carol\"}",
+    "name": "carol"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "session:deadbeef",
+    "name": "the-sesh"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "alice",
+    "name": "alice"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "carol",
+    "name": "carol"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "[1,2,3]",
+    "name": "number-stuff"
+  },
+  {
+    "value": "product:kyt7",
+    "name": "thingy"
+  },
+  {
+    "value": "{\"status\":\"pending\"}",
+    "name": "pending-guy"
+  },
+  {
+    "value": "comment:cz8t",
+    "name": "suspect"
+  },
+  {
+    "value": "session:er5i",
+    "name": "this-session"
+  },
+  {
+    "value": "comment:dwx2",
+    "name": "some-record"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "event:qklf",
+    "name": "some-record"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "null",
+    "name": "nothing"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "-1",
+    "name": "negative-guy"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "event:rn49",
+    "name": "suspect"
+  },
+  {
+    "value": "session:bg3x",
+    "name": "the-sesh"
+  },
+  {
+    "value": "event:nwzz",
+    "name": "culprit"
+  },
+  {
+    "value": "session:7mb1",
+    "name": "the-sesh"
+  },
+  {
+    "value": "bobbo",
+    "name": "bobbo"
+  },
+  {
+    "value": "log:26ub",
+    "name": "culprit"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "log:bh59",
+    "name": "whatever"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "order:7lu6",
+    "name": "that-order"
+  },
+  {
+    "value": "Eve",
+    "name": "eve"
+  },
+  {
+    "value": "1",
+    "name": "single"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "100",
+    "name": "the-limit"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "comment:5yz0",
+    "name": "some-record"
+  },
+  {
+    "value": "order:jt9z",
+    "name": "that-order"
+  },
+  {
+    "value": "{\"record\":\"session:xyz\"}",
+    "name": "the-record"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "{\"user\":\"alice\",\"action\":\"login\"}",
+    "name": "alice"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "post:wall",
+    "name": "post-thing"
+  },
+  {
+    "value": "user:9tx5",
+    "name": "that-user"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "config:secrets",
+    "name": "secrets-guy"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "42",
+    "name": "magic-num"
+  },
+  {
+    "value": "{\"name\":\"carol\"}",
+    "name": "carol"
+  },
+  {
+    "value": "{\"user\":\"alice\",\"action\":\"login\"}",
+    "name": "alice"
+  },
+  {
+    "value": "42",
+    "name": "magic-num"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "product:viau",
+    "name": "thingy"
+  },
+  {
+    "value": "notification:alert",
+    "name": "alert-guy"
+  },
+  {
+    "value": "comment:foo",
+    "name": "that-comment"
+  },
+  {
+    "value": "true",
+    "name": "oh-yeah"
+  },
+  {
+    "value": "1024",
+    "name": "kinda-big"
+  },
+  {
+    "value": "3.14",
+    "name": "pi-ish"
+  },
+  {
+    "value": "[]",
+    "name": "empty-list"
+  },
+  {
+    "value": "ws://localhost:8000",
+    "name": "the-db"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "7",
+    "name": "lucky"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "https://api.example.com",
+    "name": "home-base"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "user:abc123",
+    "name": "that-user"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "0",
+    "name": "zero"
+  },
+  {
+    "value": "file:temp",
+    "name": "temp-file"
+  },
+  {
+    "value": "{\"type\":\"error\",\"code\":404}",
+    "name": "error-thing"
+  },
+  {
+    "value": "user:abc123",
+    "name": "that-user"
+  },
+  {
+    "value": "false",
+    "name": "nope"
+  },
+  {
+    "value": "session:r618",
+    "name": "this-session"
+  },
+  {
+    "value": "Alice",
+    "name": "alice"
+  },
+  {
+    "value": "Dave",
+    "name": "dave"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "256",
+    "name": "byte-limit"
+  },
+  {
+    "value": "event:click",
+    "name": "clicky"
+  },
+  {
+    "value": "user:xyz",
+    "name": "our-guy"
+  },
+  {
+    "value": "product:wod3",
+    "name": "the-item"
+  },
+  {
+    "value": "postgres://localhost:5432/db",
+    "name": "local-db"
+  },
+  {
+    "value": "{\"name\":\"carol\"}",
+    "name": "carol"
+  },
+  {
+    "value": "[\"a\",\"b\",\"c\"]",
+    "name": "the-list"
+  },
+  {
+    "value": "product:42",
+    "name": "the-item"
+  },
+  {
+    "value": "Mallory",
+    "name": "mallory"
+  }
+]

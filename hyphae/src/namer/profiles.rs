@@ -1,34 +1,31 @@
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
-/// A naming profile — each profile is a separately trained checkpoint
-/// of the same NamerModel architecture, trained on style-specific examples.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Profile {
-    /// Descriptive, kebab-case, reads like a variable name.
-    /// e.g. "target-user-id", "current-record", "selected-item"
+    /// Descriptive, kebab-case: `target-user`, `result-count`, `alice`
     Classic,
-    /// Short, 1-2 syllables, abbreviated.
-    /// e.g. "tgt", "cur-rec", "sel"
+    /// Short, abbreviated: `usr`, `n`, `tgt`
     Terse,
-    /// Evocative, slightly unexpected, personality-driven.
-    /// e.g. "the-one", "quest-anchor", "chosen-path"
+    /// Evocative, unexpected: `wanderer`, `the-chosen`, `echo`
     Creative,
-    /// User-defined profile — points to a custom checkpoint directory.
+    /// Informal, irreverent: `that-user`, `the-boss`, `magic-num`
+    Hacker,
+    /// User-supplied checkpoint directory
     Custom(String),
 }
 
 impl Profile {
     pub fn name(&self) -> &str {
         match self {
-            Profile::Classic => "classic",
-            Profile::Terse => "terse",
-            Profile::Creative => "creative",
-            Profile::Custom(name) => name.as_str(),
+            Profile::Classic    => "classic",
+            Profile::Terse      => "terse",
+            Profile::Creative   => "creative",
+            Profile::Hacker     => "hacker",
+            Profile::Custom(n)  => n.as_str(),
         }
     }
 
-    /// Directory where this profile's checkpoint and training data live.
     pub fn checkpoint_dir(&self, base: &PathBuf) -> PathBuf {
         base.join("profiles").join(self.name())
     }
@@ -37,29 +34,26 @@ impl Profile {
         self.checkpoint_dir(base).join("model.bin")
     }
 
-    pub fn training_data_path(&self, base: &PathBuf) -> PathBuf {
-        self.checkpoint_dir(base).join("train.jsonl")
+    pub fn vocab_path(&self, base: &PathBuf) -> PathBuf {
+        self.checkpoint_dir(base).join("vocab.txt")
     }
 
-    pub fn all_builtin() -> &'static [Profile] {
-        &[Profile::Classic, Profile::Terse, Profile::Creative]
+    pub fn training_data_path(&self, base: &PathBuf) -> PathBuf {
+        base.join(format!("{}.jsonl", self.name()))
     }
 }
 
 impl Default for Profile {
-    fn default() -> Self {
-        Profile::Classic
-    }
+    fn default() -> Self { Profile::Classic }
 }
 
-/// A single training example for the namer model.
-/// Stored as JSONL in the profile's `train.jsonl`.
+/// One training example: a raw value string and the name a human gave it.
+/// The name encodes both what the value is AND the profile's style.
+/// Context is empty — style comes from which profile's train.jsonl this lives in.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NamerExample {
-    /// The value being named (JSON string, truncated at 128 chars of input encoding)
+    /// The raw value — whatever was saved: `"user:abc"`, `"Alice"`, `42`, `{...}`
     pub value: String,
-    /// Optional recent query context (the query that produced this value)
-    pub context: String,
-    /// The human-chosen name in the style of this profile
+    /// The name in the style of this profile
     pub name: String,
 }

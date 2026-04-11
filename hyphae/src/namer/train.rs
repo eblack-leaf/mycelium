@@ -3,88 +3,94 @@ use std::path::PathBuf;
 use crate::namer::{
     model::{NamerConfig, NamerModel},
     profiles::{NamerExample, Profile},
-    vocab::{encode_input, encode_output, IN_MAX_LEN, OUT_MAX_LEN},
+    vocab::{encode_value, WordVocab, CHAR_MAX_LEN},
 };
 use burn::{
-    backend::{Autodiff, ndarray::NdArray},
+    backend::{ndarray::NdArray, Autodiff},
     module::Module,
     optim::{AdamWConfig, GradientsParams, Optimizer},
     record::{BinFileRecorder, FullPrecisionSettings, Recorder},
-    tensor::{backend::Backend, ElementConversion, Int, Tensor},
+    tensor::{ElementConversion, Int, Tensor},
 };
 
 type TrainBackend = Autodiff<NdArray>;
 
 pub struct TrainConfig {
-    pub epochs: usize,
+    pub epochs:     usize,
     pub batch_size: usize,
-    pub lr: f64,
+    pub lr:         f64,
 }
 
 impl Default for TrainConfig {
     fn default() -> Self {
-        Self { epochs: 50, batch_size: 16, lr: 1e-3 }
+        Self { epochs: 100, batch_size: 32, lr: 1e-3 }
     }
 }
 
-/// Load examples from the profile's JSONL training file.
 fn load_examples(profile: &Profile, base: &PathBuf) -> Vec<NamerExample> {
     let path = profile.training_data_path(base);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_default();
-    text.lines()
-        .filter_map(|line| serde_json::from_str(line).ok())
+    std::fs::read_to_string(&path)
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str(l).ok())
         .collect()
 }
 
-fn examples_to_tensors(
-    examples: &[NamerExample],
-    device: &<TrainBackend as Backend>::Device,
-) -> (Tensor<TrainBackend, 2, Int>, Tensor<TrainBackend, 2, Int>) {
-    let mut inputs = Vec::with_capacity(examples.len() * IN_MAX_LEN);
-    let mut targets = Vec::with_capacity(examples.len() * OUT_MAX_LEN);
-
-    for ex in examples {
-        let combined = format!("{}|{}", ex.value, ex.context);
-        inputs.extend(encode_input(&combined).iter().map(|&x| x as i32));
-        targets.extend(encode_output(&ex.name).iter().map(|&x| x as i32));
-    }
-
-    let n = examples.len();
-    let inp = Tensor::<TrainBackend, 2, Int>::from_ints(inputs.as_slice(), device)
-        .reshape([n, IN_MAX_LEN]);
-    let tgt = Tensor::<TrainBackend, 2, Int>::from_ints(targets.as_slice(), device)
-        .reshape([n, OUT_MAX_LEN]);
-    (inp, tgt)
-}
-
-/// Train a profile from scratch using its JSONL training data, save checkpoint.
+/// Build vocab, train model, save both to the profile checkpoint directory.
 pub fn train(profile: &Profile, base: &PathBuf, cfg: TrainConfig) {
-    let device = Default::default();
     let examples = load_examples(profile, base);
     if examples.is_empty() {
-        eprintln!("[hyphae] No training data for profile '{}', skipping.", profile.name());
+        eprintln!("[hyphae] No training data for '{}', skipping.", profile.name());
         return;
     }
-    eprintln!("[hyphae] Training '{}' on {} examples.", profile.name(), examples.len());
 
-    let model_cfg = NamerConfig::new();
+    // Build word vocabulary from all training names
+    let vocab = WordVocab::build(examples.iter().map(|e| e.name.as_str()));
+    eprintln!(
+        "[hyphae] Training '{}' on {} examples, vocab size {}.",
+        profile.name(), examples.len(), vocab.size()
+    );
+
+    let device = Default::default();
+    let model_cfg = NamerConfig::new(vocab.size());
     let mut model: NamerModel<TrainBackend> = model_cfg.build(&device);
-    let mut optim = AdamWConfig::new().init::<TrainBackend, NamerModel<TrainBackend>>();
+    let mut optim = AdamWConfig::new()
+        .init::<TrainBackend, NamerModel<TrainBackend>>();
 
-    let (all_inputs, all_targets) = examples_to_tensors(&examples, &device);
+    // Pre-encode all examples into tensors
+    let char_data: Vec<Vec<i32>> = examples.iter()
+        .map(|e| encode_value(&e.value).iter().map(|&x| x as i32).collect())
+        .collect();
+    let targets: Vec<[usize; 2]> = examples.iter()
+        .map(|e| vocab.encode_name(&e.name))
+        .collect();
+
+    let n = examples.len();
 
     for epoch in 0..cfg.epochs {
         let mut total_loss = 0f32;
-        let mut steps = 0usize;
-        let n = examples.len();
+        let mut steps = 0;
 
         for batch_start in (0..n).step_by(cfg.batch_size) {
             let batch_end = (batch_start + cfg.batch_size).min(n);
-            let inp = all_inputs.clone().slice([batch_start..batch_end, 0..IN_MAX_LEN]);
-            let tgt = all_targets.clone().slice([batch_start..batch_end, 0..OUT_MAX_LEN]);
+            let bs = batch_end - batch_start;
 
-            let loss = model.forward_loss(inp, tgt);
+            let mut chars_flat = Vec::with_capacity(bs * CHAR_MAX_LEN);
+            let mut t1_flat = Vec::with_capacity(bs);
+            let mut t2_flat = Vec::with_capacity(bs);
+
+            for i in batch_start..batch_end {
+                chars_flat.extend_from_slice(&char_data[i]);
+                t1_flat.push(targets[i][0] as i32);
+                t2_flat.push(targets[i][1] as i32);
+            }
+
+            let chars = Tensor::<TrainBackend, 2, Int>::from_ints(chars_flat.as_slice(), &device)
+                .reshape([bs, CHAR_MAX_LEN]);
+            let t1 = Tensor::<TrainBackend, 1, Int>::from_ints(t1_flat.as_slice(), &device);
+            let t2 = Tensor::<TrainBackend, 1, Int>::from_ints(t2_flat.as_slice(), &device);
+
+            let loss = model.forward_loss(chars, t1, t2);
             total_loss += loss.clone().into_scalar().elem::<f32>();
             steps += 1;
 
@@ -93,15 +99,25 @@ pub fn train(profile: &Profile, base: &PathBuf, cfg: TrainConfig) {
             model = optim.step(cfg.lr, model, grads);
         }
 
-        eprintln!("[hyphae] epoch {}/{} loss={:.4}", epoch + 1, cfg.epochs, total_loss / steps as f32);
+        if (epoch + 1) % 10 == 0 || epoch == 0 {
+            eprintln!(
+                "[hyphae] epoch {}/{} loss={:.4}",
+                epoch + 1, cfg.epochs,
+                total_loss / steps as f32
+            );
+        }
     }
 
-    // Save checkpoint
+    // Save vocab + model checkpoint
     let out_dir = profile.checkpoint_dir(base);
     std::fs::create_dir_all(&out_dir).ok();
+
+    vocab.save(&out_dir.join("vocab.txt"));
+
     let recorder = BinFileRecorder::<FullPrecisionSettings>::new();
     recorder
         .record(model.into_record(), profile.model_path(base).with_extension(""))
         .expect("failed to save model");
-    eprintln!("[hyphae] Saved checkpoint to {:?}", profile.model_path(base));
+
+    eprintln!("[hyphae] Saved to {:?}", out_dir);
 }
