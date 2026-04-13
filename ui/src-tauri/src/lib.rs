@@ -24,6 +24,9 @@ pub fn run() {
             cmds::paste_value,
             cmds::filter_suggestions,
             cmds::refresh_schema,
+            cmds::list_tasks,
+            cmds::reload_tasks,
+            cmds::filter_task_suggestions,
         ])
         .setup(|app| {
             let data_dir = app

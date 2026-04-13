@@ -11,3 +11,5 @@ regex      = {  workspace = true }
 indicatif  = {  workspace = true }
 rand       = "0.8"
 reqwest    = { version = "0.12", features = ["json"] }
+rhai       = { version = "1", features = ["serde"] }
+tokio      = { version = "1", features = ["rt"] }

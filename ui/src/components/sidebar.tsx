@@ -1,7 +1,7 @@
 import { createSignal, For, Show, Match, Switch } from "solid-js";
 import { Backend } from "../backend.tsx";
 
-type Tab = "values" | "settings" | "nav";
+type Tab = "values" | "settings" | "nav" | "tasks";
 
 interface Props {
     tab: Tab;
@@ -247,6 +247,78 @@ function SettingsView(props: { backend: Backend }) {
                 </div>
             </div>
 
+            {/* Tasks */}
+            <div class="flex flex-col gap-3">
+                <div class="text-stone-400 text-xs uppercase tracking-widest">Tasks</div>
+                <div class="flex flex-col gap-1">
+                    <div class={labelCls}>Script directory</div>
+                    <input
+                        class={inputCls}
+                        value={cfg().task_dir}
+                        placeholder="/home/user/.config/mycelium/tasks"
+                        onBlur={(e) => save({ task_dir: e.currentTarget.value })}
+                        onKeyDown={(e) => e.key === "Enter" && save({ task_dir: (e.target as HTMLInputElement).value })}
+                    />
+                    <div class="text-stone-600 text-xs mt-0.5">
+                        Place <span class="font-mono">.rhai</span> scripts here. Type{" "}
+                        <span class="font-mono text-lime-500">/</span> to invoke.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    );
+}
+
+function TasksView(props: { backend: Backend }) {
+    const tasks = () => props.backend.tasks[0];
+    const cfg = () => props.backend.settings[0];
+
+    return (
+        <div class="flex flex-col gap-2 p-3">
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-stone-500 text-xs font-mono">
+                    {cfg().task_dir || <span class="italic">no directory set</span>}
+                </div>
+                <button
+                    onClick={() => props.backend.reloadTasks()}
+                    class="text-stone-600 hover:text-stone-300 text-xs px-2 py-1 rounded
+                           hover:bg-stone-800 transition-colors"
+                    title="Rescan task directory"
+                >
+                    ↺ rescan
+                </button>
+            </div>
+
+            <Show when={tasks().length === 0}>
+                <div class="text-stone-600 text-sm italic px-1 py-2">
+                    {cfg().task_dir ? "no .rhai files found" : "set a task directory in settings"}
+                </div>
+            </Show>
+
+            <For each={tasks()}>
+                {(task) => (
+                    <div class="rounded bg-stone-800 px-3 py-2.5">
+                        <div class="text-lime-400 text-sm font-mono">/{task.name}</div>
+                        <Show when={task.params.length > 0}>
+                            <div class="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                                <For each={task.params}>
+                                    {(p) => (
+                                        <div class="text-xs font-mono">
+                                            <span class="text-stone-400">{p.name}</span>
+                                            <span class="text-stone-600">=</span>
+                                            <span class="text-stone-600 ml-1">{p.description}</span>
+                                        </div>
+                                    )}
+                                </For>
+                            </div>
+                        </Show>
+                        <Show when={task.params.length === 0}>
+                            <div class="text-stone-700 text-xs mt-1 italic">no params</div>
+                        </Show>
+                    </div>
+                )}
+            </For>
         </div>
     );
 }
@@ -311,6 +383,9 @@ export function Sidebar(props: Props) {
                 </Show>
                 <Show when={props.tab === "nav"}>
                     <NavView backend={props.backend} />
+                </Show>
+                <Show when={props.tab === "tasks"}>
+                    <TasksView backend={props.backend} />
                 </Show>
             </div>
         </div>

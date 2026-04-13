@@ -12,6 +12,7 @@
 use crate::schema::{SchemaCompletions, parse_db_info, parse_table_info};
 use reqwest::Client;
 
+#[derive(Clone)]
 pub struct ConnConfig {
     pub endpoint: String, // any of: ws:// wss:// http:// https:// or bare host:port
     pub namespace: String,

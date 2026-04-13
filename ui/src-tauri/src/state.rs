@@ -8,6 +8,7 @@ pub(crate) struct Data {
     pub(crate) suggestions: Suggestions,
     pub(crate) values: Vec<PlaceholderValue>,
     pub(crate) settings: Settings,
+    pub(crate) tasks: Vec<hyphae::task::TaskMeta>,
     settings_path: PathBuf,
     next_id: u64,
 }
@@ -25,6 +26,7 @@ impl Data {
             suggestions: Suggestions::default(),
             values: vec![],
             settings,
+            tasks: vec![],
             settings_path,
             next_id: 0,
         };
@@ -42,7 +44,16 @@ impl Data {
             state: BlockState::Composing,
             result: None,
         });
+        data.reload_tasks();
         data
+    }
+
+    pub(crate) fn reload_tasks(&mut self) {
+        if self.settings.task_dir.is_empty() {
+            self.tasks = vec![];
+            return;
+        }
+        self.tasks = hyphae::task::scan_tasks(std::path::Path::new(&self.settings.task_dir));
     }
 
     pub(crate) fn save_settings(&self) {

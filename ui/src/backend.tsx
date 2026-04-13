@@ -5,12 +5,14 @@ import { PasteResult } from "./bindings/PasteResult.ts";
 import { PlaceholderValue } from "./bindings/PlaceholderValue.ts";
 import { Settings } from "./bindings/Settings.ts";
 import { Suggestions } from "./bindings/Suggestions.ts";
+import { TaskMeta } from "./bindings/TaskMeta.ts";
 
 export class Backend {
     blocks: [Store<Block[]>, SetStoreFunction<Block[]>];
     suggestions: [Store<Suggestions>, SetStoreFunction<Suggestions>];
     values: [Store<PlaceholderValue[]>, SetStoreFunction<PlaceholderValue[]>];
     settings: [Store<Settings>, SetStoreFunction<Settings>];
+    tasks: [Store<TaskMeta[]>, SetStoreFunction<TaskMeta[]>];
 
     constructor() {
         this.blocks = createStore<Block[]>([]);
@@ -23,7 +25,9 @@ export class Backend {
             surreal_username:  "root",
             surreal_password:  "root",
             placeholder_prefix: "@",
+            task_dir: "",
         });
+        this.tasks = createStore<TaskMeta[]>([]);
     }
 
     composingBlock(): Block | undefined {
@@ -34,16 +38,18 @@ export class Backend {
     }
 
     async init(): Promise<void> {
-        const [blocks, sugs, vals, cfg] = await Promise.all([
+        const [blocks, sugs, vals, cfg, taskList] = await Promise.all([
             invoke<Block[]>("blocks"),
             invoke<Suggestions>("suggestions"),
             invoke<PlaceholderValue[]>("get_values"),
             invoke<Settings>("get_settings"),
+            invoke<TaskMeta[]>("list_tasks"),
         ]);
         this.blocks[1](reconcile(blocks));
         this.suggestions[1](reconcile(sugs));
         this.values[1](reconcile(vals));
         this.settings[1](reconcile(cfg));
+        this.tasks[1](reconcile(taskList));
         // Attempt schema refresh in background — fails silently if DB not reachable
         this.refreshSchema();
     }
@@ -83,8 +89,22 @@ export class Backend {
     async updateSettings(patch: Partial<Settings>): Promise<void> {
         const current = this.settings[0];
         const next: Settings = { ...current, ...patch };
+        const dirChanged = current.task_dir !== next.task_dir;
         const cfg = await invoke<Settings>("update_settings", { settings: next });
         this.settings[1](reconcile(cfg));
+        if (dirChanged) {
+            await this.reloadTasks();
+        }
+    }
+
+    async reloadTasks(): Promise<void> {
+        const tasks = await invoke<TaskMeta[]>("reload_tasks");
+        this.tasks[1](reconcile(tasks));
+    }
+
+    async filterTaskSuggestions(input: string, cursor: number): Promise<void> {
+        const sugs = await invoke<Suggestions>("filter_task_suggestions", { input, cursor });
+        this.suggestions[1](reconcile(sugs));
     }
 
     async suggestName(context: string): Promise<string> {

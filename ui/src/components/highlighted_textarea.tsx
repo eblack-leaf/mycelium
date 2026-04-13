@@ -2,7 +2,7 @@ import { createMemo, For } from "solid-js";
 
 interface TextSegment {
     text: string;
-    kind: "plain" | "placeholder" | "keyword" | "operator";
+    kind: "plain" | "placeholder" | "keyword" | "operator" | "task";
 }
 
 // SurrealDB-specific operators and graph traversal symbols
@@ -16,8 +16,17 @@ function tokenize(text: string, prefix: string): TextSegment[] {
     const keywordRe = new RegExp(`\\b(${SURREAL_KEYWORDS.join("|")})\\b`, "gi");
     const operatorRe = new RegExp(OPERATOR_RE.source, "g");
 
-    type Match = { start: number; end: number; kind: "placeholder" | "keyword" | "operator" };
+    type Match = { start: number; end: number; kind: "placeholder" | "keyword" | "operator" | "task" };
     const matches: Match[] = [];
+
+    // Task command token: /name[-with-dashes] at the very start of the text.
+    // Added first so it wins the overlap resolution over any keyword that might match.
+    if (text.trimStart().startsWith('/')) {
+        const leadingSpaces = text.length - text.trimStart().length;
+        const spaceAfter = text.indexOf(' ', leadingSpaces);
+        const end = spaceAfter === -1 ? text.length : spaceAfter;
+        matches.push({ start: leadingSpaces, end, kind: "task" });
+    }
 
     let m: RegExpExecArray | null;
     placeholderRe.lastIndex = 0;
@@ -150,7 +159,9 @@ export function HighlightedTextarea(props: Props) {
                     {(seg) => (
                         <span
                             class={
-                                seg.kind === "placeholder"
+                                seg.kind === "task"
+                                    ? "text-lime-400"
+                                    : seg.kind === "placeholder"
                                     ? "text-amber-400"
                                     : seg.kind === "keyword"
                                     ? "text-orange-400"

@@ -130,3 +130,14 @@ export const List = icon(() => (
         <line x1="3" x2="3.01" y1="18" y2="18"/>
     </>
 ));
+
+export const Play = icon(() => (
+    <polygon points="5 3 19 12 5 21 5 3" />
+));
+
+export const Clipboard = icon(() => (
+    <>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+    </>
+));

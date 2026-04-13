@@ -3,6 +3,37 @@ use ts_rs::TS;
 
 #[derive(Serialize, Deserialize, TS, Clone)]
 #[ts(export)]
+pub(crate) struct TaskParam {
+    pub(crate) name: String,
+    pub(crate) description: String,
+}
+
+/// Bridge view of a task — `path` is internal and omitted.
+#[derive(Serialize, Deserialize, TS, Clone)]
+#[ts(export)]
+pub(crate) struct TaskMeta {
+    pub(crate) name: String,
+    pub(crate) params: Vec<TaskParam>,
+}
+
+impl From<hyphae::task::TaskMeta> for TaskMeta {
+    fn from(t: hyphae::task::TaskMeta) -> Self {
+        Self {
+            name: t.name,
+            params: t
+                .params
+                .into_iter()
+                .map(|p| TaskParam {
+                    name: p.name,
+                    description: p.description,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, TS, Clone)]
+#[ts(export)]
 pub(crate) enum BlockState {
     Composing,
     Executing,
@@ -49,6 +80,8 @@ pub(crate) struct Settings {
     pub(crate) surreal_username: String,
     pub(crate) surreal_password: String,
     pub(crate) placeholder_prefix: String,
+    #[serde(default)]
+    pub(crate) task_dir: String,
 }
 
 #[derive(Serialize, Deserialize, TS, Clone)]
@@ -67,6 +100,7 @@ impl Default for Settings {
             surreal_username: "root".to_string(),
             surreal_password: "root".to_string(),
             placeholder_prefix: "@".to_string(),
+            task_dir: String::new(),
         }
     }
 }

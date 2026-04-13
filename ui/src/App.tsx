@@ -7,7 +7,7 @@ import { Sidebar } from "./components/sidebar.tsx";
 import { Backend } from "./backend.tsx";
 import { jumpToComposing } from "./composing.ts";
 
-type SidebarTab = "values" | "settings" | "nav" | null;
+type SidebarTab = "values" | "settings" | "nav" | "tasks" | null;
 
 export default function App() {
     const backend = new Backend();
@@ -71,6 +71,16 @@ export default function App() {
                     title="Query history"
                 >
                     <Icon.List size={15} stroke="currentColor" />
+                </button>
+                <button
+                    onClick={() => setSidebarTab(sidebarTab() === "tasks" ? null : "tasks")}
+                    class={`rounded-md w-8 h-8 flex items-center justify-center transition-colors
+                        ${sidebarTab() === "tasks"
+                            ? "bg-lime-500/20 text-lime-400"
+                            : "bg-stone-800 text-stone-500 hover:text-stone-300"}`}
+                    title="Tasks"
+                >
+                    <Icon.Play size={13} stroke="currentColor" />
                 </button>
                 {/* Settings at bottom */}
                 <div class="flex-1 flex items-end pb-1">

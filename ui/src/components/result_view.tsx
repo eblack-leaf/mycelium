@@ -49,6 +49,11 @@ function serializeForSave(value: unknown): string {
 }
 
 // Single flat row — no recursion into children
+function copyValue(value: unknown): string {
+    // Copy raw string without quotes; everything else as JSON
+    return typeof value === "string" ? value : JSON.stringify(value);
+}
+
 function FlatJsonRow(props: {
     row: FlatRow;
     rowClass: string;
@@ -57,7 +62,14 @@ function FlatJsonRow(props: {
     const [saving, setSaving] = createSignal(false);
     const [name, setName] = createSignal("");
     const [loading, setLoading] = createSignal(false);
+    const [copied, setCopied] = createSignal(false);
     let inputEl!: HTMLInputElement;
+
+    function copy() {
+        navigator.clipboard.writeText(copyValue(props.row.value));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+    }
 
     async function openSave() {
         if (saving()) { setSaving(false); return; }
@@ -97,6 +109,20 @@ function FlatJsonRow(props: {
             <span class="text-stone-600 text-xs shrink-0">{typeMeta(props.row.value)}</span>
 
             <button
+                onClick={copy}
+                class={`shrink-0 flex items-center rounded-sm px-1 py-0.5 transition-colors
+                    ${copied()
+                        ? "text-emerald-400 bg-stone-700"
+                        : "text-stone-700 hover:text-stone-300 hover:bg-stone-700 group-hover:text-stone-500"
+                    }`}
+                title="Copy value"
+            >
+                <Show when={copied()} fallback={<Icon.Clipboard size={17} stroke="currentColor" stroke-width={2} />}>
+                    <span class="text-xs font-mono leading-none px-0.5">✓</span>
+                </Show>
+            </button>
+
+            <button
                 onClick={openSave}
                 onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setSaving(false); } }}
                 class={`shrink-0 flex items-center rounded-sm px-1 py-0.5 transition-colors
@@ -104,6 +130,7 @@ function FlatJsonRow(props: {
                         ? "text-amber-400 bg-stone-700"
                         : "text-stone-700 hover:text-amber-500 hover:bg-stone-700 group-hover:text-stone-500"
                     }`}
+                title="Save as placeholder"
             >
                 <Icon.ChevronsRight size={18} stroke="currentColor" stroke-width={2} />
             </button>

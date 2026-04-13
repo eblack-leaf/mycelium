@@ -1,7 +1,8 @@
 use crate::bridge::{
-    Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestion, Suggestions,
+    Block, BlockState, PasteResult, PlaceholderValue, Settings, Suggestion, Suggestions, TaskMeta,
 };
 use crate::state::DataM;
+use std::collections::HashMap;
 use tauri::State;
 
 #[tauri::command]
@@ -15,37 +16,77 @@ pub(crate) async fn submit_block(
     query: String,
     handle: State<'_, DataM>,
 ) -> Result<Vec<Block>, ()> {
-    let (cfg, resolved) = {
-        let data = handle.lock().unwrap();
+    let result = if query.trim_start().starts_with('/') {
+        // Task invocation path
+        let invocation = hyphae::task::parse_invocation(&query).ok_or(())?;
+        let task_name = invocation.task_name;
 
-        let cfg = hyphae::db::ConnConfig {
-            endpoint: data.settings.surreal_endpoint.clone(),
-            namespace: data.settings.surreal_namespace.clone(),
-            database: data.settings.surreal_database.clone(),
-            username: data.settings.surreal_username.clone(),
-            password: data.settings.surreal_password.clone(),
+        let (ctx, params) = {
+            let data = handle.lock().unwrap();
+
+            // Resolve @placeholders in param values before injecting into the script.
+            // Same strategy as SurrealQL substitution: longest names first.
+            let prefix = &data.settings.placeholder_prefix;
+            let mut sorted_values = data.values.clone();
+            sorted_values.sort_by(|a, b| b.name.len().cmp(&a.name.len()));
+
+            let mut params: HashMap<String, String> = invocation.params;
+            for val_field in params.values_mut() {
+                for sv in &sorted_values {
+                    let token = format!("{}{}", prefix, sv.name);
+                    *val_field = val_field.replace(&token, &sv.value);
+                }
+            }
+
+            let ctx = hyphae::task::TaskContext {
+                conn_cfg: hyphae::db::ConnConfig {
+                    endpoint: data.settings.surreal_endpoint.clone(),
+                    namespace: data.settings.surreal_namespace.clone(),
+                    database: data.settings.surreal_database.clone(),
+                    username: data.settings.surreal_username.clone(),
+                    password: data.settings.surreal_password.clone(),
+                },
+                task_dir: std::path::PathBuf::from(&data.settings.task_dir),
+                depth: 0,
+            };
+            (ctx, params)
         };
 
-        // Substitute @placeholder tokens with saved values.
-        // Sort by name length descending so `@user-id` is replaced before `@user`.
-        let prefix = &data.settings.placeholder_prefix;
-        let mut sorted_values = data.values.clone();
-        sorted_values.sort_by(|a, b| b.name.len().cmp(&a.name.len()));
+        // block_in_place tells Tokio "this thread will block" so the scheduler
+        // can move other tasks to a different thread. The Rhai engine is sync,
+        // and the query() callback inside it uses Handle::current().block_on()
+        // to drive the async future — that's safe from a blocking thread.
+        tokio::task::block_in_place(|| hyphae::task::run_task(&ctx, &task_name, &params))
+    } else {
+        // SurrealDB query path — unchanged
+        let (cfg, resolved) = {
+            let data = handle.lock().unwrap();
 
-        let mut resolved = query.clone();
-        for val in &sorted_values {
-            let token = format!("{}{}", prefix, val.name);
-            resolved = resolved.replace(&token, &val.value);
-        }
+            let cfg = hyphae::db::ConnConfig {
+                endpoint: data.settings.surreal_endpoint.clone(),
+                namespace: data.settings.surreal_namespace.clone(),
+                database: data.settings.surreal_database.clone(),
+                username: data.settings.surreal_username.clone(),
+                password: data.settings.surreal_password.clone(),
+            };
 
-        (cfg, resolved)
+            let prefix = &data.settings.placeholder_prefix;
+            let mut sorted_values = data.values.clone();
+            sorted_values.sort_by(|a, b| b.name.len().cmp(&a.name.len()));
+
+            let mut resolved = query.clone();
+            for val in &sorted_values {
+                let token = format!("{}{}", prefix, val.name);
+                resolved = resolved.replace(&token, &val.value);
+            }
+
+            (cfg, resolved)
+        };
+
+        hyphae::db::query(&cfg, &resolved)
+            .await
+            .unwrap_or_else(|e| serde_json::json!([{ "error": e }]).to_string())
     };
-
-    // Run the query — fall back to an error string as the result so the block
-    // still completes rather than leaving the user in Executing state.
-    let result = hyphae::db::query(&cfg, &resolved)
-        .await
-        .unwrap_or_else(|e| serde_json::json!([{ "error": e }]).to_string());
 
     let mut data = handle.lock().unwrap();
     if let Some(block) = data.blocks.iter_mut().find(|b| b.id == id) {
@@ -133,8 +174,12 @@ pub(crate) async fn update_settings(
     handle: State<'_, DataM>,
 ) -> Result<Settings, ()> {
     let mut data = handle.lock().unwrap();
+    let dir_changed = data.settings.task_dir != settings.task_dir;
     data.settings = settings;
     data.save_settings();
+    if dir_changed {
+        data.reload_tasks();
+    }
     Ok(data.settings.clone())
 }
 
@@ -255,6 +300,126 @@ pub(crate) async fn filter_suggestions(
     Ok(Suggestions {
         placeholders: vec![],
         schema: ranked,
+        other: vec![],
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn list_tasks(handle: State<'_, DataM>) -> Result<Vec<TaskMeta>, ()> {
+    let data = handle.lock().unwrap();
+    Ok(data.tasks.iter().cloned().map(TaskMeta::from).collect())
+}
+
+#[tauri::command]
+pub(crate) async fn reload_tasks(handle: State<'_, DataM>) -> Result<Vec<TaskMeta>, ()> {
+    let mut data = handle.lock().unwrap();
+    data.reload_tasks();
+    Ok(data.tasks.iter().cloned().map(TaskMeta::from).collect())
+}
+
+/// Return task-mode completions based on full input and cursor position.
+///
+/// - One token (cursor on task name): scores task names → `{ text: "/name", metadata: "task" }`
+/// - Multiple tokens (cursor on param): scores task's declared params → `{ text: "name=", metadata: description }`
+#[tauri::command]
+pub(crate) async fn filter_task_suggestions(
+    input: String,
+    cursor: usize,
+    handle: State<'_, DataM>,
+) -> Result<Suggestions, ()> {
+    let data = handle.lock().unwrap();
+
+    let trimmed = input.trim_start();
+    let leading = input.len() - trimmed.len();
+    let effective_cursor = cursor.saturating_sub(leading);
+    let up_to_cursor = &trimmed[..effective_cursor.min(trimmed.len())];
+    let without_slash = up_to_cursor.strip_prefix('/').unwrap_or(up_to_cursor);
+
+    let tokens: Vec<&str> = without_slash.split_whitespace().collect();
+    let ends_with_space = up_to_cursor.ends_with(|c: char| c.is_whitespace());
+
+    // Mode 1: still typing the task name
+    if tokens.len() <= 1 && !ends_with_space {
+        let partial = tokens.first().copied().unwrap_or("");
+        let mut scored: Vec<(f64, &hyphae::task::TaskMeta)> = data
+            .tasks
+            .iter()
+            .map(|t| {
+                let score = if partial.is_empty() {
+                    1.0
+                } else {
+                    completion_score(partial, &t.name)
+                };
+                (score, t)
+            })
+            .filter(|(s, _)| partial.is_empty() || *s > 0.1)
+            .collect();
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let suggestions: Vec<Suggestion> = scored
+            .into_iter()
+            .take(4)
+            .map(|(_, t)| Suggestion {
+                text: format!("/{}", t.name),
+                metadata: "task".to_string(),
+            })
+            .collect();
+        return Ok(Suggestions {
+            schema: suggestions,
+            placeholders: vec![],
+            other: vec![],
+        });
+    }
+
+    // Mode 2: typing params — complete param names for the matched task
+    let task_name = tokens.first().copied().unwrap_or("");
+    let Some(task) = data.tasks.iter().find(|t| t.name == task_name) else {
+        return Ok(Suggestions::default());
+    };
+
+    // Collect params already provided (key side of k=v tokens)
+    let used: std::collections::HashSet<&str> = tokens[1..]
+        .iter()
+        .filter_map(|t| t.split_once('=').map(|(k, _)| k))
+        .collect();
+
+    // Partial key: last token if it doesn't contain `=` and cursor isn't after a space
+    let partial_key = if ends_with_space {
+        ""
+    } else {
+        tokens
+            .last()
+            .and_then(|t| if t.contains('=') { None } else { Some(*t) })
+            .unwrap_or("")
+    };
+
+    let mut scored: Vec<(f64, &hyphae::task::TaskParam)> = task
+        .params
+        .iter()
+        .filter(|p| !used.contains(p.name.as_str()))
+        .map(|p| {
+            let score = if partial_key.is_empty() {
+                1.0
+            } else {
+                completion_score(partial_key, &p.name)
+            };
+            (score, p)
+        })
+        .filter(|(s, _)| partial_key.is_empty() || *s > 0.1)
+        .collect();
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let suggestions: Vec<Suggestion> = scored
+        .into_iter()
+        .take(4)
+        .map(|(_, p)| Suggestion {
+            text: format!("{}=", p.name),
+            metadata: p.description.clone(),
+        })
+        .collect();
+
+    Ok(Suggestions {
+        schema: suggestions,
+        placeholders: vec![],
         other: vec![],
     })
 }

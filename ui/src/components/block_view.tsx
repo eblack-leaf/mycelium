@@ -1,4 +1,4 @@
-import { createSignal, JSX, Show } from "solid-js";
+import { createSignal, JSX, Show, Switch, Match } from "solid-js";
 import { Block } from "../bindings/Block.ts";
 import { Backend } from "../backend.tsx";
 import { HighlightedTextarea, HighlightedTextareaRef } from "./highlighted_textarea.tsx";
@@ -122,11 +122,17 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                             requestAnimationFrame(() => {
                                 const scroller = document.getElementById("scroll-root");
                                 if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
-                                // Extract current word at cursor for fuzzy completion
                                 const cursor = textareaRef?.getCursorPos() ?? 0;
-                                let ws = cursor;
-                                while (ws > 0 && !/[\s\n:,()\[\]{};]/.test(v[ws - 1])) ws--;
-                                props.backend.filterSuggestions(v.slice(ws, cursor));
+                                if (v.trimStart().startsWith('/')) {
+                                    // Task mode: send full input + cursor so backend can
+                                    // resolve whether we're completing the task name or a param.
+                                    props.backend.filterTaskSuggestions(v, cursor);
+                                } else {
+                                    // Normal mode: extract word at cursor for SurrealQL completion.
+                                    let ws = cursor;
+                                    while (ws > 0 && !/[\s\n:,()\[\]{};]/.test(v[ws - 1])) ws--;
+                                    props.backend.filterSuggestions(v.slice(ws, cursor));
+                                }
                                 panelRef?.resetIndex();
                             });
                         }}
@@ -140,13 +146,25 @@ export function BlockView(props: { block: Block; backend: Backend }) {
                     />
                 </div>
 
-                <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-stone-400 text-xs select-none items-center">
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.CornerDownLeft size={11} /></Kbd> submit</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.ShiftKey size={11} /><Icon.CornerDownLeft size={11} /></Kbd> newline</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.TabKey size={11} /></Kbd><Kbd><span class="text-xs font-mono">ctrl 1–4</span></Kbd> complete</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><Icon.Option size={11} /><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> history</span>
-                    <span class="inline-flex items-center gap-1"><Kbd><span class="text-xs font-mono">ctrl</span><span class="text-xs font-mono">/</span></Kbd> focus</span>
-                </div>
+                <Switch>
+                    <Match when={query().trimStart().startsWith('/')}>
+                        <div class="mt-1.5 text-stone-600 text-xs select-none font-mono">
+                            task mode —{" "}
+                            <span class="text-lime-700">/name</span>
+                            {" "}
+                            <span class="text-stone-500">param=value</span>
+                        </div>
+                    </Match>
+                    <Match when={true}>
+                        <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-stone-400 text-xs select-none items-center">
+                            <span class="inline-flex items-center gap-1"><Kbd><Icon.CornerDownLeft size={11} /></Kbd> submit</span>
+                            <span class="inline-flex items-center gap-1"><Kbd><Icon.ShiftKey size={11} /><Icon.CornerDownLeft size={11} /></Kbd> newline</span>
+                            <span class="inline-flex items-center gap-1"><Kbd><Icon.TabKey size={11} /></Kbd><Kbd><span class="text-xs font-mono">ctrl 1–4</span></Kbd> complete</span>
+                            <span class="inline-flex items-center gap-1"><Kbd><Icon.Option size={11} /><Icon.ArrowUp size={11} /><Icon.ArrowDown size={11} /></Kbd> history</span>
+                            <span class="inline-flex items-center gap-1"><Kbd><span class="text-xs font-mono">ctrl</span><span class="text-xs font-mono">/</span></Kbd> focus</span>
+                        </div>
+                    </Match>
+                </Switch>
             </div>
         </Show>
     );
