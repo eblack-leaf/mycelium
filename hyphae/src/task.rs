@@ -144,6 +144,7 @@ fn build_engine(ctx: &TaskContext) -> rhai::Engine {
         let result_str = tokio::runtime::Handle::current()
             .block_on(crate::db::query(&cfg_q, surql))
             .unwrap_or_else(|e| serde_json::json!([{"error": e}]).to_string());
+        println!("query result: {}", result_str);
         let json_val: serde_json::Value = serde_json::from_str(&result_str)
             .unwrap_or(serde_json::Value::String(result_str));
         rhai::serde::to_dynamic(json_val).unwrap_or(rhai::Dynamic::UNIT)
@@ -153,11 +154,14 @@ fn build_engine(ctx: &TaskContext) -> rhai::Engine {
     // Uses explicit arg array — never shell interpolation — to prevent injection.
     engine.register_fn("shell", |cmd: &str, args: rhai::Array| -> String {
         let str_args: Vec<String> = args.into_iter().map(|a| a.to_string()).collect();
-        std::process::Command::new(cmd)
+        println!("cmd: {} args: {:?}", cmd, str_args);
+        let output = std::process::Command::new(cmd)
             .args(&str_args)
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-            .unwrap_or_else(|e| format!("shell_error: {}", e))
+            .unwrap_or_else(|e| format!("shell_error: {}", e));
+        println!("shell-output: {}", output);
+        output.trim().to_string()
     });
 
     // run_task(name) -> Dynamic

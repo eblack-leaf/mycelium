@@ -5,7 +5,7 @@
 ///   Hacker   — terse, irreverent: "dead-loop", "ghost-wire", "null-gate"
 ///
 /// Names are random; call `generate` whenever a placeholder value needs a name.
-use rand::Rng;
+use rand::{RngExt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
@@ -71,19 +71,19 @@ const HACKER_NOUN: &[&str] = &[
 
 /// Generate a random 2-word name in the given style.
 pub fn generate(style: Style) -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let (adjs, nouns) = match style {
         Style::Creative => (CREATIVE_ADJ, CREATIVE_NOUN),
         Style::Hacker => (HACKER_ADJ, HACKER_NOUN),
     };
-    let adj = adjs[rng.gen_range(0..adjs.len())];
-    let noun = nouns[rng.gen_range(0..nouns.len())];
+    let adj = adjs[rng.random_range(0..adjs.len())];
+    let noun = nouns[rng.random_range(0..nouns.len())];
     format!("{}-{}", adj, noun)
 }
 
 /// Generate a name picking a style at random (equal chance of Creative or Hacker).
 pub fn generate_random() -> String {
-    let style = if rand::thread_rng().gen_bool(0.5) {
+    let style = if rand::rng().random_bool(0.5) {
         Style::Creative
     } else {
         Style::Hacker
