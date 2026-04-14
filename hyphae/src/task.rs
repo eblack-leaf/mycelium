@@ -164,12 +164,13 @@ fn build_engine(ctx: &TaskContext) -> rhai::Engine {
         output.trim().to_string()
     });
 
-    // run_task(name) -> Dynamic
-    // Allows scripts to invoke other scripts. Depth-capped at 8 to break cycles.
+    // run_task(name, params) -> Dynamic
+    // Allows scripts to invoke other scripts with an explicit params map.
+    // Depth-capped at 8 to break cycles.
     let task_dir_rt = ctx.task_dir.clone();
     let cfg_rt = ctx.conn_cfg.clone();
     let depth = ctx.depth;
-    engine.register_fn("run_task", move |name: &str| -> rhai::Dynamic {
+    engine.register_fn("run_task", move |name: &str, rhai_params: rhai::Map| -> rhai::Dynamic {
         if depth >= 8 {
             return rhai::Dynamic::from(
                 "run_task: max recursion depth (8) exceeded".to_string(),
@@ -180,7 +181,11 @@ fn build_engine(ctx: &TaskContext) -> rhai::Engine {
             task_dir: task_dir_rt.clone(),
             depth: depth + 1,
         };
-        let result_str = run_task(&child_ctx, name, &HashMap::new());
+        let params: HashMap<String, String> = rhai_params
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let result_str = run_task(&child_ctx, name, &params);
         let json_val: serde_json::Value = serde_json::from_str(&result_str)
             .unwrap_or(serde_json::Value::String(result_str));
         rhai::serde::to_dynamic(json_val).unwrap_or(rhai::Dynamic::UNIT)
