@@ -279,7 +279,7 @@ function NestedToggleRow(props: { fieldKey: string; value: unknown; backend: Bac
 function ExpandedRecord(props: {
     item: unknown;
     schemaKeys: string[];
-    hiddenFields: () => Set<string>;
+    focusedFields: () => Set<string>;
     backend: Backend;
 }) {
     let containerEl!: HTMLDivElement;
@@ -289,7 +289,13 @@ function ExpandedRecord(props: {
         ? (props.item as Record<string, unknown>)
         : null;
 
-    const visibleKeys = () => props.schemaKeys.filter(k => !props.hiddenFields().has(k));
+    // No focus = show all; some focused = show only those
+    const visibleKeys = () => {
+        const focused = props.focusedFields();
+        return focused.size > 0
+            ? props.schemaKeys.filter(k => focused.has(k))
+            : props.schemaKeys;
+    };
 
     return (
         <div ref={containerEl} class="pl-3 pb-1 flex flex-col border-l border-stone-800 ml-3 mb-0.5">
@@ -307,7 +313,7 @@ function ExpandedRecord(props: {
                         const isNested = val !== null && typeof val === "object";
                         return isNested
                             ? <NestedToggleRow fieldKey={key} value={val} backend={props.backend} />
-                            : <FlatJsonRow row={{ depth: 0, label: key, value: val }} rowClass="" visible backend={props.backend} />;
+                            : <FlatJsonRow row={{ depth: 0, label: key, value: val }} rowClass="" visible={true} backend={props.backend} />;
                     }}
                 </For>
             </Show>
@@ -318,13 +324,13 @@ function ExpandedRecord(props: {
 // One row in the accordion list — collapsed summary + expandable detail.
 function AccordionRecord(props: {
     item: unknown;
-    index: number;
+    open: boolean;
+    onToggle: () => void;
     schemaKeys: string[];
-    hiddenFields: () => Set<string>;
+    focusedFields: () => Set<string>;
     outerCls: string;
     backend: Backend;
 }) {
-    const [open, setOpen] = createSignal(false);
     const summary = summarizeRecord(props.item);
 
     return (
@@ -332,25 +338,25 @@ function AccordionRecord(props: {
             <div
                 class={`${props.outerCls}-hdr flex items-center gap-2 h-7 px-1 cursor-pointer select-none rounded hover:bg-stone-800/50`}
                 style={{ opacity: 0 }}
-                onClick={() => setOpen(o => !o)}
+                onClick={props.onToggle}
             >
                 <Icon.ChevronDown
                     size={14}
                     stroke="currentColor"
                     stroke-width={2}
                     style={{
-                        transform: open() ? "rotate(0deg)" : "rotate(-90deg)",
+                        transform: props.open ? "rotate(0deg)" : "rotate(-90deg)",
                         transition: "transform 0.12s",
                     }}
                     class="text-stone-600 shrink-0"
                 />
                 <span class="font-mono text-xs text-stone-400 truncate">{summary}</span>
             </div>
-            <Show when={open()}>
+            <Show when={props.open}>
                 <ExpandedRecord
                     item={props.item}
                     schemaKeys={props.schemaKeys}
-                    hiddenFields={props.hiddenFields}
+                    focusedFields={props.focusedFields}
                     backend={props.backend}
                 />
             </Show>
@@ -360,14 +366,22 @@ function AccordionRecord(props: {
 
 export function ResultView(props: { result: string | null; backend: Backend }) {
     // Signals must be declared before any conditional returns
-    const [hiddenFields, setHiddenFields] = createSignal(new Set<string>());
+    const [focusedFields, setFocusedFields] = createSignal(new Set<string>());
+    const [openRecords, setOpenRecords] = createSignal(new Set<number>());
     const cls = `jr-${Math.random().toString(36).slice(2, 7)}`;
 
-    function toggleField(key: string) {
-        setHiddenFields(prev => {
+    function toggleFocus(key: string) {
+        setFocusedFields(prev => {
             const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    }
+
+    function toggleRecord(i: number) {
+        setOpenRecords(prev => {
+            const next = new Set(prev);
+            if (next.has(i)) next.delete(i); else next.add(i);
             return next;
         });
     }
@@ -443,31 +457,48 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
     });
 
     if (useAccordion) {
+        const allOpen = () => openRecords().size === items.length;
+        const expandAll = () => setOpenRecords(new Set(items.map((_, i) => i)));
+        const collapseAll = () => setOpenRecords(new Set());
+
         return (
             <div class="px-3 py-2 flex flex-col gap-px">
-                <div class="flex flex-wrap gap-1 pb-2 mb-1 border-b border-stone-800">
-                    <For each={schemaKeys}>
-                        {(key) => (
-                            <button
-                                onClick={() => toggleField(key)}
-                                class={`px-2 py-0.5 rounded text-xs font-mono border transition-colors ${
-                                    hiddenFields().has(key)
-                                        ? "text-stone-600 bg-stone-800 border-stone-700"
-                                        : "text-amber-400 bg-amber-400/10 border-amber-400/30"
-                                }`}
-                            >
-                                {key}
-                            </button>
-                        )}
-                    </For>
+                <div class="flex items-start justify-between gap-3 pb-2 mb-1 border-b border-stone-800">
+                    <div class="flex flex-wrap gap-1">
+                        <For each={schemaKeys}>
+                            {(key) => (
+                                <button
+                                    onClick={() => toggleFocus(key)}
+                                    class={`px-2 py-0.5 rounded text-xs font-mono border transition-colors ${
+                                        focusedFields().size === 0
+                                            ? "text-stone-500 border-stone-700 hover:text-stone-300 hover:border-stone-500"
+                                            : focusedFields().has(key)
+                                                ? "text-amber-400 bg-amber-400/10 border-amber-400/30"
+                                                : "text-stone-700 border-stone-800"
+                                    }`}
+                                >
+                                    {key}
+                                </button>
+                            )}
+                        </For>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 pt-px">
+                        <button
+                            onClick={allOpen() ? collapseAll : expandAll}
+                            class="text-xs text-stone-600 hover:text-stone-400 transition-colors shrink-0"
+                        >
+                            {allOpen() ? "collapse all" : "expand all"}
+                        </button>
+                    </div>
                 </div>
                 <For each={items}>
                     {(item, i) => (
                         <AccordionRecord
                             item={item}
-                            index={i()}
+                            open={openRecords().has(i())}
+                            onToggle={() => toggleRecord(i())}
                             schemaKeys={schemaKeys}
-                            hiddenFields={hiddenFields}
+                            focusedFields={focusedFields}
                             outerCls={cls}
                             backend={props.backend}
                         />
