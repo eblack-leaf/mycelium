@@ -13,6 +13,7 @@ export class Backend {
     values: [Store<PlaceholderValue[]>, SetStoreFunction<PlaceholderValue[]>];
     settings: [Store<Settings>, SetStoreFunction<Settings>];
     tasks: [Store<TaskMeta[]>, SetStoreFunction<TaskMeta[]>];
+    private _sugSeq = 0;
 
     constructor() {
         this.blocks = createStore<Block[]>([]);
@@ -25,7 +26,6 @@ export class Backend {
             surreal_username:  "root",
             surreal_password:  "root",
             placeholder_prefix: "@",
-            task_dir: "",
         });
         this.tasks = createStore<TaskMeta[]>([]);
     }
@@ -57,23 +57,25 @@ export class Backend {
     async submitBlock(id: string, query: string): Promise<void> {
         const blocks = await invoke<Block[]>("submit_block", { id, query });
         this.blocks[1](reconcile(blocks));
-        // Refresh suggestions so placeholders stay in sync
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("suggestions");
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async saveValue(name: string, value: string): Promise<void> {
         const vals = await invoke<PlaceholderValue[]>("save_value", { name, value });
         this.values[1](reconcile(vals));
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("suggestions");
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async deleteValue(name: string): Promise<void> {
         const vals = await invoke<PlaceholderValue[]>("delete_value", { name });
         this.values[1](reconcile(vals));
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("suggestions");
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async renameValue(oldName: string, newName: string): Promise<void> {
@@ -82,19 +84,15 @@ export class Backend {
             newName,
         });
         this.values[1](reconcile(vals));
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("suggestions");
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async updateSettings(patch: Partial<Settings>): Promise<void> {
-        const current = this.settings[0];
-        const next: Settings = { ...current, ...patch };
-        const dirChanged = current.task_dir !== next.task_dir;
+        const next: Settings = { ...this.settings[0], ...patch };
         const cfg = await invoke<Settings>("update_settings", { settings: next });
         this.settings[1](reconcile(cfg));
-        if (dirChanged) {
-            await this.reloadTasks();
-        }
     }
 
     async reloadTasks(): Promise<void> {
@@ -103,8 +101,9 @@ export class Backend {
     }
 
     async filterTaskSuggestions(input: string, cursor: number): Promise<void> {
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("filter_task_suggestions", { input, cursor });
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async suggestName(context: string): Promise<string> {
@@ -112,15 +111,17 @@ export class Backend {
     }
 
     async filterSuggestions(word: string): Promise<void> {
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("filter_suggestions", { word });
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
     }
 
     async refreshSchema(): Promise<string | null> {
         try {
             await invoke("refresh_schema");
+            const seq = ++this._sugSeq;
             const sugs = await invoke<Suggestions>("suggestions");
-            this.suggestions[1](reconcile(sugs));
+            if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
             return null;
         } catch (e) {
             return String(e);
@@ -130,8 +131,9 @@ export class Backend {
     async pasteValue(context: string, value: string): Promise<string> {
         const result = await invoke<PasteResult>("paste_value", { context, value });
         this.values[1](reconcile(result.values));
+        const seq = ++this._sugSeq;
         const sugs = await invoke<Suggestions>("suggestions");
-        this.suggestions[1](reconcile(sugs));
+        if (seq === this._sugSeq) this.suggestions[1](reconcile(sugs));
         return result.name;
     }
 }

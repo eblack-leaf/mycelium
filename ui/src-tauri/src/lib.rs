@@ -5,6 +5,7 @@ use tauri::Manager;
 mod bridge;
 mod cmds;
 mod state;
+mod tasks;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

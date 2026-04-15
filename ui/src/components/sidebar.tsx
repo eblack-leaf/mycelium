@@ -247,24 +247,6 @@ function SettingsView(props: { backend: Backend }) {
                 </div>
             </div>
 
-            {/* Tasks */}
-            <div class="flex flex-col gap-3">
-                <div class="text-stone-400 text-xs uppercase tracking-widest">Tasks</div>
-                <div class="flex flex-col gap-1">
-                    <div class={labelCls}>Script directory</div>
-                    <input
-                        class={inputCls}
-                        value={cfg().task_dir}
-                        placeholder="/home/user/.config/mycelium/tasks"
-                        onBlur={(e) => save({ task_dir: e.currentTarget.value })}
-                        onKeyDown={(e) => e.key === "Enter" && save({ task_dir: (e.target as HTMLInputElement).value })}
-                    />
-                    <div class="text-stone-600 text-xs mt-0.5">
-                        Place <span class="font-mono">.rhai</span> scripts here. Type{" "}
-                        <span class="font-mono text-lime-500">/</span> to invoke.
-                    </div>
-                </div>
-            </div>
 
         </div>
     );
@@ -272,28 +254,11 @@ function SettingsView(props: { backend: Backend }) {
 
 function TasksView(props: { backend: Backend }) {
     const tasks = () => props.backend.tasks[0];
-    const cfg = () => props.backend.settings[0];
 
     return (
         <div class="flex flex-col gap-2 p-3">
-            <div class="flex items-center justify-between mb-1">
-                <div class="text-stone-500 text-xs font-mono">
-                    {cfg().task_dir || <span class="italic">no directory set</span>}
-                </div>
-                <button
-                    onClick={() => props.backend.reloadTasks()}
-                    class="text-stone-600 hover:text-stone-300 text-xs px-2 py-1 rounded
-                           hover:bg-stone-800 transition-colors"
-                    title="Rescan task directory"
-                >
-                    ↺ rescan
-                </button>
-            </div>
-
             <Show when={tasks().length === 0}>
-                <div class="text-stone-600 text-sm italic px-1 py-2">
-                    {cfg().task_dir ? "no .rhai files found" : "set a task directory in settings"}
-                </div>
+                <div class="text-stone-600 text-sm italic px-1 py-2">no tasks registered</div>
             </Show>
 
             <For each={tasks()}>

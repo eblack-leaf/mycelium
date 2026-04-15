@@ -20,5 +20,6 @@ serde_json = {  workspace = true }
 ts-rs = "12.0.1"
 strsim = "0.11"
 hyphae = { path = "../../hyphae" }
+totp-rs = "5"
 tokio = { workspace = true }
 

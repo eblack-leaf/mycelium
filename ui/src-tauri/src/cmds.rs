@@ -21,11 +21,10 @@ pub(crate) async fn submit_block(
         let invocation = hyphae::task::parse_invocation(&query).ok_or(())?;
         let task_name = invocation.task_name;
 
-        let (ctx, params) = {
+        let (registry, conn_cfg, params) = {
             let data = handle.lock().unwrap();
 
-            // Resolve @placeholders in param values before injecting into the script.
-            // Same strategy as SurrealQL substitution: longest names first.
+            // Resolve @placeholders in param values before passing to the task.
             let prefix = &data.settings.placeholder_prefix;
             let mut sorted_values = data.values.clone();
             sorted_values.sort_by(|a, b| b.name.len().cmp(&a.name.len()));
@@ -38,25 +37,23 @@ pub(crate) async fn submit_block(
                 }
             }
 
-            let ctx = hyphae::task::TaskContext {
-                conn_cfg: hyphae::db::ConnConfig {
-                    endpoint: data.settings.surreal_endpoint.clone(),
-                    namespace: data.settings.surreal_namespace.clone(),
-                    database: data.settings.surreal_database.clone(),
-                    username: data.settings.surreal_username.clone(),
-                    password: data.settings.surreal_password.clone(),
-                },
-                task_dir: std::path::PathBuf::from(&data.settings.task_dir),
-                depth: 0,
+            let conn_cfg = hyphae::db::ConnConfig {
+                endpoint: data.settings.surreal_endpoint.clone(),
+                namespace: data.settings.surreal_namespace.clone(),
+                database: data.settings.surreal_database.clone(),
+                username: data.settings.surreal_username.clone(),
+                password: data.settings.surreal_password.clone(),
             };
-            (ctx, params)
+
+            (std::sync::Arc::clone(&data.registry), conn_cfg, params)
         };
 
-        // block_in_place tells Tokio "this thread will block" so the scheduler
-        // can move other tasks to a different thread. The Rhai engine is sync,
-        // and the query() callback inside it uses Handle::current().block_on()
-        // to drive the async future — that's safe from a blocking thread.
-        tokio::task::block_in_place(|| hyphae::task::run_task(&ctx, &task_name, &params))
+        let ctx = hyphae::task::TaskRunContext {
+            conn_cfg: &conn_cfg,
+            registry: &registry,
+            depth: 0,
+        };
+        tokio::task::block_in_place(|| registry.run(&ctx, &task_name, &params))
     } else {
         // SurrealDB query path — unchanged
         let (cfg, resolved) = {
@@ -174,12 +171,8 @@ pub(crate) async fn update_settings(
     handle: State<'_, DataM>,
 ) -> Result<Settings, ()> {
     let mut data = handle.lock().unwrap();
-    let dir_changed = data.settings.task_dir != settings.task_dir;
     data.settings = settings;
     data.save_settings();
-    if dir_changed {
-        data.reload_tasks();
-    }
     Ok(data.settings.clone())
 }
 
@@ -307,14 +300,13 @@ pub(crate) async fn filter_suggestions(
 #[tauri::command]
 pub(crate) async fn list_tasks(handle: State<'_, DataM>) -> Result<Vec<TaskMeta>, ()> {
     let data = handle.lock().unwrap();
-    Ok(data.tasks.iter().cloned().map(TaskMeta::from).collect())
+    Ok(data.registry.list().into_iter().map(TaskMeta::from).collect())
 }
 
 #[tauri::command]
 pub(crate) async fn reload_tasks(handle: State<'_, DataM>) -> Result<Vec<TaskMeta>, ()> {
-    let mut data = handle.lock().unwrap();
-    data.reload_tasks();
-    Ok(data.tasks.iter().cloned().map(TaskMeta::from).collect())
+    let data = handle.lock().unwrap();
+    Ok(data.registry.list().into_iter().map(TaskMeta::from).collect())
 }
 
 /// Return task-mode completions based on full input and cursor position.
@@ -328,6 +320,7 @@ pub(crate) async fn filter_task_suggestions(
     handle: State<'_, DataM>,
 ) -> Result<Suggestions, ()> {
     let data = handle.lock().unwrap();
+    let tasks = data.registry.list();
 
     let trimmed = input.trim_start();
     let leading = input.len() - trimmed.len();
@@ -341,8 +334,7 @@ pub(crate) async fn filter_task_suggestions(
     // Mode 1: still typing the task name
     if tokens.len() <= 1 && !ends_with_space {
         let partial = tokens.first().copied().unwrap_or("");
-        let mut scored: Vec<(f64, &hyphae::task::TaskMeta)> = data
-            .tasks
+        let mut scored: Vec<(f64, &hyphae::task::TaskMeta)> = tasks
             .iter()
             .map(|t| {
                 let score = if partial.is_empty() {
@@ -372,7 +364,7 @@ pub(crate) async fn filter_task_suggestions(
 
     // Mode 2: typing params — complete param names for the matched task
     let task_name = tokens.first().copied().unwrap_or("");
-    let Some(task) = data.tasks.iter().find(|t| t.name == task_name) else {
+    let Some(task) = tasks.iter().find(|t| t.name == task_name) else {
         return Ok(Suggestions::default());
     };
 

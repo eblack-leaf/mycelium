@@ -118,7 +118,7 @@ function FlatJsonRow(props: {
                 title="Copy value"
             >
                 <Show when={copied()} fallback={<Icon.Clipboard size={17} stroke="currentColor" stroke-width={2} />}>
-                    <span class="text-xs font-mono leading-none px-0.5">✓</span>
+                    <Icon.Check size={17} stroke="currentColor" stroke-width={2} />
                 </Show>
             </button>
 
