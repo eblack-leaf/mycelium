@@ -71,7 +71,30 @@ pub async fn query(cfg: &ConnConfig, surql: &str) -> Result<String, String> {
         ));
     }
 
-    Ok(body)
+    Ok(unwrap_surreal_envelope(&body))
+}
+
+/// Unwrap the SurrealDB response envelope:
+///   [{ "status": "OK", "result": <value>, "time": "..." }, ...]
+/// Single query  → serialize `result` value directly.
+/// Multiple queries → serialize array of `result` values.
+/// Anything else → return body unchanged.
+fn unwrap_surreal_envelope(body: &str) -> String {
+    let Ok(serde_json::Value::Array(arr)) = serde_json::from_str(body) else {
+        return body.to_string();
+    };
+    let is_envelope = arr.iter().all(|v| {
+        v.get("status").is_some() && v.get("result").is_some()
+    });
+    if !is_envelope {
+        return body.to_string();
+    }
+    let results: Vec<&serde_json::Value> = arr.iter().map(|v| &v["result"]).collect();
+    if results.len() == 1 {
+        serde_json::to_string(results[0]).unwrap_or_else(|_| body.to_string())
+    } else {
+        serde_json::to_string(&results).unwrap_or_else(|_| body.to_string())
+    }
 }
 
 /// Fetch schema by running INFO FOR DB + INFO FOR TABLE for each table.

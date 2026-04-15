@@ -54,10 +54,56 @@ function copyValue(value: unknown): string {
     return typeof value === "string" ? value : JSON.stringify(value);
 }
 
+// Union of top-level keys across all object items, preserving first-seen order.
+// Returns [] for scalar/mixed arrays with no object items.
+function extractSchemaKeys(items: unknown[]): string[] {
+    const seen = new Map<string, number>();
+    let order = 0;
+    for (const item of items) {
+        if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+            for (const k of Object.keys(item as Record<string, unknown>)) {
+                if (!seen.has(k)) seen.set(k, order++);
+            }
+        }
+    }
+    return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+}
+
+// Build a short preview string for a collapsed record.
+function summarizeRecord(item: unknown): string {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        return String(item);
+    }
+    const obj = item as Record<string, unknown>;
+    const parts: string[] = [];
+
+    function shortVal(v: unknown): string {
+        const s = typeof v === "string" ? v : JSON.stringify(v);
+        return s.length > 22 ? s.slice(0, 20) + "…" : s;
+    }
+
+    const idKey = "id" in obj ? "id" : "_id" in obj ? "_id" : null;
+    if (idKey) {
+        parts.push(`${idKey}: ${shortVal(obj[idKey])}`);
+    }
+
+    let count = 0;
+    const limit = idKey ? 2 : 3;
+    for (const [k, v] of Object.entries(obj)) {
+        if (k === idKey) continue;
+        if (v !== null && typeof v === "object") continue;
+        parts.push(`${k}: ${shortVal(v)}`);
+        if (++count >= limit) break;
+    }
+
+    return parts.length > 0 ? parts.join(" · ") : "(no preview)";
+}
+
 function FlatJsonRow(props: {
     row: FlatRow;
     rowClass: string;
     backend: Backend;
+    visible?: boolean;
 }) {
     const [saving, setSaving] = createSignal(false);
     const [name, setName] = createSignal("");
@@ -91,7 +137,7 @@ function FlatJsonRow(props: {
     return (
         <div
             class={`${props.rowClass} flex items-center gap-2 h-6 group overflow-hidden`}
-            style={{ opacity: 0, "padding-left": `${props.row.depth * 14}px` }}
+            style={{ opacity: props.visible ? 1 : 0, "padding-left": `${props.row.depth * 14}px` }}
         >
             <Show when={props.row.label !== null}>
                 <span class="text-stone-400 font-mono text-xs shrink-0">"{props.row.label}":</span>
@@ -172,7 +218,160 @@ function FlatJsonRow(props: {
     );
 }
 
+// Renders nested object/array content when expanded. Separate component so
+// onMount fires on each Show remount (i.e. each time user expands the node).
+function NestedExpanded(props: { value: unknown; backend: Backend }) {
+    const rows: FlatRow[] = [];
+    if (Array.isArray(props.value)) {
+        (props.value as unknown[]).forEach((v, i) => flatten(v, 1, String(i), rows));
+    } else {
+        Object.entries(props.value as Record<string, unknown>).forEach(([k, v]) =>
+            flatten(v, 1, k, rows)
+        );
+    }
+
+    let containerEl!: HTMLDivElement;
+    onMount(() => { animate(containerEl, { opacity: [0, 1] }, { duration: 0.1 }); });
+
+    return (
+        <div ref={containerEl} class="pl-3 border-l border-stone-800 ml-2 mb-0.5">
+            <For each={rows}>
+                {(row) => <FlatJsonRow row={row} rowClass="" visible backend={props.backend} />}
+            </For>
+        </div>
+    );
+}
+
+// A top-level field whose value is an object or array — collapsed by default.
+function NestedToggleRow(props: { fieldKey: string; value: unknown; backend: Backend }) {
+    const [open, setOpen] = createSignal(false);
+
+    return (
+        <div>
+            <button
+                onClick={() => setOpen(o => !o)}
+                class="flex items-center gap-1.5 h-6 w-full text-left group"
+            >
+                <Icon.ChevronDown
+                    size={13}
+                    stroke="currentColor"
+                    stroke-width={2}
+                    style={{
+                        transform: open() ? "rotate(0deg)" : "rotate(-90deg)",
+                        transition: "transform 0.12s",
+                        color: "currentColor",
+                    }}
+                    class="text-stone-600 group-hover:text-stone-400 shrink-0"
+                />
+                <span class="text-stone-400 font-mono text-xs shrink-0">"{props.fieldKey}":</span>
+                <span class="text-stone-600 text-xs shrink-0">{typeMeta(props.value)}</span>
+            </button>
+            <Show when={open()}>
+                <NestedExpanded value={props.value} backend={props.backend} />
+            </Show>
+        </div>
+    );
+}
+
+// The expanded body of an accordion record. Separate component so onMount
+// fires on each Show remount, triggering the fade animation per expansion.
+// Rows start visible so badge toggles (reactive For updates) appear immediately.
+function ExpandedRecord(props: {
+    item: unknown;
+    schemaKeys: string[];
+    hiddenFields: () => Set<string>;
+    backend: Backend;
+}) {
+    let containerEl!: HTMLDivElement;
+    onMount(() => { animate(containerEl, { opacity: [0, 1] }, { duration: 0.12 }); });
+
+    const obj = (typeof props.item === "object" && props.item !== null && !Array.isArray(props.item))
+        ? (props.item as Record<string, unknown>)
+        : null;
+
+    const visibleKeys = () => props.schemaKeys.filter(k => !props.hiddenFields().has(k));
+
+    return (
+        <div ref={containerEl} class="pl-3 pb-1 flex flex-col border-l border-stone-800 ml-3 mb-0.5">
+            <Show when={obj !== null} fallback={
+                <FlatJsonRow
+                    row={{ depth: 0, label: null, value: props.item }}
+                    rowClass="" visible
+                    backend={props.backend}
+                />
+            }>
+                <For each={visibleKeys()}>
+                    {(key) => {
+                        if (!(key in obj!)) return null;
+                        const val = obj![key];
+                        const isNested = val !== null && typeof val === "object";
+                        return isNested
+                            ? <NestedToggleRow fieldKey={key} value={val} backend={props.backend} />
+                            : <FlatJsonRow row={{ depth: 0, label: key, value: val }} rowClass="" visible backend={props.backend} />;
+                    }}
+                </For>
+            </Show>
+        </div>
+    );
+}
+
+// One row in the accordion list — collapsed summary + expandable detail.
+function AccordionRecord(props: {
+    item: unknown;
+    index: number;
+    schemaKeys: string[];
+    hiddenFields: () => Set<string>;
+    outerCls: string;
+    backend: Backend;
+}) {
+    const [open, setOpen] = createSignal(false);
+    const summary = summarizeRecord(props.item);
+
+    return (
+        <div>
+            <div
+                class={`${props.outerCls}-hdr flex items-center gap-2 h-7 px-1 cursor-pointer select-none rounded hover:bg-stone-800/50`}
+                style={{ opacity: 0 }}
+                onClick={() => setOpen(o => !o)}
+            >
+                <Icon.ChevronDown
+                    size={14}
+                    stroke="currentColor"
+                    stroke-width={2}
+                    style={{
+                        transform: open() ? "rotate(0deg)" : "rotate(-90deg)",
+                        transition: "transform 0.12s",
+                    }}
+                    class="text-stone-600 shrink-0"
+                />
+                <span class="font-mono text-xs text-stone-400 truncate">{summary}</span>
+            </div>
+            <Show when={open()}>
+                <ExpandedRecord
+                    item={props.item}
+                    schemaKeys={props.schemaKeys}
+                    hiddenFields={props.hiddenFields}
+                    backend={props.backend}
+                />
+            </Show>
+        </div>
+    );
+}
+
 export function ResultView(props: { result: string | null; backend: Backend }) {
+    // Signals must be declared before any conditional returns
+    const [hiddenFields, setHiddenFields] = createSignal(new Set<string>());
+    const cls = `jr-${Math.random().toString(36).slice(2, 7)}`;
+
+    function toggleField(key: string) {
+        setHiddenFields(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    }
+
     if (!props.result) return null;
 
     let parsed: unknown;
@@ -182,42 +381,104 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
         return <pre class="text-red-400 text-sm font-mono px-3 py-2">{props.result}</pre>;
     }
 
+    const isArray = Array.isArray(parsed);
+    const items = isArray ? (parsed as unknown[]) : [];
+    const schemaKeys = isArray ? extractSchemaKeys(items) : [];
+    const useAccordion = isArray && schemaKeys.length > 0;
+
+    // Build flat rows only for non-accordion path
     const rows: FlatRow[] = [];
-    if (Array.isArray(parsed)) {
-        (parsed as unknown[]).forEach((v, i) => flatten(v, 0, String(i), rows));
-    } else {
-        flatten(parsed, 0, null, rows);
+    if (!useAccordion) {
+        if (isArray) {
+            items.forEach((v, i) => flatten(v, 0, String(i), rows));
+        } else {
+            flatten(parsed, 0, null, rows);
+        }
     }
 
-    // Unique class per instance so the string selector is scoped to this result
-    const cls = `jr-${Math.random().toString(36).slice(2, 7)}`;
-
     onMount(() => {
-        const scroller = document.getElementById("scroll-root");
-        const rowEls = Array.from(document.querySelectorAll(`.${cls}`)) as HTMLElement[];
+        if (!useAccordion) {
+            const scroller = document.getElementById("scroll-root");
+            const rowEls = Array.from(document.querySelectorAll(`.${cls}`)) as HTMLElement[];
 
-        // Build a sequence: each row fades in at its stagger offset,
-        // and a callback fires at that same time to scroll the row into view.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const seq: any[] = [];
-        rowEls.forEach((el, i) => {
-            const t = i * 0.05;
-            seq.push([el, { opacity: 1 }, { duration: 0.05, at: t }]);
-            seq.push([() => {
-                if (!scroller) return;
-                const rect = el.getBoundingClientRect();
-                const scrollerRect = scroller.getBoundingClientRect();
-                // Target slightly above center (40% down) so last row has breathing room below
-                const target = scrollerRect.top + scrollerRect.height * 0.3;
-                const delta = (rect.top + rect.height / 2) - target;
-                if (delta > 0) scroller.scrollTop += delta;
-            }, { at: t + 0.05 }]);
-        });
-        const finalT = (rowEls.length - 1) * 0.05 + 0.06;
-        seq.push([() => focusComposing(), { at: finalT }]);
-
-        animate(seq);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const seq: any[] = [];
+            rowEls.forEach((el, i) => {
+                const t = i * 0.05;
+                seq.push([el, { opacity: 1 }, { duration: 0.05, at: t }]);
+                seq.push([() => {
+                    if (!scroller) return;
+                    const rect = el.getBoundingClientRect();
+                    const scrollerRect = scroller.getBoundingClientRect();
+                    const target = scrollerRect.top + scrollerRect.height * 0.3;
+                    const delta = (rect.top + rect.height / 2) - target;
+                    if (delta > 0) scroller.scrollTop += delta;
+                }, { at: t + 0.05 }]);
+            });
+            const finalT = rowEls.length > 0 ? (rowEls.length - 1) * 0.05 + 0.06 : 0.06;
+            seq.push([() => focusComposing(), { at: finalT }]);
+            animate(seq);
+        } else {
+            // Accordion: stagger header rows in with same scroll behaviour as flat view
+            const scroller = document.getElementById("scroll-root");
+            const hdrEls = Array.from(document.querySelectorAll(`.${cls}-hdr`)) as HTMLElement[];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const seq: any[] = [];
+            hdrEls.forEach((el, i) => {
+                const t = i * 0.04;
+                seq.push([el, { opacity: 1 }, { duration: 0.04, at: t }]);
+                seq.push([() => {
+                    if (!scroller) return;
+                    const rect = el.getBoundingClientRect();
+                    const scrollerRect = scroller.getBoundingClientRect();
+                    const target = scrollerRect.top + scrollerRect.height * 0.3;
+                    const delta = (rect.top + rect.height / 2) - target;
+                    if (delta > 0) scroller.scrollTop += delta;
+                }, { at: t + 0.04 }]);
+            });
+            const finalT = hdrEls.length > 0 ? (hdrEls.length - 1) * 0.04 + 0.05 : 0.05;
+            seq.push([() => focusComposing(), { at: finalT }]);
+            if (seq.length > 1) animate(seq); else focusComposing();
+        }
     });
+
+    if (useAccordion) {
+        return (
+            <div class="px-3 py-2 flex flex-col gap-px">
+                <div class="flex flex-wrap gap-1 pb-2 mb-1 border-b border-stone-800">
+                    <For each={schemaKeys}>
+                        {(key) => (
+                            <button
+                                onClick={() => toggleField(key)}
+                                class={`px-2 py-0.5 rounded text-xs font-mono border transition-colors ${
+                                    hiddenFields().has(key)
+                                        ? "text-stone-600 bg-stone-800 border-stone-700"
+                                        : "text-amber-400 bg-amber-400/10 border-amber-400/30"
+                                }`}
+                            >
+                                {key}
+                            </button>
+                        )}
+                    </For>
+                </div>
+                <For each={items}>
+                    {(item, i) => (
+                        <AccordionRecord
+                            item={item}
+                            index={i()}
+                            schemaKeys={schemaKeys}
+                            hiddenFields={hiddenFields}
+                            outerCls={cls}
+                            backend={props.backend}
+                        />
+                    )}
+                </For>
+                <Show when={items.length === 0}>
+                    <span class="text-stone-600 text-sm italic px-1 py-1">[]</span>
+                </Show>
+            </div>
+        );
+    }
 
     return (
         <div class="px-3 py-2">
