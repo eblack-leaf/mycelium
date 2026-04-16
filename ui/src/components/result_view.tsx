@@ -324,7 +324,7 @@ function ExpandedRecord(props: {
 // One row in the accordion list — collapsed summary + expandable detail.
 function AccordionRecord(props: {
     item: unknown;
-    open: boolean;
+    open: () => boolean;
     onToggle: () => void;
     schemaKeys: string[];
     focusedFields: () => Set<string>;
@@ -345,14 +345,14 @@ function AccordionRecord(props: {
                     stroke="currentColor"
                     stroke-width={2}
                     style={{
-                        transform: props.open ? "rotate(0deg)" : "rotate(-90deg)",
+                        transform: props.open() ? "rotate(0deg)" : "rotate(-90deg)",
                         transition: "transform 0.12s",
                     }}
                     class="text-stone-600 shrink-0"
                 />
                 <span class="font-mono text-xs text-stone-400 truncate">{summary}</span>
             </div>
-            <Show when={props.open}>
+            <Show when={props.open()}>
                 <ExpandedRecord
                     item={props.item}
                     schemaKeys={props.schemaKeys}
@@ -484,7 +484,7 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
                     </div>
                     <div class="flex items-center gap-2 shrink-0 pt-px">
                         <button
-                            onClick={allOpen() ? collapseAll : expandAll}
+                            onClick={() => allOpen() ? collapseAll() : expandAll()}
                             class="text-xs text-stone-600 hover:text-stone-400 transition-colors shrink-0"
                         >
                             {allOpen() ? "collapse all" : "expand all"}
@@ -495,7 +495,7 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
                     {(item, i) => (
                         <AccordionRecord
                             item={item}
-                            open={openRecords().has(i())}
+                            open={() => openRecords().has(i())}
                             onToggle={() => toggleRecord(i())}
                             schemaKeys={schemaKeys}
                             focusedFields={focusedFields}
