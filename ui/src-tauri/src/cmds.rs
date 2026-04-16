@@ -433,7 +433,7 @@ pub(crate) async fn refresh_schema(
         password: settings.surreal_password,
     };
 
-    let completions = hyphae::db::fetch_schema(&cfg).await?;
+    let (completions, table_infos) = hyphae::db::fetch_schema(&cfg).await?;
 
     let schema_suggestions: Vec<crate::bridge::Suggestion> = completions
         .to_suggestions()
@@ -441,6 +441,23 @@ pub(crate) async fn refresh_schema(
         .map(|(text, metadata)| crate::bridge::Suggestion { text, metadata })
         .collect();
 
-    handle.lock().unwrap().suggestions.other = schema_suggestions.clone();
+    let mut data = handle.lock().unwrap();
+    data.suggestions.other = schema_suggestions.clone();
+    data.schema_tables = table_infos;
     Ok(schema_suggestions)
+}
+
+#[tauri::command]
+pub(crate) async fn get_schema(
+    handle: State<'_, DataM>,
+) -> Result<Vec<crate::bridge::SchemaTable>, ()> {
+    let data = handle.lock().unwrap();
+    let tables = data.schema_tables.iter().map(|t| {
+        let mut fields: Vec<crate::bridge::SchemaField> = t.fields.keys().map(|name| {
+            crate::bridge::SchemaField { name: name.clone(), kind: t.field_kind(name) }
+        }).collect();
+        fields.sort_by(|a, b| a.name.cmp(&b.name));
+        crate::bridge::SchemaTable { name: t.name.clone(), fields }
+    }).collect();
+    Ok(tables)
 }

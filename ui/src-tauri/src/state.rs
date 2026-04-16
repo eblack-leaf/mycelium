@@ -9,6 +9,7 @@ pub(crate) struct Data {
     pub(crate) values: Vec<PlaceholderValue>,
     pub(crate) settings: Settings,
     pub(crate) registry: Arc<hyphae::task::TaskRegistry>,
+    pub(crate) schema_tables: Vec<hyphae::schema::TableInfo>,
     settings_path: PathBuf,
     next_id: u64,
 }
@@ -27,6 +28,7 @@ impl Data {
             values: vec![],
             settings,
             registry: Arc::new(crate::tasks::build_registry()),
+            schema_tables: vec![],
             settings_path,
             next_id: 0,
         };

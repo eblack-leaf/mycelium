@@ -1,7 +1,8 @@
 import { createSignal, For, Show, Match, Switch } from "solid-js";
 import { Backend } from "../backend.tsx";
+import * as Icon from "./feather.tsx";
 
-type Tab = "values" | "settings" | "nav" | "tasks";
+type Tab = "values" | "settings" | "nav" | "tasks" | "schema";
 
 interface Props {
     tab: Tab;
@@ -288,6 +289,69 @@ function TasksView(props: { backend: Backend }) {
     );
 }
 
+function SchemaView(props: { backend: Backend }) {
+    const tables = () => [...props.backend.schema[0]].sort((a, b) => a.name.localeCompare(b.name));
+    const [open, setOpen] = createSignal(new Set<string>());
+
+    function toggle(name: string) {
+        setOpen(prev => {
+            const next = new Set(prev);
+            if (next.has(name)) next.delete(name); else next.add(name);
+            return next;
+        });
+    }
+
+    return (
+        <div class="flex flex-col gap-1 p-3">
+            <Show when={tables().length === 0}>
+                <div class="text-stone-600 text-sm italic px-1 py-2">
+                    no schema — connect in settings
+                </div>
+            </Show>
+            <For each={tables()}>
+                {(table) => (
+                    <div class="rounded bg-stone-800">
+                        <button
+                            onClick={() => toggle(table.name)}
+                            class="w-full flex items-center gap-2 px-3 py-2 text-left"
+                        >
+                            <Icon.ChevronDown
+                                size={13}
+                                stroke="currentColor"
+                                stroke-width={2}
+                                style={{
+                                    transform: open().has(table.name) ? "rotate(0deg)" : "rotate(-90deg)",
+                                    transition: "transform 0.12s",
+                                }}
+                                class="text-stone-600 shrink-0"
+                            />
+                            <span class="text-stone-200 text-sm font-mono">{table.name}</span>
+                            <span class="text-stone-600 text-xs ml-auto shrink-0">{table.fields.length}</span>
+                        </button>
+                        <Show when={open().has(table.name)}>
+                            <div class="pb-2 flex flex-col gap-px border-t border-stone-700/50">
+                                <For each={table.fields}>
+                                    {(field) => (
+                                        <div class="flex items-center gap-2 px-3 py-1">
+                                            <span class="text-stone-400 text-xs font-mono flex-1 truncate">{field.name}</span>
+                                            <Show when={field.kind}>
+                                                <span class="text-stone-600 text-xs font-mono shrink-0">{field.kind}</span>
+                                            </Show>
+                                        </div>
+                                    )}
+                                </For>
+                                <Show when={table.fields.length === 0}>
+                                    <div class="text-stone-700 text-xs italic px-3 py-1">no defined fields</div>
+                                </Show>
+                            </div>
+                        </Show>
+                    </div>
+                )}
+            </For>
+        </div>
+    );
+}
+
 function resultMeta(result: string | null): string {
     if (!result) return "—";
     try {
@@ -351,6 +415,9 @@ export function Sidebar(props: Props) {
                 </Show>
                 <Show when={props.tab === "tasks"}>
                     <TasksView backend={props.backend} />
+                </Show>
+                <Show when={props.tab === "schema"}>
+                    <SchemaView backend={props.backend} />
                 </Show>
             </div>
         </div>

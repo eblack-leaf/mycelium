@@ -109,10 +109,6 @@ export const Option = icon(() => (
     </>
 ));
 
-// Navigation marker / jump-to
-export const Navigation2 = icon(() => (
-    <polygon points="12 2 19 21 12 17 5 21 12 2"/>
-));
 
 export const Paperclip = icon(() => (
     <>
@@ -137,6 +133,14 @@ export const Play = icon(() => (
 
 export const Check = icon(() => (
     <polyline points="20 6 9 17 4 12"/>
+));
+
+export const Database = icon(() => (
+    <>
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </>
 ));
 
 export const Clipboard = icon(() => (

@@ -82,6 +82,20 @@ pub(crate) struct PasteResult {
     pub(crate) values: Vec<PlaceholderValue>,
 }
 
+#[derive(Serialize, Deserialize, TS, Clone)]
+#[ts(export)]
+pub(crate) struct SchemaField {
+    pub(crate) name: String,
+    pub(crate) kind: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone)]
+#[ts(export)]
+pub(crate) struct SchemaTable {
+    pub(crate) name: String,
+    pub(crate) fields: Vec<SchemaField>,
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {

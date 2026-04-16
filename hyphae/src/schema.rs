@@ -10,19 +10,41 @@ pub struct DbInfo {
 }
 
 /// Parsed output of `INFO FOR TABLE <name>`.
+/// Fields are stored as raw JSON values because SurrealDB returns either
+/// structured objects (newer versions) or raw definition strings (older versions).
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TableInfo {
+    #[serde(default)]
     pub name: String,
-    pub fields: HashMap<String, FieldInfo>,
-    pub indexes: HashMap<String, String>,
-    pub events: HashMap<String, String>,
+    #[serde(default)]
+    pub fields: HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub indexes: HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub events: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct FieldInfo {
-    pub kind: Option<String>, // "string", "int", "record<user>", etc.
-    pub value: Option<String>,
-    pub assert: Option<String>,
+impl TableInfo {
+    /// Extract the type kind for a named field, handling both response formats.
+    pub fn field_kind(&self, field: &str) -> Option<String> {
+        let v = self.fields.get(field)?;
+        // Structured format: { "kind": "string", ... }
+        if let Some(k) = v.get("kind").and_then(|k| k.as_str()) {
+            return Some(k.to_string());
+        }
+        // Definition string format: "DEFINE FIELD name ON table TYPE string ..."
+        if let Some(s) = v.as_str() {
+            let upper = s.to_uppercase();
+            if let Some(idx) = upper.find(" TYPE ") {
+                let rest = &s[idx + 6..];
+                let kind = rest.split_whitespace().next().unwrap_or("");
+                if !kind.is_empty() {
+                    return Some(kind.to_string());
+                }
+            }
+        }
+        None
+    }
 }
 
 /// Flat list of completable schema tokens derived from DB info.
@@ -38,13 +60,11 @@ impl SchemaCompletions {
         let mut field_names: Vec<String> = tables
             .iter()
             .flat_map(|t| t.fields.keys().cloned())
+            .filter(|k| !k.contains('.')) // skip nested paths like "address.city"
             .collect();
         field_names.sort();
         field_names.dedup();
-        Self {
-            table_names,
-            field_names,
-        }
+        Self { table_names, field_names }
     }
 
     /// Flatten into (text, metadata) pairs for the completion suggestion pool.

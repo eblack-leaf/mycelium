@@ -98,28 +98,40 @@ fn unwrap_surreal_envelope(body: &str) -> String {
 }
 
 /// Fetch schema by running INFO FOR DB + INFO FOR TABLE for each table.
-pub async fn fetch_schema(cfg: &ConnConfig) -> Result<SchemaCompletions, String> {
+/// Returns both flat completions and the structured table list.
+pub async fn fetch_schema(cfg: &ConnConfig) -> Result<(SchemaCompletions, Vec<crate::schema::TableInfo>), String> {
     let db_json = query(cfg, "INFO FOR DB").await?;
 
     let Some(db_info) = parse_db_info(&db_json) else {
-        // Parsed OK but result wasn't DbInfo shaped — return what we have
-        return Ok(SchemaCompletions {
-            table_names: vec![],
-            field_names: vec![],
-        });
+        return Ok((SchemaCompletions { table_names: vec![], field_names: vec![] }, vec![]));
     };
 
     let mut table_infos = Vec::new();
     for name in db_info.tables.keys() {
-        match query(cfg, &format!("INFO FOR TABLE {}", name)).await {
-            Ok(json) => {
-                if let Some(ti) = parse_table_info(name, &json) {
-                    table_infos.push(ti);
+        let mut ti = match query(cfg, &format!("INFO FOR TABLE {}", name)).await {
+            Ok(json) => parse_table_info(name, &json)
+                .unwrap_or_else(|| crate::schema::TableInfo { name: name.clone(), ..Default::default() }),
+            Err(_) => crate::schema::TableInfo { name: name.clone(), ..Default::default() },
+        };
+
+        // Schemaless tables have no defined fields — infer from a sample record
+        if ti.fields.is_empty() {
+            if let Ok(json) = query(cfg, &format!("SELECT * FROM {} LIMIT 1", name)).await {
+                if let Ok(serde_json::Value::Array(rows)) = serde_json::from_str::<serde_json::Value>(&json) {
+                    if let Some(obj) = rows.first().and_then(|r| r.as_object()) {
+                        for key in obj.keys() {
+                            if key != "id" {
+                                ti.fields.insert(key.clone(), serde_json::Value::Null);
+                            }
+                        }
+                    }
                 }
             }
-            Err(_) => {} // best-effort; skip tables that error
         }
+
+        table_infos.push(ti);
     }
 
-    Ok(SchemaCompletions::from_db(&db_info, &table_infos))
+    let completions = SchemaCompletions::from_db(&db_info, &table_infos);
+    Ok((completions, table_infos))
 }

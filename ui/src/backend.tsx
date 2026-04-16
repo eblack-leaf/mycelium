@@ -3,6 +3,7 @@ import { createStore, reconcile, SetStoreFunction, Store } from "solid-js/store"
 import { Block } from "./bindings/Block.ts";
 import { PasteResult } from "./bindings/PasteResult.ts";
 import { PlaceholderValue } from "./bindings/PlaceholderValue.ts";
+import { SchemaTable } from "./bindings/SchemaTable.ts";
 import { Settings } from "./bindings/Settings.ts";
 import { Suggestions } from "./bindings/Suggestions.ts";
 import { TaskMeta } from "./bindings/TaskMeta.ts";
@@ -13,6 +14,7 @@ export class Backend {
     values: [Store<PlaceholderValue[]>, SetStoreFunction<PlaceholderValue[]>];
     settings: [Store<Settings>, SetStoreFunction<Settings>];
     tasks: [Store<TaskMeta[]>, SetStoreFunction<TaskMeta[]>];
+    schema: [Store<SchemaTable[]>, SetStoreFunction<SchemaTable[]>];
 
     constructor() {
         this.blocks = createStore<Block[]>([]);
@@ -27,6 +29,7 @@ export class Backend {
             placeholder_prefix: "@",
         });
         this.tasks = createStore<TaskMeta[]>([]);
+        this.schema = createStore<SchemaTable[]>([]);
     }
 
     composingBlock(): Block | undefined {
@@ -101,6 +104,8 @@ export class Backend {
     async refreshSchema(): Promise<string | null> {
         try {
             await invoke("refresh_schema");
+            const tables = await invoke<SchemaTable[]>("get_schema");
+            this.schema[1](reconcile(tables));
             return null;
         } catch (e) {
             return String(e);
