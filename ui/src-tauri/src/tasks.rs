@@ -42,7 +42,6 @@ impl Task for TotpTask {
 
         let secret = match rows
             .get(1)
-            .and_then(|r| r.get("result"))
             .and_then(|r| r.get(0))
             .and_then(|r| r.get("secret"))
             .and_then(|s| s.as_str())

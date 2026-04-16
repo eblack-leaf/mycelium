@@ -458,8 +458,8 @@ export function ResultView(props: { result: string | null; backend: Backend }) {
 
     if (useAccordion) {
         const allOpen = () => openRecords().size === items.length;
-        const expandAll = () => setOpenRecords(new Set(items.map((_, i) => i)));
-        const collapseAll = () => setOpenRecords(new Set());
+        const expandAll = () => setOpenRecords(new Set<number>(items.map((_, i) => i)));
+        const collapseAll = () => setOpenRecords(new Set<number>());
 
         return (
             <div class="px-3 py-2 flex flex-col gap-px">

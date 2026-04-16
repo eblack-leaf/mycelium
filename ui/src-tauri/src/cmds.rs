@@ -218,7 +218,7 @@ fn completion_score(word: &str, candidate: &str) -> f64 {
     } else if c.contains(&w) {
         0.5
     } else {
-        strsim::jaro_winkler(&w, &c) * 0.6 // scale down pure fuzzy so prefix always wins
+        strsim::sorensen_dice(&w, &c) * 0.6 // scale down pure fuzzy so prefix always wins
     }
 }
 
